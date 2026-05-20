@@ -1,111 +1,127 @@
-:root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
-
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
-
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
+@import "tailwindcss";
+/* =========================================
+  1. ESTILOS BASE Y MODO CLARO (POR DEFECTO)
+  ========================================= */
+body { 
+  margin: 0; 
+  background-color: #f0f2f5; 
+  font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
+.app-wrapper {
+  min-height: 100vh;
+  transition: all 0.3s ease;
+  position: relative; /* Ayuda a posicionar el botón flotante */
 }
 
-body {
-  margin: 0;
+/* Botón de tema flotante */
+.btn-tema {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: #333;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: bold;
+  z-index: 1000;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  transition: all 0.3s ease;
 }
 
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
+/* --- LOGIN --- */
+.pantalla-login { display: flex; justify-content: center; align-items: center; height: 100vh; }
+.tarjeta-login { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 350px; text-align: center; }
+.tarjeta-login h1 { margin-top: 0; color: #2c3e50; }
+.tarjeta-login h2 { color: #7f8c8d; font-size: 18px; margin-bottom: 30px; }
+.grupo-input { display: flex; flex-direction: column; text-align: left; margin-bottom: 20px; }
+.grupo-input label { font-weight: bold; font-size: 14px; margin-bottom: 5px; color: #34495e; }
+.grupo-input input { padding: 10px; border: 1px solid #bdc3c7; border-radius: 6px; font-size: 16px; }
+.btn-entrar { width: 100%; padding: 12px; background-color: #3498db; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; }
+.btn-entrar:hover { background-color: #2980b9; }
+.error { color: #dc2626; font-weight: bold; text-align: center; }
+
+/* --- PANEL PRINCIPAL --- */
+.contenedor-panel { max-width: 1000px; margin: 0 auto; padding: 60px 20px 20px 20px; } 
+
+.header-panel { 
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 20px; background: white; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  margin-bottom: 30px;
+}
+.header-panel h1 { margin: 0; color: #2c3e50; font-size: 24px; }
+.btn-logout { background: #fee2e2; color: #dc2626; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+
+/* Sección Registro */
+.seccion-registro { background: white; padding: 25px; border-radius: 12px; margin-bottom: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: left; }
+.seccion-registro h2 { margin-top: 0; color: #2c3e50; }
+.form-registro { display: flex; gap: 15px; flex-wrap: wrap; }
+.form-registro input { flex: 1; min-width: 200px; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 16px; }
+.btn-guardar { background: #3b82f6; color: white; border: none; padding: 12px 25px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+
+/* Grid de Pacientes */
+.seccion-lista { text-align: left; }
+.seccion-lista h2 { color: #2c3e50; }
+.grid-pacientes { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+.tarjeta-paciente { background: white; padding: 20px; border-radius: 12px; border-left: 5px solid #3b82f6; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+.tarjeta-paciente h3 { margin: 0 0 10px 0; color: #1e293b; }
+.tarjeta-paciente p { color: #64748b; margin-bottom: 15px; }
+.btn-ver { width: 100%; padding: 10px; background: #f1f5f9; border: none; border-radius: 6px; color: #475569; cursor: pointer; font-weight: 600; transition: background 0.2s; }
+.btn-ver:hover { background: #e2e8f0; }
+
+/* --- EL CONSULTORIO (EXPEDIENTE) --- */
+.seccion-expediente { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: left; }
+.btn-volver { background: transparent; border: none; color: #3b82f6; font-weight: bold; cursor: pointer; padding: 0; margin-bottom: 20px; font-size: 16px; }
+.btn-volver:hover { text-decoration: underline; }
+.cabecera-paciente { border-bottom: 2px solid #f0f2f5; padding-bottom: 20px; margin-bottom: 20px; }
+.cabecera-paciente h2 { color: #64748b; font-size: 16px; margin: 0 0 5px 0; text-transform: uppercase; letter-spacing: 1px; }
+.cabecera-paciente h3 { margin: 0 0 10px 0; color: #1e293b; font-size: 28px; }
+.area-notas h4 { color: #2c3e50; margin-bottom: 10px; }
+.caja-notas { width: 100%; padding: 15px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 16px; font-family: inherit; resize: vertical; box-sizing: border-box; margin-bottom: 15px; }
+.btn-guardar-nota { background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+/* =========================================
+   2. REGLAS DEL MODO OSCURO
+   ========================================= */
+.modo-oscuro .btn-tema { background: #f1c40f; color: #121212; }
+
+.modo-oscuro h1, 
+.modo-oscuro h2, 
+.modo-oscuro h3, 
+.modo-oscuro label, 
+.modo-oscuro p { color: #e0e0e0; }
+
+.modo-oscuro .tarjeta-login,
+.modo-oscuro .header-panel,
+.modo-oscuro .seccion-registro,
+.modo-oscuro .tarjeta-paciente {
+  background-color: #1e1e1e;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  border-color: #333;
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
+.modo-oscuro input {
+  background-color: #2c2c2c;
+  color: white;
+  border: 1px solid #444;
 }
+.modo-oscuro input::placeholder { color: #888; }
 
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
-}
+.modo-oscuro .btn-ver { background: #2c2c2c; color: #aaa; }
+.modo-oscuro .btn-ver:hover { background: #3c3c3c; color: white; }
+.modo-oscuro .seccion-expediente { background-color: #1e1e1e; border-color: #333; }
+.modo-oscuro .caja-notas { background-color: #2c2c2c; color: white; border: 1px solid #444; }
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
-}
+/* --- ESTILOS PARA LA IA --- */
+.acciones-nota { display: flex; gap: 15px; margin-bottom: 20px; }
 
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
-}
+.btn-ia { background: #8b5cf6; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: background 0.3s; }
+.btn-ia:hover:not(:disabled) { background: #7c3aed; }
+.btn-ia:disabled { opacity: 0.7; cursor: not-allowed; }
+
+.tarjeta-ia { background: #f3e8ff; border-left: 5px solid #8b5cf6; padding: 20px; border-radius: 8px; margin-top: 20px; color: #4c1d95; line-height: 1.6; }
+.tarjeta-ia h4 { margin-top: 0; display: flex; align-items: center; gap: 10px; }
+
+/* Para que se vea bien en Modo Oscuro */
+.modo-oscuro .tarjeta-ia { background: #2e1065; color: #e9d5ff; border-left-color: #a78bfa; }
