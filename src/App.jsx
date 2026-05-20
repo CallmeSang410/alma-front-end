@@ -271,21 +271,3 @@ function App() {
 export default App;
 
 
-/*1. Iniciar Git en tu carpeta*/
-git init
-
-/* 2. Agregar todos tus archivos (el punto es importante)*/
-git add .
-
-# 3. Empaquetarlos con un mensaje
-git commit -m "Primer commit: Interfaz de Recepción y Expediente con IA"
-
-# 4. Asegurar que la rama principal se llame 'main'
-git branch -M main
-
-# 5. Conectar tu carpeta local con el repositorio de GitHub
-# OJO: Cambia este enlace por el que te dio TU GitHub en la página de alma-frontend
-git remote add origin https://github.com/TU_USUARIO/alma-frontend.git
-
-# 6. Subir todo a la nube
-git push -u origin main
