@@ -2,41 +2,51 @@
    --- INTERFACE.CSS ---
    ==================================================================== */
 
-/* Efecto de curvatura invertida exclusivo para el botón activo en el menú */
-.active-nav-curve {
-  background-color: #F4F8F8;
-  color: #0F766E !important;
+/* Clase base para los botones del menú. 
+   Preparamos las curvas pero las mantenemos invisibles. */
+.nav-button {
   position: relative;
   border-top-left-radius: 24px;
   border-bottom-left-radius: 24px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
 }
 
-/* Curva superior perfecta usando radial-gradient */
-.active-nav-curve::before {
+.nav-button::before,
+.nav-button::after {
   content: '';
   position: absolute;
-  right: 0;
+  right: 0;          /* <-- Esto es vital para que no queden cortes */
+  width: 24px;
+  height: 24px;
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+  pointer-events: none;
+}
+
+/* Curva superior */
+.nav-button::before {
   top: -24px;
-  width: 24px;
-  height: 24px;
   background: radial-gradient(circle at top left, transparent 23.5px, #F4F8F8 24px);
-  pointer-events: none;
 }
 
-/* Curva inferior perfecta usando radial-gradient */
-.active-nav-curve::after {
-  content: '';
-  position: absolute;
-  right: 0;
+/* Curva inferior */
+.nav-button::after {
   bottom: -24px;
-  width: 24px;
-  height: 24px;
   background: radial-gradient(circle at bottom left, transparent 23.5px, #F4F8F8 24px);
-  pointer-events: none;
 }
 
-/* Animación sutil de desvanecimiento de entrada para transiciones fluidas */
+/* Cuando el botón está activo, mostramos el fondo y las curvas suavemente */
+.active-nav-curve {
+  background-color: #F4F8F8;
+  color: #0F766E !important;
+}
+
+.active-nav-curve::before,
+.active-nav-curve::after {
+  opacity: 1; /* Aparecen sin deformar el contenedor */
+}
+
+/* Animación sutil de desvanecimiento */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
@@ -44,13 +54,6 @@
 
 .animate-fade-in {
   animation: fadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-/* Transición suave global de colores */
-.transition-all {
-  transition-property: all;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 200ms;
 }
 
 /* Barra de desplazamiento (Scrollbar) personalizada */
@@ -69,4 +72,21 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(13, 148, 136, 0.4);
+}
+
+/* Tus media queries anteriores... */
+@media (max-width: 1024px) {
+  .contenedor-panel { padding: 30px 16px 16px 16px; }
+  .header-panel { flex-direction: column; align-items: stretch; gap: 16px; }
+  .seccion-registro .form-registro { flex-direction: column; }
+}
+
+@media (max-width: 768px) {
+  .pantalla-login { padding: 24px; height: auto; min-height: 100vh; }
+  .tarjeta-login { width: min(100%, 380px); margin: 0 auto; padding: 30px; }
+  .form-registro input, .btn-guardar, .btn-volver, .btn-ia, .btn-guardar-nota { width: 100%; }
+  .grid-pacientes { grid-template-columns: 1fr; }
+  .header-panel h1 { font-size: 20px; }
+  .cabecera-paciente h3 { font-size: 24px; }
+  .seccion-expediente, .seccion-registro, .seccion-lista, .tarjeta-paciente { padding: 20px; }
 }
