@@ -1,0 +1,72 @@
+/* ====================================================================
+   --- INTERFACE.CSS ---
+   ==================================================================== */
+
+/* Efecto de curvatura invertida exclusivo para el botón activo en el menú */
+.active-nav-curve {
+  background-color: #F4F8F8;
+  color: #0F766E !important;
+  position: relative;
+  border-top-left-radius: 24px;
+  border-bottom-left-radius: 24px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Curva superior perfecta usando radial-gradient */
+.active-nav-curve::before {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: -24px;
+  width: 24px;
+  height: 24px;
+  background: radial-gradient(circle at top left, transparent 23.5px, #F4F8F8 24px);
+  pointer-events: none;
+}
+
+/* Curva inferior perfecta usando radial-gradient */
+.active-nav-curve::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: -24px;
+  width: 24px;
+  height: 24px;
+  background: radial-gradient(circle at bottom left, transparent 23.5px, #F4F8F8 24px);
+  pointer-events: none;
+}
+
+/* Animación sutil de desvanecimiento de entrada para transiciones fluidas */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Transición suave global de colores */
+.transition-all {
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 200ms;
+}
+
+/* Barra de desplazamiento (Scrollbar) personalizada */
+::-webkit-scrollbar {
+  width: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(13, 148, 136, 0.2);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(13, 148, 136, 0.4);
+}
