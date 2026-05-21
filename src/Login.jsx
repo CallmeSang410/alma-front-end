@@ -5,6 +5,7 @@ import logoEmpresa from './assets/logo.png';
 export default function Login({ onLoginSuccess }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [activeTab, setActiveTab] = useState('login');
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -13,6 +14,11 @@ export default function Login({ onLoginSuccess }) {
 
     if (!email || !password) {
       setErrorMessage('Por favor, ingresa tu email y contraseña para continuar.');
+      return;
+    }
+
+    if (!email.includes('@gmail')) {
+      setErrorMessage('Por favor ingresa un email válido de Gmail.');
       return;
     }
 
@@ -86,7 +92,7 @@ export default function Login({ onLoginSuccess }) {
                   </div>
                   <input
                     type="email"
-                    placeholder="Email o teléfono"
+                    placeholder="Email o Usuario"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full pl-12 pr-4 py-3 rounded-xl text-sm bg-slate-50 text-[#113130] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/30 focus:bg-white transition-all border border-slate-200"
@@ -101,12 +107,19 @@ export default function Login({ onLoginSuccess }) {
                     </svg>
                   </div>
                   <input
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     placeholder="Contraseña"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3 rounded-xl text-sm bg-slate-50 text-[#113130] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/30 focus:bg-white transition-all border border-slate-200"
+                    className="w-full pl-12 pr-24 py-3 rounded-xl text-sm bg-slate-50 text-[#113130] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/30 focus:bg-white transition-all border border-slate-200"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-xs font-semibold text-[#0F766E] hover:text-[#0D9488]"
+                  >
+                    {showPassword ? 'Ocultar' : 'Mostrar'}
+                  </button>
                 </div>
 
                 {/* Forgot Password Link */}
@@ -131,37 +144,6 @@ export default function Login({ onLoginSuccess }) {
                 </button>
               </form>
 
-              {/* Divider con "O" */}
-              <div className="relative flex items-center gap-4 py-2">
-                <div className="flex-1 h-px bg-slate-200"></div>
-                <span className="text-xs text-slate-400 font-semibold">O</span>
-                <div className="flex-1 h-px bg-slate-200"></div>
-              </div>
-
-              {/* Social Login Buttons */}
-              <div className="grid gap-3 sm:grid-cols-2">
-                <button
-                  type="button"
-                  onClick={() => alert('Login con Google aún no está implementado.')}
-                  className="w-full py-3 px-4 border border-slate-200 rounded-xl text-sm font-bold uppercase tracking-wider text-slate-700 hover:bg-slate-50 transition-colors flex items-center justify-center gap-3"
-                >
-                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M21.35 11.1H12V13.95h5.35c-.23 1.25-1.41 3.65-5.35 3.65-3.22 0-5.85-2.65-5.85-5.9s2.63-5.9 5.85-5.9c1.84 0 3.05.79 3.75 1.47l2.55-2.46C17.72 2.93 15.17 1.7 12 1.7 6.48 1.7 2 6.18 2 11.7S6.48 21.7 12 21.7c6.16 0 10.7-4.32 10.7-10.6 0-.72-.08-1.26-.35-1.9z" />
-                  </svg>
-                  Continuar con Google
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => alert('Login con LinkedIn aún no está implementado.')}
-                  className="w-full py-3 px-4 border border-slate-200 rounded-xl text-sm font-bold uppercase tracking-wider text-slate-700 hover:bg-slate-50 transition-colors flex items-center justify-center gap-3"
-                >
-                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M4.98 3.5a2.11 2.11 0 1 1 0 4.22 2.11 2.11 0 0 1 0-4.22zM3.5 8.75h3v11.5h-3v-11.5zm7.5 0h2.84v1.57h.04c.4-.76 1.37-1.57 2.82-1.57 3.02 0 3.58 1.99 3.58 4.57v5.93h-3v-5.25c0-1.25-.02-2.86-1.74-2.86-1.74 0-2.01 1.36-2.01 2.76v5.35h-3v-11.5z" />
-                  </svg>
-                  Continuar con LinkedIn
-                </button>
-              </div>
             </div>
           </div>
 
@@ -173,11 +155,9 @@ export default function Login({ onLoginSuccess }) {
                 <img 
                   src={logoEmpresa} 
                   alt="Horizon Flow Logo" 
-                  className="w-64 h-auto object-contain filter drop-shadow-lg"
+                  className="w-72 h-auto object-contain filter drop-shadow-lg"
                 />
               </div>
-              
-              {/* Texto motivacional */}
               <div className="space-y-3">
                 <p className="text-lg font-black text-white leading-snug">
                   Gestión clínica inteligente
@@ -185,13 +165,6 @@ export default function Login({ onLoginSuccess }) {
                 <p className="text-sm text-teal-50 leading-relaxed">
                   Accede a tu plataforma y simplifica la administración de pacientes y citas
                 </p>
-              </div>
-
-              {/* Puntos decorativos */}
-              <div className="flex justify-center gap-2 pt-4">
-                <div className="w-2 h-2 rounded-full bg-white"></div>
-                <div className="w-2 h-2 rounded-full bg-white/60"></div>
-                <div className="w-2 h-2 rounded-full bg-white/30"></div>
               </div>
             </div>
           </div>
