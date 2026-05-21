@@ -49,7 +49,7 @@ const IconLogout = () => (
     </svg>
 );
 
-export default function App() {
+export default function Interface({ onLogout }) {
     const [activeTab, setActiveTab] = useState('dashboard');
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
@@ -238,7 +238,7 @@ export default function App() {
                         <button
                             onClick={() => {
                                 setShowLogoutModal(false);
-                                console.log("Sesión finalizada correctamente.");
+                                onLogout();
                             }}
                             className="flex-1 py-2.5 px-4 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-md shadow-rose-500/20 transition-colors"
                         >
