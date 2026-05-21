@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import './Interface.css';
+import Dashboard from './Dashboard';
 import logoEmpresa from './assets/logo.png';
 
 // --- ICONOS VECTORIALES CLÍNICOS ---
@@ -50,6 +51,7 @@ const IconLogout = () => (
 );
 
 export default function Interface({ onLogout }) {
+    const [isChatOpen, setIsChatOpen] = useState(false);
     const [activeTab, setActiveTab] = useState('dashboard');
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
@@ -63,6 +65,19 @@ export default function Interface({ onLogout }) {
         { id: 'experiencia', label: 'Experiencia', icon: <IconExperience /> },
         { id: 'settings', label: 'Ajustes', icon: <IconSettings /> },
     ];
+    const renderContent = () => {
+        switch (activeTab) {
+            case 'dashboard':
+                return <Dashboard />;
+            case 'pacientes':
+                return <div className="text-center text-slate-500 font-bold mt-10">Módulo de Pacientes en construcción...</div>;
+            case 'citas':
+                return <div className="text-center text-slate-500 font-bold mt-10">Módulo de Citas en construcción...</div>;
+            default:
+                return <Dashboard />;
+        }
+    };
+    
 
     return (
         <div className="min-h-screen font-sans bg-[#F4F8F8] text-[#113130] flex flex-col lg:flex-row antialiased relative">
@@ -89,7 +104,7 @@ export default function Interface({ onLogout }) {
         </div>
 
         {/* ================= 1. BARRA LATERAL (PC Y MÓVIL DESLIZABLE) ================= */}
-        <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#0F766E] text-white flex flex-col justify-between transform lg:transform-none lg:opacity-100 lg:relative transition-all duration-300 ease-out shrink-0 shadow-xl lg:shadow-none ${sidebarOpen ? 'translate-x-0 opacity-100' : '-translate-x-full lg:translate-x-0'}`}>
+     <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#0F766E] text-white flex flex-col justify-between transform lg:transform-none lg:opacity-100 lg:sticky lg:top-0 lg:h-screen transition-all duration-300 ease-out shrink-0 shadow-xl lg:shadow-none ${sidebarOpen ? 'translate-x-0 opacity-100' : '-translate-x-full lg:translate-x-0'}`}>
             <div className="flex flex-col">
            {/* CONTENEDOR DEL LOGO (MÁXIMO TAMAÑO) */}
             <div className="w-full pt-8 pb-4 px-2 flex flex-col items-center relative">
@@ -207,6 +222,7 @@ export default function Interface({ onLogout }) {
 
             {/* Área de Contenido Dinámico */}
             <div className="flex-1 p-6 lg:p-8 animate-fade-in">
+                {renderContent()}
                 {/* Aquí se renderizará el contenido según tus vistas dinámicas */}
             </div>
         </div>
@@ -248,6 +264,78 @@ export default function Interface({ onLogout }) {
                 </div>
             </div>
         )}
+        {/* ========================================================= */}
+        {/* CHATBOT GLOBAL (NIVEL INTERFAZ)                             */}
+        {/* ========================================================= */}
+        
+        {/* 1. Botón Flotante */}
+        <button 
+            onClick={() => setIsChatOpen(true)}
+            className="fixed bottom-6 right-6 lg:bottom-10 lg:right-10 w-14 h-14 bg-[#0F766E] text-white rounded-full shadow-2xl flex items-center justify-center hover:bg-[#0D9488] transition-transform hover:scale-105 z-[60] focus:outline-none"
+        >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
+            <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-rose-500 border-2 border-white rounded-full"></span>
+        </button>
+
+        {/* 2. Fondo oscuro */}
+        {isChatOpen && (
+            <div 
+                className="fixed inset-0 bg-[#113130]/30 backdrop-blur-sm z-[70] transition-opacity"
+                onClick={() => setIsChatOpen(false)}
+            ></div>
+        )}
+
+        {/* 3. Barra Lateral del Chatbot */}
+        <div className={`fixed top-0 right-0 h-full w-full sm:w-[400px] bg-white shadow-2xl z-[80] transform transition-transform duration-300 ease-in-out flex flex-col ${isChatOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+            <div className="bg-slate-50 p-5 border-b border-slate-100 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-[#0F766E]/10 flex items-center justify-center text-[#0F766E] shadow-sm border border-teal-100">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                    </div>
+                    <div>
+                        <h3 className="font-black text-[#113130] text-sm">Soporte ALMA</h3>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Asistente en línea</p>
+                        </div>
+                    </div>
+                </div>
+                <button onClick={() => setIsChatOpen(false)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+
+            <div className="flex-1 p-5 bg-white flex flex-col gap-4 overflow-y-auto">
+                <div className="flex gap-2">
+                    <div className="bg-slate-50 p-3.5 rounded-2xl rounded-tl-sm border border-slate-100 text-xs text-slate-600 font-medium leading-relaxed max-w-[85%] shadow-sm">
+                        Hola Dr., soy tu asistente de soporte. ¿En qué te puedo ayudar hoy con la plataforma?
+                    </div>
+                </div>
+                <div className="flex gap-2 justify-end">
+                    <div className="bg-[#0F766E] p-3.5 rounded-2xl rounded-tr-sm text-xs text-white shadow-md font-medium leading-relaxed max-w-[85%]">
+                        ¿Cómo exporto el reporte mensual?
+                    </div>
+                </div>
+                <div className="flex gap-2">
+                    <div className="bg-slate-50 p-3.5 rounded-2xl rounded-tl-sm border border-slate-100 text-xs text-slate-600 font-medium leading-relaxed max-w-[85%] shadow-sm">
+                        ¡Claro! Ve a la pestaña de "Reportes" en tu menú principal, selecciona el mes que deseas y haz clic en el botón verde de "Exportar a PDF" arriba a la derecha. ¿Te ayudo con algo más?
+                    </div>
+                </div>
+            </div>
+
+            <div className="p-5 border-t border-slate-100 bg-slate-50">
+                <div className="relative">
+                    <input 
+                        type="text" 
+                        placeholder="Escribe tu pregunta..." 
+                        className="w-full text-xs font-medium pl-4 pr-12 py-3.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-[#0F766E] focus:ring-1 focus:ring-[#0F766E] transition-all shadow-sm" 
+                    />
+                    <button className="absolute right-2 top-2 p-1.5 bg-[#0F766E] text-white rounded-lg hover:bg-[#0D9488] transition-colors">
+                        <svg className="w-4 h-4 transform rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
 
         </div>
     );
