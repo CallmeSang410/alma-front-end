@@ -65,7 +65,7 @@ export default function Interface({ onLogout }) {
         { id: 'experiencia', label: 'Experiencia', icon: <IconExperience /> },
         { id: 'settings', label: 'Ajustes', icon: <IconSettings /> },
     ];
-    const renderContent = () => {
+   const renderContent = () => {
         switch (activeTab) {
             case 'dashboard':
                 return <Dashboard />;
@@ -73,8 +73,15 @@ export default function Interface({ onLogout }) {
                 return <div className="text-center text-slate-500 font-bold mt-10">Módulo de Pacientes en construcción...</div>;
             case 'citas':
                 return <div className="text-center text-slate-500 font-bold mt-10">Módulo de Citas en construcción...</div>;
+            case 'reportes':
+                return <div className="text-center text-slate-500 font-bold mt-10">Módulo de Reportes en construcción...</div>;
+            case 'experiencia':
+                return <div className="text-center text-slate-500 font-bold mt-10">Módulo de Experiencia en construcción...</div>;
+            case 'settings':
+                return <div className="text-center text-slate-500 font-bold mt-10">Módulo de Ajustes en construcción...</div>;
             default:
-                return <Dashboard />;
+                // El default ahora muestra un texto genérico por si acaso
+                return <div className="text-center text-slate-500 font-bold mt-10">Pantalla no encontrada.</div>;
         }
     };
     
