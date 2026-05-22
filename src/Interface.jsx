@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import './Interface.css';
 import Dashboard from './Dashboard';
+import Pacientes from './Pacientes';
+import Citas from './Citas';
+import Reportes from './Reportes';
 import logoEmpresa from './assets/logo.png';
 
 // --- ICONOS VECTORIALES CLÍNICOS ---
@@ -70,11 +73,11 @@ export default function Interface({ onLogout }) {
             case 'dashboard':
                 return <Dashboard />;
             case 'pacientes':
-                return <div className="text-center text-slate-500 font-bold mt-10">Módulo de Pacientes en construcción...</div>;
+              return <Pacientes searchQuery={searchQuery} />;
             case 'citas':
-                return <div className="text-center text-slate-500 font-bold mt-10">Módulo de Citas en construcción...</div>;
+                return <Citas />;
             case 'reportes':
-                return <div className="text-center text-slate-500 font-bold mt-10">Módulo de Reportes en construcción...</div>;
+                return <Reportes />;
             case 'experiencia':
                 return <div className="text-center text-slate-500 font-bold mt-10">Módulo de Experiencia en construcción...</div>;
             case 'settings':
