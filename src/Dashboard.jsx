@@ -28,9 +28,14 @@ const Dashboard = () => {
     const [newTaskTitle, setNewTaskTitle] = useState('');
     const [newTaskCategory, setNewTaskCategory] = useState('Clínico');
     const [newTaskUrgency, setNewTaskUrgency] = useState('Baja');
+    const [taskError, setTaskError] = useState('');
 
     const handleAddTask = (e) => {
         e.preventDefault();
+        if (!newTaskTitle.trim()) {
+            setTaskError('Este campo no puede quedar vacío. Describe tu tarea con claridad.');
+            return;
+        }
         const newTask = {
             id: Date.now(),
             title: newTaskTitle,
@@ -43,6 +48,7 @@ const Dashboard = () => {
         setNewTaskTitle('');
         setNewTaskCategory('Clínico');
         setNewTaskUrgency('Baja');
+        setTaskError('');
     };
 
     const toggleTask = (taskId) => {
@@ -374,17 +380,25 @@ const Dashboard = () => {
                             </div>
                         </div>
 
-                        <form className="space-y-5" onSubmit={handleAddTask}>
+                        <form className="space-y-5" onSubmit={handleAddTask} noValidate>
                             <div>
-                                <label className="block text-xs font-bold text-[#113130] uppercase tracking-wider mb-2">Descripción de la Tarea</label>
+                                <label className="block text-xs font-bold text-[#113130] uppercase tracking-wider mb-2">Descripción de la Tarea <span className="text-rose-500">*</span></label>
                                 <input 
                                     type="text" 
-                                    value={newTaskTitle}
-                                    onChange={(e) => setNewTaskTitle(e.target.value)}
-                                    placeholder="Ej: Revisar expediente de Ana..." 
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all"
                                     required
+                                    value={newTaskTitle}
+                                    onChange={(e) => {
+                                        setNewTaskTitle(e.target.value);
+                                        if (taskError) setTaskError('');
+                                    }}
+                                    placeholder="Ej: Revisar expediente de Ana..." 
+                                    className={`w-full bg-slate-50 border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-transparent transition-all ${taskError ? 'border-rose-300 bg-rose-50/70 text-rose-700' : 'border-slate-200'}`}
                                 />
+                                {taskError && (
+                                    <p className="mt-2 text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-100 rounded-2xl px-4 py-3">
+                                        {taskError}
+                                    </p>
+                                )}
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
