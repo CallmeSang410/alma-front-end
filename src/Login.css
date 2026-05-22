@@ -19,18 +19,31 @@
   animation: fadeIn 0.3s ease-in-out;
 }
 
-/* Transiciones suaves en inputs */
-input {
+/* Transiciones suaves en inputs y botones */
+input,
+select,
+button {
   transition: all 0.2s ease;
 }
 
-input:focus {
-  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.1);
+input:focus,
+select:focus {
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
 }
 
-/* Efecto de presión en botones */
-button[type="submit"]:active {
+button[type="submit"],
+button[type="button"] {
+  will-change: transform, box-shadow;
+}
+
+button[type="submit"]:active,
+button[type="button"]:active {
   transform: scale(0.98);
+}
+
+button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.18);
 }
 
 /* Media queries para pantallas pequeñas */
