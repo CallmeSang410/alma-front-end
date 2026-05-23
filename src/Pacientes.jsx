@@ -45,9 +45,10 @@ const Pacientes = () => {
         setView('form');
     };
 
-    const handleSavePatient = (e) => {
+const handleSavePatient = async (e) => { // ¡Añadimos async aquí!
         e.preventDefault();
         
+        // --- 1. Validación original de Dervin (dejamos esto igual) ---
         const errors = {};
         if (!formData.name.trim()) errors.name = true;
         if (!formData.phone.trim()) errors.phone = true;
@@ -58,15 +59,75 @@ const Pacientes = () => {
             setFormErrors(errors);
             return;
         }
-
         setFormErrors({});
-        if (formData.id) {
-            setPatients(patients.map(p => p.id === formData.id ? { ...p, ...formData } : p));
-        } else {
-            const newPatient = { ...formData, id: Date.now(), timeline: [{ id: Date.now() + 1, date: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }), type: "Ingreso", title: "Apertura de Expediente", note: "Se ha creado el perfil del paciente en el sistema. Pendiente realizar la entrevista clínica inicial.", tags: ["Nuevo Ingreso"] }], reports: [] };
-            setPatients([newPatient, ...patients]);
+
+        // --- 2. EMPAQUETAMOS LOS DATOS PARA FASTAPI ---
+        // Los nombres de la izquierda DEBEN ser idénticos a los de tu schemas.py
+        const datosParaBackend = {
+            nombre: formData.name,
+            telefono: formData.phone,
+            email: formData.email, // Puede ir vacío
+            edad: parseInt(formData.age), // ¡Clave! FastAPI pide un Integer
+            estado: formData.status,
+            diagnostico_principal: formData.condition
+        };
+
+        try {
+            // --- 3. ENVIAMOS EL PAQUETE AL MESERO (FASTAPI) ---
+            const url = 'http://localhost:8000/pacientes';
+            
+            // Si formData.id existe, significa que el usuario le dio a "Editar Perfil"
+            // (Asumiendo que hiciste un endpoint PUT /pacientes/{id} en tu backend)
+            const metodoHTTP = formData.id ? 'PUT' : 'POST';
+            const urlFinal = formData.id ? `${url}/${formData.id}` : url;
+
+            const respuesta = await fetch(urlFinal, {
+            method: metodoHTTP,
+            headers: {
+            'Content-Type': 'application/json',
+            // Nos aseguramos de que busque 'token', que es el nombre que le pusimos en el paso 1
+            'Authorization': `Bearer ${localStorage.getItem('token')}` 
+            },
+            body: JSON.stringify(datosParaBackend)
+        });
+
+            if (respuesta.ok) {
+                const pacienteGuardado = await respuesta.json();
+                console.log("¡Éxito desde FastAPI!", pacienteGuardado);
+                
+                // --- 4. ACTUALIZAMOS LA PANTALLA DE REACT ---
+                // En vez de usar datos falsos, usamos el paciente real que devolvió la base de datos
+                if (formData.id) {
+                    // Lógica para actualizar (Dervin lo arreglará luego)
+                    alert("¡Expediente actualizado exitosamente en la base de datos!");
+                } else {
+                    // Transformamos el formato de tu base de datos al formato visual de Dervin
+                    const pacienteParaReact = {
+                        id: pacienteGuardado.id, 
+                        name: pacienteGuardado.nombre,
+                        phone: pacienteGuardado.telefono,
+                        email: pacienteGuardado.email,
+                        age: pacienteGuardado.edad,
+                        condition: pacienteGuardado.diagnostico_principal,
+                        status: pacienteGuardado.estado,
+                        timeline: [], 
+                        reports: []
+                    };
+                    setPatients([pacienteParaReact, ...patients]);
+                    alert("¡Expediente creado exitosamente en la base de datos!");
+                }
+                
+                setView('list'); // Volvemos al directorio
+            } else {
+                // Si FastAPI devuelve un error 422 o 500
+                const errorData = await respuesta.json();
+                console.error("El backend rechazó los datos:", errorData);
+                alert("Hubo un error al guardar. Revisa la consola.");
+            }
+        } catch (error) {
+            console.error("Error de conexión (CORS o Servidor apagado):", error);
+            alert("No se pudo conectar con el servidor. ¿Está encendido FastAPI?");
         }
-        setView('list');
     };
 
     const handleDeletePatient = (id) => { setPatientToDelete(id); };

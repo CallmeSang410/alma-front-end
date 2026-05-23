@@ -9,10 +9,11 @@ export default function Login({ onLoginSuccess }) {
   const [activeTab, setActiveTab] = useState('login');
   const [formErrors, setFormErrors] = useState({ email: '', password: '' });
 
-  const handleSubmit = (e) => {
+const handleSubmit = async (e) => {
     e.preventDefault();
     const errors = {};
 
+    // 1. Validación de campos
     if (!email.trim()) {
       errors.email = 'El email es obligatorio.';
     } else if (!email.includes('@gmail.com')) {
@@ -27,9 +28,79 @@ export default function Login({ onLoginSuccess }) {
       setFormErrors(errors);
       return;
     }
-
+    
     setFormErrors({ email: '', password: '' });
-    onLoginSuccess();
+
+    try {
+      // =========================================================
+      // RUTA A: EL USUARIO QUIERE INICIAR SESIÓN (LOGIN)
+      // =========================================================
+      if (activeTab === 'login') {
+        
+        // ¡Volvemos al JSON simple porque tu backend usa UsuarioLogin!
+        const datosLogin = {
+          email: email,
+          password: password
+        };
+
+        const respuesta = await fetch('http://127.0.0.1:8000/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }, // Cambiamos esto a JSON
+          body: JSON.stringify(datosLogin),
+        });
+
+if (respuesta.ok) {
+        const datosServidor = await respuesta.json();
+  
+        // ¡Atrapamos el token por su nombre real!
+        const tokenReal = datosServidor.tu_gafete_digital;
+
+        if (!tokenReal) {
+          alert("Error interno: No se recibió la llave de acceso del servidor.");
+          return;
+        }
+  
+        // Guardamos el chorizo de letras real en la memoria
+        localStorage.setItem('token', tokenReal);
+  
+        alert("¡Login Exitoso!");
+        onLoginSuccess(); 
+      } else {
+        setFormErrors({ ...formErrors, password: 'El correo o la contraseña son incorrectos. Intenta de nuevo.' });
+      }
+      }
+      // =========================================================
+      // RUTA B: EL USUARIO QUIERE CREAR UNA CUENTA (SIGN UP)
+      // =========================================================
+      else {
+        // Para crear un usuario, FastAPI normalmente espera un JSON limpio
+        const datosNuevoUsuario = {
+          email: email,
+          password: password 
+          // Ojo: Si tu backend pide un campo 'nombre', tendrás que agregarlo al formulario visual después
+        };
+
+        // Asegúrate de que esta URL sea la correcta en tu main.py (ej: /usuarios o /register)
+        const respuesta = await fetch('http://127.0.0.1:8000/usuarios', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(datosNuevoUsuario),
+        });
+
+        if (respuesta.ok) {
+          alert('¡Cuenta creada exitosamente en HorizonFlow! Ahora inicia sesión.');
+          // Lo pasamos a la pestaña de login automáticamente para que entre
+          setActiveTab('login'); 
+          setPassword(''); // Limpiamos la contraseña por seguridad
+        } else {
+          // Si el correo ya existe, FastAPI debería tirar un error 400
+          setFormErrors({ ...formErrors, email: 'Hubo un error al crear la cuenta. Quizás este correo ya está registrado.' });
+        }
+      }
+    } catch (error) {
+      console.error("Error de servidor:", error);
+      alert("No se pudo conectar con el servidor. Verifica que FastAPI esté encendido.");
+    }
   };
 
   const handleForgotPassword = (e) => {
