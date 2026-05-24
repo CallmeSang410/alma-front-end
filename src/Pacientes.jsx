@@ -12,43 +12,90 @@ const Pacientes = () => {
     const [selectedPatient, setSelectedPatient] = useState(null);
     const [patientToDelete, setPatientToDelete] = useState(null);
     const [formErrors, setFormErrors] = useState({}); 
+    const [formData, setFormData] = useState({ id: null, name: '', phone: '', email: '', age: '', condition: '', status: 'Activo' });
 
+    // 🌟 1. Inicializamos con un array vacío para que no use datos ficticios
+    const [patients, setPatients] = useState([]);
+
+    // 🌟 2. FUNCIÓN MAESTRA PARA TRAER LOS PACIENTES DESDE POSTGRESQL
+    const obtenerPacientes = async () => {
+        try {
+            const token = localStorage.getItem('token');
+
+            if (!token) {
+                console.log("No se encontró ningún token de acceso.");
+                return;
+            }
+
+            const respuesta = await fetch('http://127.0.0.1:8000/pacientes', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` 
+                }
+            });
+
+            if (respuesta.ok) {
+                const datosServidor = await respuesta.json();
+                
+                // 🕵️‍♂️ TRADUCCIÓN DE IDIOMA: Pasamos de formato Base de Datos a formato de UI de React
+                const pacientesFormateados = datosServidor.map(p => ({
+                    id: p.id, 
+                    name: p.nombre,
+                    phone: p.telefono || 'Sin teléfono',
+                    email: p.email || 'Sin correo',
+                    age: p.edad,
+                    condition: p.diagnostico_principal,
+                    status: p.estado || 'Activo',
+                    timeline: [], // Se llenará cuando implementen eventos por paciente
+                    reports: []   // Se llenará cuando implementen reportes por paciente
+                }));
+
+                setPatients(pacientesFormateados);
+                console.log("¡Pacientes cargados con éxito desde PostgreSQL!", pacientesFormateados);
+            } else {
+                console.error("El guardia del backend rechazó el acceso a la lista.");
+            }
+        } catch (error) {
+            console.error("Error al conectar con el endpoint de lectura:", error);
+        }
+    };
+
+    // 🌟 3. EFECTO AUTOMÁTICO PARA CARGAR AL ENTRAR A LA PESTAÑA
+    useEffect(() => {
+        obtenerPacientes();
+    }, []);
+
+    // Manejo del scroll en el cuerpo cuando el modal de borrado está activo
     useEffect(() => {
         if (patientToDelete) document.body.style.overflow = 'hidden';
         else document.body.style.overflow = 'unset';
         return () => { document.body.style.overflow = 'unset'; };
     }, [patientToDelete]);
 
-    const [patients, setPatients] = useState([
-        { 
-            id: 1, name: "Carlos Pérez", phone: "+505 8888 7777", email: "carlos.perez@email.com", age: 34, condition: "Trastorno de Ansiedad Generalizada", status: "Activo", 
-            timeline: [
-                { id: 101, date: "20 May 2026", type: "Sesión", title: "TCC - Avance en control de pánico", note: "El paciente reporta una reducción del 40% en la frecuencia de los ataques de pánico nocturnos. Se practicaron técnicas de exposición imaginada con buenos resultados de tolerancia emocional. Tarea: Diario de pensamientos.", tags: ["Ansiedad: 5/10", "Mejoría notable", "TCC"] }, 
-                { id: 102, date: "05 May 2026", type: "Evaluación", title: "Aplicación de Escala GAD-7", note: "Se aplicó el instrumento psicométrico GAD-7 resultando en una puntuación de 14 (Ansiedad Moderada). Se estructuró el plan de tratamiento cognitivo-conductual a 12 semanas con objetivos claros.", tags: ["GAD-7: 14", "Plan de 12 semanas"] }, 
-                { id: 103, date: "25 Abr 2026", type: "Ingreso", title: "Entrevista Clínica Inicial", note: "Paciente varón de 34 años. Refiere insomnio de conciliación crónico y rumiación constante asociada a altos niveles de estrés laboral. Se establecieron las expectativas del proceso terapéutico.", tags: ["Insomnio", "Estrés Laboral", "Motivo de Consulta"] }
-            ], 
-            reports: [
-                { id: 201, date: "15 May 2026", title: "Reporte Evolutivo - Mayo", size: "1.2 MB" }, 
-                { id: 202, date: "25 Abr 2026", title: "Evaluación Inicial GAD-7", size: "850 KB" }
-            ] 
-        },
-        { id: 2, name: "Ana Lucía Mendieta", phone: "+505 7777 6666", email: "ana.mendieta@email.com", age: 28, condition: "Terapia de Pareja", status: "Pendiente", timeline: [{ id: 104, date: "18 May 2026", type: "Sesión", title: "Dinámica de Comunicación", note: "Primera sesión conjunta. Se detectaron patrones de comunicación defensiva. Se recomienda firmar acuerdo de asistencia mutua para asegurar el compromiso de ambas partes.", tags: ["Comunicación", "Firma Pendiente"] }], reports: [] },
-        { id: 3, name: "María José Castillo", phone: "+505 8123 4567", email: "mj.castillo@email.com", age: 42, condition: "Depresión Leve", status: "Alta", timeline: [{ id: 105, date: "10 Mar 2026", type: "Alta", title: "Alta Clínica y Cierre", note: "La paciente cumple con todos los objetivos terapéuticos trazados hace 6 meses. Estabilidad emocional sostenida y reintegración social exitosa. Se da alta médica con seguimiento semestral preventivo.", tags: ["Alta Médica", "Objetivos Cumplidos", "Seguimiento"] }], reports: [{ id: 203, date: "10 Mar 2026", title: "Resumen de Alta Médica", size: "2.1 MB" }] }
-    ]);
-
-    const [formData, setFormData] = useState({ id: null, name: '', phone: '', email: '', age: '', condition: '', status: 'Activo' });
-
     const handleOpenForm = (patient = null) => {
         setFormErrors({});
-        if (patient) setFormData(patient); 
-        else setFormData({ id: null, name: '', phone: '', email: '', age: '', condition: '', status: 'Activo' }); 
+        if (patient) {
+            // ¡EL ARREGLO ESTÁ AQUÍ!
+            // Traducimos de vuelta los nombres de la interfaz a los nombres que espera el formulario
+            setFormData({
+                id: patient.id,
+                name: patient.name,
+                phone: patient.phone === 'Sin teléfono' ? '' : patient.phone,
+                email: patient.email === 'Sin correo' ? '' : patient.email,
+                age: patient.age || '',
+                condition: patient.condition || '',
+                status: patient.status || 'Activo'
+            });
+        } else {
+            setFormData({ id: null, name: '', phone: '', email: '', age: '', condition: '', status: 'Activo' }); 
+        }
         setView('form');
     };
 
-const handleSavePatient = async (e) => { // ¡Añadimos async aquí!
+    const handleSavePatient = async (e) => {
         e.preventDefault();
         
-        // --- 1. Validación original de Dervin (dejamos esto igual) ---
         const errors = {};
         if (!formData.name.trim()) errors.name = true;
         if (!formData.phone.trim()) errors.phone = true;
@@ -61,81 +108,75 @@ const handleSavePatient = async (e) => { // ¡Añadimos async aquí!
         }
         setFormErrors({});
 
-        // --- 2. EMPAQUETAMOS LOS DATOS PARA FASTAPI ---
-        // Los nombres de la izquierda DEBEN ser idénticos a los de tu schemas.py
         const datosParaBackend = {
             nombre: formData.name,
             telefono: formData.phone,
-            email: formData.email, // Puede ir vacío
-            edad: parseInt(formData.age), // ¡Clave! FastAPI pide un Integer
+            email: formData.email, 
+            // Esto evita que envíe 'NaN' si la edad está vacía
+            edad: formData.age ? parseInt(formData.age) : null, 
             estado: formData.status,
             diagnostico_principal: formData.condition
         };
 
         try {
-            // --- 3. ENVIAMOS EL PAQUETE AL MESERO (FASTAPI) ---
             const url = 'http://localhost:8000/pacientes';
-            
-            // Si formData.id existe, significa que el usuario le dio a "Editar Perfil"
-            // (Asumiendo que hiciste un endpoint PUT /pacientes/{id} en tu backend)
             const metodoHTTP = formData.id ? 'PUT' : 'POST';
             const urlFinal = formData.id ? `${url}/${formData.id}` : url;
 
             const respuesta = await fetch(urlFinal, {
-            method: metodoHTTP,
-            headers: {
-            'Content-Type': 'application/json',
-            // Nos aseguramos de que busque 'token', que es el nombre que le pusimos en el paso 1
-            'Authorization': `Bearer ${localStorage.getItem('token')}` 
-            },
-            body: JSON.stringify(datosParaBackend)
-        });
+                method: metodoHTTP,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}` 
+                },
+                body: JSON.stringify(datosParaBackend)
+            });
 
             if (respuesta.ok) {
                 const pacienteGuardado = await respuesta.json();
                 console.log("¡Éxito desde FastAPI!", pacienteGuardado);
                 
-                // --- 4. ACTUALIZAMOS LA PANTALLA DE REACT ---
-                // En vez de usar datos falsos, usamos el paciente real que devolvió la base de datos
-                if (formData.id) {
-                    // Lógica para actualizar (Dervin lo arreglará luego)
-                    alert("¡Expediente actualizado exitosamente en la base de datos!");
-                } else {
-                    // Transformamos el formato de tu base de datos al formato visual de Dervin
-                    const pacienteParaReact = {
-                        id: pacienteGuardado.id, 
-                        name: pacienteGuardado.nombre,
-                        phone: pacienteGuardado.telefono,
-                        email: pacienteGuardado.email,
-                        age: pacienteGuardado.edad,
-                        condition: pacienteGuardado.diagnostico_principal,
-                        status: pacienteGuardado.estado,
-                        timeline: [], 
-                        reports: []
-                    };
-                    setPatients([pacienteParaReact, ...patients]);
-                    alert("¡Expediente creado exitosamente en la base de datos!");
-                }
-                
-                setView('list'); // Volvemos al directorio
+                // Recargamos la lista directo del servidor para asegurar sincronía total
+                obtenerPacientes();
+                alert(formData.id ? "¡Expediente actualizado!" : "¡Expediente creado exitosamente!");
+                setView('list'); 
             } else {
-                // Si FastAPI devuelve un error 422 o 500
                 const errorData = await respuesta.json();
                 console.error("El backend rechazó los datos:", errorData);
                 alert("Hubo un error al guardar. Revisa la consola.");
             }
         } catch (error) {
-            console.error("Error de conexión (CORS o Servidor apagado):", error);
-            alert("No se pudo conectar con el servidor. ¿Está encendido FastAPI?");
+            console.error("Error de conexión:", error);
+            alert("No se pudo conectar con el servidor.");
         }
     };
 
     const handleDeletePatient = (id) => { setPatientToDelete(id); };
+    const confirmDeletePatient = async () => {
+        try {
+            // 1. Le decimos al mesero (FastAPI) que borre el registro en la base de datos
+            const respuesta = await fetch(`http://127.0.0.1:8000/pacientes/${patientToDelete}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}` // Enseñamos el gafete
+                }
+            });
 
-    const confirmDeletePatient = () => {
-        setPatients(patients.filter(p => p.id !== patientToDelete));
-        setPatientToDelete(null);
-        setView('list'); 
+            if (respuesta.ok) {
+                // 2. Si FastAPI dice "OK", entonces SÍ lo borramos de la pantalla
+                setPatients(patients.filter(p => p.id !== patientToDelete));
+                setPatientToDelete(null);
+                setView('list'); 
+                console.log("¡Paciente eliminado definitivamente de PostgreSQL!");
+            } else {
+                const error = await respuesta.json();
+                console.error("FastAPI no quiso borrarlo:", error);
+                alert("No se pudo eliminar el expediente. Revisa la consola.");
+            }
+        } catch (error) {
+            console.error("Error de conexión:", error);
+            alert("No se pudo conectar con el servidor para eliminar.");
+        }
     };
 
     const handleViewDetails = (patient) => {
@@ -182,7 +223,7 @@ const handleSavePatient = async (e) => { // ¡Añadimos async aquí!
                             <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
                         </div>
                         <h3 className="text-xl font-black text-[#113130]">No se encontraron pacientes</h3>
-                        <p className="text-sm text-slate-500 mt-2 font-medium">Intenta con otros términos de búsqueda.</p>
+                        <p className="text-sm text-slate-500 mt-2 font-medium">Intenta con otros términos de búsqueda o agrega uno nuevo.</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -239,10 +280,7 @@ const handleSavePatient = async (e) => { // ¡Añadimos async aquí!
                 </div>
 
                 <div className="flex flex-col gap-6">
-                    
-                    {/* FILA SUPERIOR: CONTACTO Y REPORTES (APILADOS EN MÓVIL, LADO A LADO EN PC) */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        
                         <div className="bg-white rounded-[2rem] p-7 shadow-sm border border-slate-100 h-full">
                             <h3 className="text-sm font-black text-[#113130] uppercase tracking-widest mb-6 border-b border-slate-50 pb-4">Info. Personal</h3>
                             <div className="space-y-5">
@@ -271,10 +309,7 @@ const handleSavePatient = async (e) => { // ¡Añadimos async aquí!
                         </div>
                     </div>
 
-                    {/* FILA INFERIOR: LÍNEA DE TIEMPO CLÍNICA (ESTILO IMAGEN) */}
                     <div className="bg-white rounded-[2rem] p-6 sm:p-10 shadow-sm border border-slate-100 overflow-hidden">
-                        
-                        {/* Cabecera del Timeline */}
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-10">
                             <div>
                                 <h3 className="text-xl font-black text-[#113130]">Historial Evolutivo</h3>
@@ -287,11 +322,7 @@ const handleSavePatient = async (e) => { // ¡Añadimos async aquí!
 
                         {selectedPatient.timeline && selectedPatient.timeline.length > 0 ? (
                             <div className="relative pt-2 pb-4">
-                                
-                                {/* 1. LÍNEA VERTICAL CON DEGRADADO */}
                                 <div className={`absolute left-6 md:left-8 top-8 bottom-0 w-1 bg-gradient-to-b ${trend.gradient} rounded-full z-0 opacity-80`}></div>
-                                
-                                {/* 2. PÍLDORA DE TENDENCIA */}
                                 <div className="relative z-20 flex mb-10 ml-2 md:ml-4">
                                     <div className={`inline-flex items-center gap-1.5 ${trend.bg} ${trend.border} border ${trend.text} text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full shadow-sm`}>
                                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d={trend.icon} /></svg>
@@ -299,25 +330,17 @@ const handleSavePatient = async (e) => { // ¡Añadimos async aquí!
                                     </div>
                                 </div>
 
-                                {/* 3. TARJETAS BLANCAS CON PUNTOS HUECOS */}
                                 <div className="space-y-8">
-                                    {selectedPatient.timeline.map((entry, index) => (
+                                    {selectedPatient.timeline.map((entry) => (
                                         <div key={entry.id} className="relative pl-14 md:pl-20 pr-0 sm:pr-2">
-                                            
-                                            {/* Punto Hueco (Alineado perfecto con la línea) */}
                                             <div className={`absolute left-[19px] md:left-[27px] top-6 w-3.5 h-3.5 rounded-full bg-white border-[3px] ${trend.ring} shadow-sm z-10`}></div>
-                                            
-                                            {/* Tarjeta de la Nota Clínica */}
                                             <div className="bg-white rounded-[2rem] p-6 sm:p-8 shadow-[0_8px_30px_-4px_rgba(0,0,0,0.05)] border border-slate-100/80 hover:shadow-[0_8px_30px_-4px_rgba(15,118,110,0.1)] transition-all relative overflow-hidden group cursor-pointer">
-                                                
-                                                {/* Borde Lateral de Color */}
                                                 <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${
                                                     entry.type === 'Sesión' ? 'bg-blue-500' :
                                                     entry.type === 'Evaluación' ? 'bg-amber-500' :
                                                     entry.type === 'Alta' ? 'bg-emerald-500' : 'bg-teal-500'
                                                 }`}></div>
 
-                                                {/* Header de la Tarjeta */}
                                                 <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-5">
                                                     <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                                                         <span className={`text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg whitespace-nowrap w-fit ${
@@ -334,13 +357,9 @@ const handleSavePatient = async (e) => { // ¡Añadimos async aquí!
                                                         {entry.date}
                                                     </span>
                                                 </div>
-                                                
-                                                {/* Descripción */}
                                                 <p className="text-sm text-slate-500 leading-relaxed font-medium mb-6">
                                                     {entry.note}
                                                 </p>
-                                                
-                                                {/* Etiquetas Grises Abajo */}
                                                 {entry.tags && entry.tags.length > 0 && (
                                                     <div className="flex flex-wrap gap-2 pt-5 border-t border-slate-100">
                                                         {entry.tags.map((tag, idx) => (
