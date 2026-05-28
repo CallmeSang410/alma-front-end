@@ -5,6 +5,7 @@ import Pacientes from './Pacientes';
 import Citas from './Citas';
 import Reportes from './Reportes';
 import logoEmpresa from './assets/logo.png';
+import CampanaAlertas from './CampanaAlertas';
 
 // --- ICONOS VECTORIALES CLÍNICOS ---
 function IconDashboard() {
@@ -172,7 +173,7 @@ export default function Interface({ onLogout }) {
                 className="fixed inset-0 z-40 bg-[#113130]/40 backdrop-blur-xs lg:hidden"
             ></div>
         )}
-
+        
         {/* ================= CONTENEDOR CENTRAL (PANEL DE CONTENIDO) ================= */}
         <div className="flex-1 flex flex-col min-h-screen overflow-x-hidden bg-[#F4F8F8]">
             
@@ -195,29 +196,33 @@ export default function Interface({ onLogout }) {
                     </span>
                 </div>
 
-                {/* Perfil del Usuario e Idiomas Responsivo */}
+{/* Perfil del Usuario e Idiomas Responsivo */}
                 <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 sm:gap-4 w-full md:w-auto mt-2 md:mt-0">
-                    <div className="flex items-center gap-2 sm:gap-4">
+                    
+                    {/* CONTENEDOR DE ICONOS Y ALARMAS */}
+                    <div className="flex items-center gap-2 sm:gap-4 z-50">
+                        {/* Botón de Idioma */}
                         <div className="text-xs font-bold px-3 py-1.5 bg-white rounded-xl shadow-xs border border-teal-100/40 flex items-center gap-1.5 cursor-pointer hover:bg-teal-50/50 transition-colors">
                             <span>ESP</span>
                             <span className="text-[8px] text-teal-600">▼</span>
                         </div>
+                        
+                        {/* Icono de Mensajes (El que ya tenías) */}
                         <button className="p-2.5 bg-white rounded-xl shadow-xs border border-teal-100/40 hover:bg-teal-50/50 transition-colors relative">
                             <svg className="w-4 h-4 text-[#113130]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                             </svg>
                             <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#14B8A6] rounded-full"></span>
                         </button>
-                        <button className="p-2.5 bg-white rounded-xl shadow-xs border border-teal-100/40 hover:bg-teal-50/50 transition-colors relative">
-                            <svg className="w-4 h-4 text-[#113130]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.02 6.02 0 00-4.902-5.903m0 0V4a2 2 0 10-4 0v1.097A6.02 6.02 0 006 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                            </svg>
-                            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#0D9488] rounded-full animate-ping"></span>
-                        </button>
+                        
+                        {/* 🌟 AQUÍ VA TU COMPONENTE ESTRELLA 🌟 */}
+                        <CampanaAlertas />
+                        
                     </div>
 
                     <div className="hidden sm:block h-6 w-px bg-teal-200/50"></div>
 
+                    {/* Perfil del Usuario */}
                     <div className="flex items-center gap-3 bg-white px-3.5 py-1.5 rounded-full shadow-xs border border-teal-100/40">
                         <div className="w-7 h-7 rounded-full bg-[#0D9488] text-white flex items-center justify-center font-black text-xs">
                             A
