@@ -8,6 +8,8 @@ import Citas from './Citas';
 import Reportes from './Reportes';
 import logoEmpresa from './assets/logo.png';
 import CampanaAlertas from './CampanaAlertas';
+import Experiencia from './Experiencia';
+import Ajustes from './Ajustes'; 
 
 
 // --- ICONOS VECTORIALES CLÍNICOS ---
@@ -164,9 +166,9 @@ export default function Interface({ onLogout }) {
             case 'reportes':
                 return <Reportes />;
             case 'experiencia':
-                return <div className="text-center text-slate-500 font-bold mt-10">Módulo de Experiencia en construcción...</div>;
+                 return <Experiencia />;
             case 'settings':
-                return <div className="text-center text-slate-500 font-bold mt-10">Módulo de Ajustes en construcción...</div>;
+                return <Ajustes />;
             default:
                 // El default ahora muestra un texto genérico por si acaso
                 return <div className="text-center text-slate-500 font-bold mt-10">Pantalla no encontrada.</div>;
