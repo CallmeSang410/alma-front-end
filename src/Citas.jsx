@@ -6,7 +6,8 @@ const Citas = () => {
     // ================= ESTADOS GENERALES =================
     const [view, setView] = useState('list');
     const [searchQuery, setSearchQuery] = useState('');
-    const [filterStatus, setFilterStatus] = useState('Todas'); 
+    const [filterStatus, setFilterStatus] = useState('Todas');
+    const [filterAtention, setFilterAtention] = useState('Todas');
     const [appointmentToCancel, setAppointmentToCancel] = useState(null);
     const [formErrors, setFormErrors] = useState({});
 
@@ -24,8 +25,8 @@ const Citas = () => {
         date: '', 
         time: '', 
         reason: '', 
-        urgency: 'Normal', 
-        status: 'Pendiente' 
+        status: 'Pendiente',
+        atention: 'Presencial' 
     });
 
     // Bloqueo de scroll para el modal
@@ -67,8 +68,8 @@ const Citas = () => {
                         date: fecha,
                         time: hora,
                         reason: cita.motivo,
-                        urgency: cita.urgencia || "Normal",
-                        status: cita.estado || "Pendiente"
+                        status: cita.estado || "Pendiente",
+                        atention: cita.atencion || "Presencial"
                     };
                 });
 
@@ -99,8 +100,8 @@ const Citas = () => {
                 date: '', 
                 time: '', 
                 reason: '', 
-                urgency: 'Normal', 
-                status: 'Pendiente' 
+                status: 'Pendiente',
+                atention: 'Presencial' 
             });
         }
         setView('form');
@@ -120,6 +121,7 @@ const Citas = () => {
         if (!formData.date.trim()) errors.date = true;
         if (!formData.time.trim()) errors.time = true;
         if (!formData.reason.trim()) errors.reason = true;
+        if (!formData.atention.trim()) errors.atention = true;
 
         if (Object.keys(errors).length > 0) {
             setFormErrors(errors);
@@ -143,7 +145,8 @@ const Citas = () => {
                     body: JSON.stringify({
                         nombre: newPatientData.nombre,
                         telefono: newPatientData.telefono,
-                        estado: 'Pendiente' // Nace como pendiente de evaluar
+                        estado: 'Pendiente',
+                        atencion: 'Presencial'    // Nace comodiente de evaluar
                     })
                 });
 
@@ -161,7 +164,7 @@ const Citas = () => {
             const datosParaCita = {
                 motivo: formData.reason,
                 fecha_cita: fechaCombinada,
-                urgencia: formData.urgency,
+                atencion: formData.atention,
                 estado: formData.status
             };
 
@@ -234,16 +237,20 @@ const respuesta = await fetch(url, {
 
     const getStatusStyles = (status) => {
         switch(status) {
-            case 'Confirmada': return 'bg-emerald-50 text-emerald-600 border-emerald-200';
+            case 'Reservada': return 'bg-emerald-50 text-emerald-600 border-emerald-200';
             case 'Pendiente': return 'bg-amber-50 text-amber-600 border-amber-200';
             case 'Cancelada': return 'bg-rose-50 text-rose-500 border-rose-200 line-through opacity-70';
             default: return 'bg-slate-50 text-slate-500 border-slate-200';
         }
     };
 
-    const getUrgencyIcon = (urgency) => {
-        if (urgency === 'Alta') return <span className="flex items-center gap-1 text-rose-500"><span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span> Urgente</span>;
-        return <span className="text-slate-400">Normal</span>;
+const getAtentionStyles = (atention) => {
+        switch(atention) {
+            case 'A domicilio': return 'bg-emerald-50 text-emerald-600 border-emerald-200';
+            case 'Presencial': return 'bg-emerald-50 text-emerald-600 border-emerald-200';
+            case 'Virtual': return 'bg-amber-50 text-amber-600 border-amber-200';
+            default: return 'bg-slate-50 text-slate-500 border-slate-200';
+        }
     };
 
     const ErrorIcon = () => (
@@ -279,13 +286,25 @@ const respuesta = await fetch(url, {
                         </div>
 
                         <div className="flex overflow-x-auto hide-scrollbar gap-2 pb-1 lg:pb-0 shrink-0">
-                            {['Todas', 'Pendiente', 'Confirmada', 'Cancelada'].map(status => (
+                            {['Todas', 'Pendiente', 'Reservada', 'Cancelada'].map(status => (
                                 <button 
                                     key={status}
                                     onClick={() => setFilterStatus(status)}
                                     className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest whitespace-nowrap transition-all ${filterStatus === status ? 'bg-[#113130] text-white shadow-md' : 'bg-slate-50 text-slate-500 hover:bg-slate-100 border border-slate-200'}`}
                                 >
                                     {status}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="flex overflow-x-auto hide-scrollbar gap-2 pb-1 lg:pb-0 shrink-0">
+                            {['Todas', 'A domicilio', 'Presencial', 'Virtual'].map(atention => (
+                                <button 
+                                    key={atention}
+                                    onClick={() => setFilterAtention(atention)}
+                                    className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest whitespace-nowrap transition-all ${filterAtention === atention ? 'bg-[#113130] text-white shadow-md' : 'bg-slate-50 text-slate-500 hover:bg-slate-100 border border-slate-200'}`}
+                                >
+                                    {atention}
                                 </button>
                             ))}
                         </div>
@@ -304,7 +323,7 @@ const respuesta = await fetch(url, {
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                         {filteredAppointments.map(appt => (
                             <div key={appt.id} className="bg-white rounded-[2rem] p-7 shadow-sm border border-slate-100 hover:shadow-md transition-all flex flex-col justify-between group relative overflow-hidden">
-                                <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${appt.status === 'Confirmada' ? 'bg-emerald-400' : appt.status === 'Cancelada' ? 'bg-rose-400' : 'bg-amber-400'}`}></div>
+                                <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${appt.status === 'Reservada' ? 'bg-emerald-400' : appt.status === 'Cancelada' ? 'bg-rose-400' : 'bg-amber-400'}`}></div>
                                 
                                 <div className="pl-2">
                                     <div className="flex justify-between items-start mb-4">
@@ -315,7 +334,6 @@ const respuesta = await fetch(url, {
                                             <div>
                                                 <h3 className="text-base font-black text-[#113130] leading-tight truncate max-w-[150px] sm:max-w-[200px]" title={appt.patientName}>{appt.patientName}</h3>
                                                 <div className="text-[10px] font-black uppercase tracking-widest mt-1 flex items-center gap-2">
-                                                    {getUrgencyIcon(appt.urgency)}
                                                 </div>
                                             </div>
                                         </div>
@@ -323,6 +341,8 @@ const respuesta = await fetch(url, {
                                             {appt.status}
                                         </span>
                                     </div>
+                                    
+                                    
                                     
                                     <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-50 space-y-3">
                                         <div className="flex items-start gap-3">
@@ -504,27 +524,36 @@ const respuesta = await fetch(url, {
                             {formErrors.reason && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Especifica el motivo</p>}
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                            {/* 🌟 NUEVO SELECTOR: Modalidad de Atención */}
                             <div>
-                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Urgencia</label>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                                    Modalidad <span className="text-rose-500">*</span>
+                                </label>
                                 <select 
-                                    value={formData.urgency} 
-                                    onChange={(e) => setFormData({...formData, urgency: e.target.value})} 
+                                    value={formData.atention} 
+                                    onChange={(e) => setFormData({...formData, atention: e.target.value})} 
                                     className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 focus:ring-[#0F766E] transition-all"
                                 >
-                                    <option value="Normal">Normal</option>
-                                    <option value="Alta">Alta (Urgente)</option>
+                                    <option value="Presencial">Presencial</option>
+                                    <option value="Virtual">Virtual</option>
+                                    <option value="A domicilio">A domicilio</option>
                                 </select>
                             </div>
+
+                            {/* SELECTOR ORIGINAL: Estado */}
                             <div>
-                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Estado</label>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                                    Estado <span className="text-rose-500">*</span>
+                                </label>
                                 <select 
                                     value={formData.status} 
                                     onChange={(e) => setFormData({...formData, status: e.target.value})} 
                                     className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 focus:ring-[#0F766E] transition-all"
                                 >
                                     <option value="Pendiente">Pendiente (Por Confirmar)</option>
-                                    <option value="Confirmada">Confirmada</option>
+                                    <option value="Reservada">Reservada</option>
                                     <option value="Cancelada">Cancelada</option>
                                 </select>
                             </div>

@@ -1,0 +1,15 @@
+{
+  "menu": {
+    "Dashboard": "Dashboard",
+    "Pacientes": "Pacientes",
+    "Citas": "Citas",
+    "Reportes": "Reportes",
+    "Experiencia": "Experiencia",
+    "Ajustes": "Ajustes",
+    "Logout": "Cerrar Sesión"
+  },
+  "header": {
+    "search_placeholder": "Buscar paciente, informe, cita...",
+    "admin_role": "Administrador"
+  }
+}

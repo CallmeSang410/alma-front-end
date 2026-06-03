@@ -1,0 +1,13 @@
+{
+  "dashboard": "Dashboard",
+  "pacientes": "Pacientes",
+  "citas": "Compromissos",
+  "reportes": "Relatórios",
+  "experiencia": "Experiência",
+  "ajustes": "Configurações",
+  "logOut": "Sair",
+  "idioma": "POR",
+  "buscar": "Buscar paciente, relatório, compromisso...",
+  "cerrar": "Fechar",
+  "administrador": "Administrador"
+}

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import './App.css';
-
+import './i18n'; // Importamos la configuración de i18n para que esté disponible en toda la app
 function App() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");

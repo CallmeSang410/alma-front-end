@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import './i18n'
+import { useTranslation } from 'react-i18next';
 import './Interface.css';
 import Dashboard from './Dashboard';
 import Pacientes from './Pacientes';
@@ -6,6 +8,7 @@ import Citas from './Citas';
 import Reportes from './Reportes';
 import logoEmpresa from './assets/logo.png';
 import CampanaAlertas from './CampanaAlertas';
+
 
 // --- ICONOS VECTORIALES CLÍNICOS ---
 function IconDashboard() {
@@ -54,21 +57,102 @@ const IconLogout = () => (
     </svg>
 );
 
+
+
 export default function Interface({ onLogout }) {
+    const { t, i18n } = useTranslation();
+    const [langMenuOpen, setLangMenuOpen] = useState(false);
+
+    // Función para cambiar idioma
+    const changeLanguage = (lng) => {
+        i18n.changeLanguage(lng);
+        setLangMenuOpen(false); // Cierra el menú tras seleccionar
+    };
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [activeTab, setActiveTab] = useState('dashboard');
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [showLogoutModal, setShowLogoutModal] = useState(false);
+       const [showCalendar, setShowCalendar] = useState(false);
+    const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
+    const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+    
+    // Fecha pinneada de ejemplo (cita de mañana)
+    const appointmentDate = new Date(new Date().getTime() + 24 * 60 * 60 * 1000);
+
 
     const menuItems = [
-        { id: 'dashboard', label: 'Dashboard', icon: <IconDashboard /> },
-        { id: 'pacientes', label: 'Pacientes', icon: <IconPatients /> },
-        { id: 'citas', label: 'Citas', icon: <IconCalendar /> },
-        { id: 'reportes', label: 'Reportes', icon: <IconReports /> },
-        { id: 'experiencia', label: 'Experiencia', icon: <IconExperience /> },
-        { id: 'settings', label: 'Ajustes', icon: <IconSettings /> },
+        { id: 'dashboard', label: t('Dashboard'), icon: <IconDashboard /> },
+        { id: 'pacientes', label: t('Pacientes'), icon: <IconPatients /> },
+        { id: 'citas', label: t('Citas'), icon: <IconCalendar /> },
+        { id: 'reportes', label: t('Reportes'), icon: <IconReports /> },
+        { id: 'experiencia', label: t('Experiencia'), icon: <IconExperience /> },
+        { id: 'settings', label: t('Ajustes'), icon: <IconSettings /> },
     ];
+     const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+                        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+    const dayNames = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sab"];
+    
+    const handlePrevMonth = () => {
+        if (currentMonth === 0) {
+            setCurrentMonth(11);
+            setCurrentYear(currentYear - 1);
+        } else {
+            setCurrentMonth(currentMonth - 1);
+        }
+    };
+    
+    const handleNextMonth = () => {
+        if (currentMonth === 11) {
+            setCurrentMonth(0);
+            setCurrentYear(currentYear + 1);
+        } else {
+            setCurrentMonth(currentMonth + 1);
+        }
+    };
+    
+    const getDaysInMonth = (month, year) => {
+        return new Date(year, month + 1, 0).getDate();
+    };
+    
+    const getFirstDayOfMonth = (month, year) => {
+        return new Date(year, month, 1).getDay();
+    };
+    
+    const isAppointmentDay = (day) => {
+        return day === appointmentDate.getDate() && 
+               currentMonth === appointmentDate.getMonth() && 
+               currentYear === appointmentDate.getFullYear();
+    };
+    
+    const renderCalendar = () => {
+        const daysInMonth = getDaysInMonth(currentMonth, currentYear);
+        const firstDay = getFirstDayOfMonth(currentMonth, currentYear);
+        const days = [];
+        
+        // Días vacíos al inicio
+        for (let i = 0; i < firstDay; i++) {
+            days.push(<div key={`empty-${i}`} className="h-8"></div>);
+        }
+        
+        // Días del mes
+        for (let day = 1; day <= daysInMonth; day++) {
+            days.push(
+                <div 
+                    key={day} 
+                    className={`h-8 flex items-center justify-center text-xs font-semibold rounded-lg cursor-pointer transition-all ${
+                        isAppointmentDay(day) 
+                            ? 'bg-[#14B8A6] text-white ring-2 ring-[#0F766E] ring-offset-1 scale-110' 
+                            : 'hover:bg-teal-50 text-[#113130]'
+                    }`}
+                >
+                    {day}
+                </div>
+            );
+        }
+        
+        return days;
+    };
    const renderContent = () => {
         switch (activeTab) {
             case 'dashboard':
@@ -200,20 +284,121 @@ export default function Interface({ onLogout }) {
                 <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 sm:gap-4 w-full md:w-auto mt-2 md:mt-0">
                     
                     {/* CONTENEDOR DE ICONOS Y ALARMAS */}
-                    <div className="flex items-center gap-2 sm:gap-4 z-50">
+                    <div className="flex items-center gap-2 sm:gap-4 z-50 relative">
                         {/* Botón de Idioma */}
-                        <div className="text-xs font-bold px-3 py-1.5 bg-white rounded-xl shadow-xs border border-teal-100/40 flex items-center gap-1.5 cursor-pointer hover:bg-teal-50/50 transition-colors">
-                            <span>ESP</span>
-                            <span className="text-[8px] text-teal-600">▼</span>
-                        </div>
+<div className="relative z-50">
+    <div 
+        onClick={() => setLangMenuOpen(!langMenuOpen)}
+        className="text-xs font-bold px-3 py-1.5 bg-white rounded-xl shadow-xs border border-teal-100/40 flex items-center gap-1.5 cursor-pointer hover:bg-teal-50/50 transition-colors"
+    >
+        {/* Muestra el idioma actual en mayúsculas (ej: ES, EN, POR) */}
+        <span>{(i18n.language || 'es').toUpperCase()}</span>
+        <span className="text-[8px] text-teal-600">▼</span>
+    </div>
+
+    {/* Dropdown de opciones */}
+    {langMenuOpen && (
+        <div className="absolute top-full left-0 mt-2 w-full min-w-[70px] bg-white border border-teal-100/60 rounded-xl shadow-lg overflow-hidden animate-fade-in">
+            <button 
+                onClick={() => changeLanguage('es')} 
+                className="block w-full text-center px-3 py-2 text-xs font-bold text-[#113130] hover:bg-teal-50 hover:text-[#0F766E] transition-colors"
+            >
+                ES
+            </button>
+            <button 
+                onClick={() => changeLanguage('en')} 
+                className="block w-full text-center px-3 py-2 text-xs font-bold text-[#113130] hover:bg-teal-50 hover:text-[#0F766E] transition-colors"
+            >
+                EN
+            </button>
+            <button 
+                onClick={() => changeLanguage('pt')} 
+                className="block w-full text-center px-3 py-2 text-xs font-bold text-[#113130] hover:bg-teal-50 hover:text-[#0F766E] transition-colors"
+            >
+                POR
+            </button>
+        </div>
+    )}
+</div>
                         
-                        {/* Icono de Mensajes (El que ya tenías) */}
-                        <button className="p-2.5 bg-white rounded-xl shadow-xs border border-teal-100/40 hover:bg-teal-50/50 transition-colors relative">
-                            <svg className="w-4 h-4 text-[#113130]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                            </svg>
-                            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#14B8A6] rounded-full"></span>
-                        </button>
+                                               {/* Botón de Calendario (Reemplazó al botón de Mensajes) */}
+                        <div className="relative">
+                            <button 
+                                onClick={() => setShowCalendar(!showCalendar)}
+                                className="p-2.5 bg-white rounded-xl shadow-xs border border-teal-100/40 hover:bg-teal-50/50 transition-colors relative"
+                            >
+                                <svg className="w-4 h-4 text-[#113130]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#14B8A6] rounded-full"></span>
+                            </button>
+                            
+                            {/* Popup del Calendario */}
+                            {showCalendar && (
+                                <div className="absolute top-full right-0 mt-3 w-72 sm:w-80 bg-white rounded-2xl shadow-2xl border border-teal-100/30 p-5 z-[100] animate-fade-in">
+                                    {/* Encabezado del Calendario */}
+                                    <div className="flex items-center justify-between mb-4">
+                                        <button 
+                                            onClick={handlePrevMonth}
+                                            className="p-1.5 hover:bg-teal-50 rounded-lg transition-colors"
+                                        >
+                                            <svg className="w-4 h-4 text-[#113130]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
+                                            </svg>
+                                        </button>
+                                        
+                                        <div className="text-center">
+                                            <h3 className="text-sm font-bold text-[#113130]">{monthNames[currentMonth]}</h3>
+                                            <p className="text-xs text-slate-500">{currentYear}</p>
+                                        </div>
+                                        
+                                        <button 
+                                            onClick={handleNextMonth}
+                                            className="p-1.5 hover:bg-teal-50 rounded-lg transition-colors"
+                                        >
+                                            <svg className="w-4 h-4 text-[#113130]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    
+                                    {/* Días de la semana */}
+                                    <div className="grid grid-cols-7 gap-1.5 mb-3">
+                                        {dayNames.map(day => (
+                                            <div key={day} className="h-7 flex items-center justify-center text-xs font-bold text-[#0F766E]">
+                                                {day}
+                                            </div>
+                                        ))}
+                                    </div>
+                                    
+                                    {/* Días del mes */}
+                                    <div className="grid grid-cols-7 gap-1.5 mb-4">
+                                        {renderCalendar()}
+                                    </div>
+                                    
+                                    {/* Información de la cita */}
+                                    {isAppointmentDay(appointmentDate.getDate()) && (
+                                        <div className="bg-gradient-to-r from-teal-50 to-cyan-50 rounded-xl p-3 border border-[#14B8A6]/20">
+                                            <p className="text-xs font-bold text-[#113130] mb-1">📅 Cita Programada</p>
+                                            <p className="text-xs text-slate-600">
+                                                Paciente: <span className="font-bold text-[#0F766E]">Juan Pérez</span>
+                                            </p>
+                                            <p className="text-xs text-slate-600">
+                                                Hora: <span className="font-bold text-[#0F766E]">10:30 AM</span>
+                                            </p>
+                                        </div>
+                                    )}
+                                    
+                                    {/* Botón cerrar */}
+                                    <button 
+                                        onClick={() => setShowCalendar(false)}
+                                        className="w-full mt-4 py-2 text-xs font-bold bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-lg transition-colors"
+                                    >
+                                        Cerrar
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                         
                         {/* 🌟 AQUÍ VA TU COMPONENTE ESTRELLA 🌟 */}
                         <CampanaAlertas />

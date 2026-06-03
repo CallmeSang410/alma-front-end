@@ -12,7 +12,7 @@ const Pacientes = () => {
     const [selectedPatient, setSelectedPatient] = useState(null);
     const [patientToDelete, setPatientToDelete] = useState(null);
     const [formErrors, setFormErrors] = useState({}); 
-    const [formData, setFormData] = useState({ id: null, name: '', phone: '', email: '', age: '', condition: '', status: 'Activo' });
+    const [formData, setFormData] = useState({ id: null, name: '', phone: '', email: '', age: '', status: 'Activo', sex: '' });
 
     // 🌟 1. Inicializamos con un array vacío para que no use datos ficticios
     const [patients, setPatients] = useState([]);
@@ -45,7 +45,6 @@ const Pacientes = () => {
                     phone: p.telefono || 'Sin teléfono',
                     email: p.email || 'Sin correo',
                     age: p.edad,
-                    condition: p.diagnostico_principal,
                     status: p.estado || 'Activo',
                     timeline: [], // Se llenará cuando implementen eventos por paciente
                     reports: []   // Se llenará cuando implementen reportes por paciente
@@ -84,11 +83,11 @@ const Pacientes = () => {
                 phone: patient.phone === 'Sin teléfono' ? '' : patient.phone,
                 email: patient.email === 'Sin correo' ? '' : patient.email,
                 age: patient.age || '',
-                condition: patient.condition || '',
-                status: patient.status || 'Activo'
+                status: patient.status || 'Activo',
+                sex: patient.sex || '' // Aseguramos que el campo '
             });
         } else {
-            setFormData({ id: null, name: '', phone: '', email: '', age: '', condition: '', status: 'Activo' }); 
+            setFormData({ id: null, name: '', phone: '', email: '', age: '', status: 'Activo', sex: '' }); 
         }
         setView('form');
     };
@@ -100,7 +99,7 @@ const Pacientes = () => {
         if (!formData.name.trim()) errors.name = true;
         if (!formData.phone.trim()) errors.phone = true;
         if (!formData.age.toString().trim()) errors.age = true;
-        if (!formData.condition.trim()) errors.condition = true;
+        if (!formData.sex.trim()) errors.sex = true;
 
         if (Object.keys(errors).length > 0) {
             setFormErrors(errors);
@@ -115,7 +114,7 @@ const Pacientes = () => {
             // Esto evita que envíe 'NaN' si la edad está vacía
             edad: formData.age ? parseInt(formData.age) : null, 
             estado: formData.status,
-            diagnostico_principal: formData.condition
+            sexo: formData.sex
         };
 
         try {
@@ -184,8 +183,7 @@ const Pacientes = () => {
         setView('details');
     };
 
-    const filteredPatients = patients.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.condition.toLowerCase().includes(searchQuery.toLowerCase()));
-
+    const filteredPatients = patients.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
     const getTrendInfo = (status) => {
         if (status === 'Activo') return { label: 'Tendencia Positiva', gradient: 'from-emerald-400 via-teal-400 to-slate-200', text: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200', ring: 'border-emerald-400', icon: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6' };
         if (status === 'Pendiente') return { label: 'Tendencia Estable', gradient: 'from-amber-400 via-orange-300 to-slate-200', text: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-200', ring: 'border-amber-400', icon: 'M5 12h14' };
@@ -204,7 +202,6 @@ const Pacientes = () => {
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
                     <div>
                         <h1 className="text-2xl font-black text-[#113130] tracking-tight">Directorio de Pacientes</h1>
-                        <p className="text-slate-500 text-sm font-medium mt-1">Gestiona expedientes y consultas ({patients.length} total)</p>
                     </div>
                     <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
                         <div className="relative w-full sm:w-64">
@@ -235,7 +232,6 @@ const Pacientes = () => {
                                         <span className={`text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg ${patient.status === 'Activo' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100/50' : patient.status === 'Pendiente' ? 'bg-amber-50 text-amber-600 border border-amber-100/50' : 'bg-slate-50 text-slate-500 border border-slate-200/50'}`}>{patient.status}</span>
                                     </div>
                                     <h3 className="text-xl font-black text-[#113130] leading-tight truncate">{patient.name}</h3>
-                                    <p className="text-xs font-bold text-[#0F766E] uppercase tracking-widest mt-1.5 truncate">{patient.condition}</p>
                                     
                                     <div className="mt-6 space-y-3 bg-slate-50/50 p-4 rounded-2xl border border-slate-50">
                                         <div className="flex items-center gap-3 text-slate-600 text-xs font-bold"><svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>{patient.phone}</div>
@@ -270,7 +266,6 @@ const Pacientes = () => {
                         <div className="w-24 h-24 rounded-[2rem] bg-gradient-to-br from-[#0F766E] to-teal-500 text-white flex items-center justify-center font-black text-4xl shadow-xl shadow-teal-900/20 shrink-0 border-4 border-white">{selectedPatient.name.charAt(0)}</div>
                         <div className="flex-1">
                             <div className="flex items-center gap-4 flex-wrap mb-2"><h1 className="text-3xl sm:text-4xl font-black text-[#113130] tracking-tight">{selectedPatient.name}</h1><span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg ${selectedPatient.status === 'Activo' ? 'bg-emerald-50 text-emerald-600' : selectedPatient.status === 'Pendiente' ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-500'}`}>{selectedPatient.status}</span></div>
-                            <p className="text-sm font-black text-[#0F766E] uppercase tracking-widest bg-teal-50 inline-block px-3 py-1 rounded-lg">{selectedPatient.condition}</p>
                         </div>
                     </div>
                     <div className="flex flex-row md:flex-col gap-3 w-full md:w-auto relative z-10 shrink-0">
@@ -413,17 +408,34 @@ const Pacientes = () => {
                         <p className="text-sm text-slate-400 font-medium mt-1">Completa la información básica para el directorio clínico.</p>
                     </div>
                     <form onSubmit={handleSavePatient} className="space-y-6" noValidate>
-                        <div>
-                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nombre Completo <span className="text-rose-500">*</span></label>
-                            <input 
-                                type="text" 
-                                required
-                                value={formData.name} 
-                                onChange={(e) => setFormData({...formData, name: e.target.value})} 
-                                placeholder="Ej. Juan Pérez..." 
-                                className={`w-full rounded-2xl px-4 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.name ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-slate-50 border-slate-200 focus:ring-[#0F766E] border'}`} 
-                            />
-                            {formErrors.name && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Este campo es obligatorio</p>}
+                       {/* NUEVA GRILLA: Nombre y Sexo */}
+                        <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-6">
+                            {/* Columna Nombre (Toma 2 fracciones de espacio) */}
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nombre Completo <span className="text-rose-500">*</span></label>
+                                <input 
+                                    type="text" 
+                                    required
+                                    value={formData.name} 
+                                    onChange={(e) => setFormData({...formData, name: e.target.value})} 
+                                    placeholder="Ej. Juan Pérez..." 
+                                    className={`w-full rounded-2xl px-4 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.name ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-slate-50 border-slate-200 focus:ring-[#0F766E] border'}`} 
+                                />
+                                {formErrors.name && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Este campo es obligatorio</p>}
+                            </div>
+
+                            {/* Columna Sexo (Toma 1 fracción de espacio, para que se vea más pequeño) */}
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Sexo <span className="text-rose-500">*</span></label>
+                                <select 
+                                    value={formData.sex} 
+                                    onChange={(e) => setFormData({...formData, sex: e.target.value})} 
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 focus:ring-[#0F766E] transition-all"
+                                >
+                                    <option value="Masculino">Masculino</option>
+                                    <option value="Femenino">Femenino</option>
+                                </select>
+                            </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
@@ -475,18 +487,7 @@ const Pacientes = () => {
                                 </select>
                             </div>
                         </div>
-                        <div>
-                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Diagnóstico / Motivo de Consulta <span className="text-rose-500">*</span></label>
-                            <input 
-                                type="text" 
-                                required
-                                value={formData.condition} 
-                                onChange={(e) => setFormData({...formData, condition: e.target.value})} 
-                                placeholder="Ej. Trastorno de Ansiedad..." 
-                                className={`w-full rounded-2xl px-4 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.condition ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-slate-50 border-slate-200 focus:ring-[#0F766E] border'}`} 
-                            />
-                            {formErrors.condition && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Este campo es obligatorio</p>}
-                        </div>
+                        
                         <div className="pt-8 border-t border-slate-100 flex gap-4">
                             <button type="submit" className="w-full bg-[#0F766E] hover:bg-[#0D9488] text-white py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-lg shadow-teal-900/20 transition-colors">
                                 {formData.id ? 'Guardar Cambios' : 'Crear Expediente'}
