@@ -383,54 +383,65 @@ const Pacientes = () => {
                         </div>
                     </div>
 
-                    {/* ================= LÍNEA DE TIEMPO INTERACTIVA DUAL ================= */}
-<div className="bg-white rounded-[2rem] p-6 sm:p-10 shadow-sm border border-slate-100 overflow-hidden relative">
+
+{/* ================= LÍNEA DE TIEMPO INTERACTIVA DUAL ================= */}
+<div className="bg-[#F8FAFA] rounded-[2rem] p-6 sm:p-10 shadow-inner border border-slate-200 overflow-hidden relative">
     
-    {/* Cabecera y Controles */}
-    <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 mb-12 border-b border-slate-50 pb-6">
+    {/* Cabecera (Título y Botón de Edición a la derecha) */}
+    <div className="flex justify-between items-start md:items-center gap-6 mb-8">
         <div>
             <h3 className="text-xl font-black text-[#113130] flex items-center gap-3">
                 Historial Evolutivo
-                <button 
-                    onClick={() => setIsTimelineEditMode(!isTimelineEditMode)}
-                    className={`p-2 rounded-xl transition-all ${isTimelineEditMode ? 'bg-[#0F766E] text-white shadow-md' : 'bg-slate-50 text-slate-400 hover:text-[#0F766E] hover:bg-teal-50'}`}
-                    title="Editar Línea de Tiempo"
-                >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                </button>
             </h3>
-            <p className="text-xs text-slate-400 font-medium mt-1">Línea de tiempo gráfica del progreso clínico</p>
+            <p className="text-xs text-slate-500 font-medium mt-1">Línea de tiempo gráfica del progreso clínico</p>
         </div>
+        <button 
+            onClick={() => setIsTimelineEditMode(!isTimelineEditMode)}
+            className={`p-3 rounded-2xl transition-all flex items-center gap-2 ${isTimelineEditMode ? 'bg-[#0F766E] text-white shadow-lg shadow-teal-900/20' : 'bg-white text-slate-400 hover:text-[#0F766E] shadow-sm border border-slate-100 hover:border-teal-200'}`}
+            title="Modificar Línea de Tiempo"
+        >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+            <span className="hidden sm:inline text-[10px] font-black uppercase tracking-widest">{isTimelineEditMode ? 'Guardar Cambios' : 'Modificar'}</span>
+        </button>
+    </div>
 
-        {/* Switcher: Estado vs Terapia */}
-        <div className="flex bg-slate-100 p-1.5 rounded-2xl shrink-0 w-full xl:w-auto overflow-x-auto hide-scrollbar">
+    {/* Controles Centrados: Switcher y Botón de Agregar Etapa */}
+    <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mb-12 border-b border-slate-200/60 pb-8">
+        <div className="flex bg-white p-1.5 rounded-2xl shadow-sm border border-slate-200 shrink-0 overflow-x-auto hide-scrollbar">
             <button 
                 onClick={() => setActiveTimeline('estado')} 
-                className={`flex-1 xl:flex-none px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all whitespace-nowrap ${activeTimeline === 'estado' ? 'bg-white text-[#113130] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                className={`px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all whitespace-nowrap ${activeTimeline === 'estado' ? 'bg-[#0F766E] text-white shadow-md' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'}`}
             >
                 Estado del Padecimiento
             </button>
             <button 
                 onClick={() => setActiveTimeline('terapia')} 
-                className={`flex-1 xl:flex-none px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all whitespace-nowrap ${activeTimeline === 'terapia' ? 'bg-[#0F766E] text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                className={`px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all whitespace-nowrap ${activeTimeline === 'terapia' ? 'bg-[#0F766E] text-white shadow-md' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'}`}
             >
                 Avance de Terapia
             </button>
         </div>
+        
+        {/* Botón central para agregar una nueva etapa/evento a la línea actual */}
+        {isTimelineEditMode && (
+            <button 
+                onClick={handleAddStage} 
+                className="bg-white border-2 border-[#0F766E] text-[#0F766E] hover:bg-teal-50 px-6 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-sm"
+            >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" /></svg> Agregar Evento
+            </button>
+        )}
     </div>
 
     {/* Contenedor Gráfico de la Línea de Tiempo */}
     {mockTimelines[activeTimeline].length === 0 ? (
-        <div className="text-center py-16 bg-slate-50 rounded-[2rem] border border-dashed border-slate-200">
+        <div className="text-center py-16 bg-white rounded-[2rem] border border-dashed border-slate-300">
             <p className="text-sm font-bold text-slate-500 mb-4">No hay registros en esta línea de tiempo.</p>
-            {isTimelineEditMode && (
-                <button onClick={handleAddStage} className="bg-[#0F766E] text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest">Crear Primera Etapa</button>
-            )}
         </div>
     ) : (
         <div className="relative w-full overflow-x-auto pb-16 pt-32 px-4 md:px-10 hide-scrollbar flex items-center min-h-[350px]">
-            {/* La línea horizontal de fondo */}
-            <div className="absolute top-[60%] left-0 right-0 h-1.5 bg-slate-100 rounded-full z-0"></div>
+            {/* La línea horizontal de fondo (ahora un poco más visible) */}
+            <div className="absolute top-[60%] left-0 right-0 h-2 bg-slate-200/80 rounded-full z-0"></div>
 
             <div className="flex items-center gap-20 md:gap-32 w-max min-w-full">
                 {mockTimelines[activeTimeline].map((stage, index) => (
@@ -442,48 +453,41 @@ const Pacientes = () => {
                                 <button 
                                     key={note.id}
                                     onClick={() => { setSelectedNote(note); setNoteStageId(stage.id); setIsNoteModalOpen(true); }}
-                                    className={`p-2.5 rounded-lg shadow-md text-[9px] font-black uppercase tracking-widest w-28 truncate transition-transform hover:scale-105 border-2 ${activeTimeline === 'estado' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}
+                                    className={`p-3 rounded-xl shadow-md text-[9px] font-black uppercase tracking-widest w-32 truncate transition-transform hover:-translate-y-1 border-2 bg-white ${activeTimeline === 'estado' ? 'text-amber-700 border-amber-300 hover:border-amber-400' : 'text-emerald-700 border-emerald-300 hover:border-emerald-400'}`}
                                     title={note.title}
                                 >
                                     {note.title}
                                 </button>
                             ))}
                             
-                            {/* Botón flotante para agregar nota en esta etapa */}
+                            {/* Botón flotante para agregar nota específica a este evento */}
                             {isTimelineEditMode && (
                                 <button 
                                     onClick={() => { setNoteStageId(stage.id); setSelectedNote({ title: '', content: '' }); setIsNoteModalOpen(true); }}
-                                    className="w-6 h-6 rounded-full bg-slate-800 text-white flex items-center justify-center hover:bg-slate-700 shadow-lg"
-                                    title="Agregar Nota Aquí"
+                                    className="w-7 h-7 rounded-full bg-slate-800 text-white flex items-center justify-center hover:bg-slate-700 shadow-lg hover:scale-110 transition-transform mb-2"
+                                    title="Agregar Nota a este Evento"
                                 >
-                                    +
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" /></svg>
                                 </button>
                             )}
                         </div>
 
                         {/* Línea conectora de notas al nodo central */}
-                        {stage.notes.length > 0 && <div className="absolute bottom-[calc(100%+15px)] h-4 w-px bg-slate-300"></div>}
+                        {stage.notes.length > 0 && <div className="absolute bottom-[calc(100%+15px)] h-4 w-0.5 bg-slate-300"></div>}
 
-                        {/* Nodo Principal de la Línea de Tiempo */}
-                        <div className={`w-5 h-5 rounded-full border-4 border-white shadow-md z-20 ${activeTimeline === 'estado' ? 'bg-amber-500' : 'bg-emerald-500'}`}></div>
+                        {/* Nodo Principal de la Línea de Tiempo (más prominente) */}
+                        <div className={`w-6 h-6 rounded-full border-4 border-white shadow-md z-20 ${activeTimeline === 'estado' ? 'bg-amber-500' : 'bg-[#0F766E]'}`}></div>
 
                         {/* Título de la Etapa (Debajo del nodo) */}
-                        <div className="mt-6 text-center">
-                            <h4 className="text-xs font-black text-[#113130] truncate w-32">{stage.title}</h4>
+                        <div className="mt-6 text-center bg-white p-3 rounded-2xl shadow-sm border border-slate-100 w-36">
+                            <h4 className="text-xs font-black text-[#113130] truncate">{stage.title}</h4>
                             <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest">{stage.date}</p>
                         </div>
 
                         {/* Botones de edición del nodo (Solo en Edit Mode) */}
                         {isTimelineEditMode && (
-                            <div className="absolute top-[calc(100%+60px)] flex gap-2">
-                                <button onClick={() => handleDeleteStage(stage.id)} className="w-7 h-7 rounded-lg bg-rose-50 text-rose-500 flex items-center justify-center hover:bg-rose-100 transition-colors"><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12" /></svg></button>
-                            </div>
-                        )}
-
-                        {/* Botón cruz entre nodos para agregar etapa */}
-                        {isTimelineEditMode && index === mockTimelines[activeTimeline].length - 1 && (
-                            <div className="absolute left-[calc(100%+2.5rem)] md:left-[calc(100%+4rem)] top-[40%] -translate-y-[60%]">
-                                <button onClick={handleAddStage} className="w-8 h-8 rounded-full bg-[#0F766E] text-white flex items-center justify-center shadow-lg hover:scale-110 transition-transform"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" /></svg></button>
+                            <div className="absolute top-[calc(100%+70px)] flex gap-2">
+                                <button onClick={() => handleDeleteStage(stage.id)} className="w-8 h-8 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center hover:bg-rose-100 transition-colors shadow-sm"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
                             </div>
                         )}
                     </div>
@@ -492,12 +496,12 @@ const Pacientes = () => {
         </div>
     )}
 
-    {/* Botón inferior para borrar toda la línea (Solo visible en Edit Mode) */}
+    {/* Botón inferior para borrar toda la línea */}
     {isTimelineEditMode && mockTimelines[activeTimeline].length > 0 && (
-        <div className="mt-8 pt-6 border-t border-rose-50 flex justify-end">
+        <div className="mt-8 pt-6 border-t border-slate-200 flex justify-end">
             <button 
                 onClick={() => setShowDeleteTimelineModal(true)}
-                className="flex items-center gap-2 px-5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors"
+                className="flex items-center gap-2 px-6 py-3 bg-white border border-rose-100 hover:bg-rose-50 text-rose-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors shadow-sm"
             >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                 Limpiar Línea Completa
@@ -505,7 +509,6 @@ const Pacientes = () => {
         </div>
     )}
 </div>
-                </div>
 
                 {/* MODAL DE ELIMINACIÓN GLOBAL */}
                 {patientToDelete && createPortal(
@@ -519,11 +522,9 @@ const Pacientes = () => {
                     </div>, document.body
                 )}
             </div>
+        </div>
         );
-    }
-
-    // ================= VISTA 3: FORMULARIO =================
-    if (view === 'form') {
+        
         return (
             <div className="max-w-2xl mx-auto space-y-6 relative animate-fade-in pb-10">
                 <style>{cssStyles}</style>
@@ -628,78 +629,94 @@ const Pacientes = () => {
     }
 
 {/* MODAL: DETALLE / EDICIÓN DE NOTA DE LA LÍNEA DE TIEMPO */}
-                {isNoteModalOpen && selectedNote && createPortal(
-                    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-                        <div className="absolute inset-0 bg-[#113130]/60 backdrop-blur-sm" onClick={() => setIsNoteModalOpen(false)}></div>
-                        <div className="bg-white rounded-[2rem] w-full max-w-md p-8 relative z-10 shadow-2xl animate-fade-in border border-slate-100">
-                            
-                            {/* Botón Cerrar (X) */}
-                            <button onClick={() => setIsNoteModalOpen(false)} className="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-colors">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+{isNoteModalOpen && selectedNote && createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-[#113130]/60 backdrop-blur-sm" onClick={() => setIsNoteModalOpen(false)}></div>
+        <div className="bg-white rounded-[2rem] w-full max-w-md p-8 relative z-10 shadow-2xl animate-fade-in border border-slate-100">
+            
+            {/* Botón Cerrar (X) */}
+            <button onClick={() => setIsNoteModalOpen(false)} className="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-colors">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+
+            {/* Condicional: Visor vs Editor */}
+            {!isTimelineEditMode && selectedNote.id ? (
+                /* MODO VISTA: Solo lectura */
+                <div>
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${activeTimeline === 'estado' ? 'bg-amber-50 text-amber-500' : 'bg-teal-50 text-[#0F766E]'}`}>
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                        </div>
+                        <div>
+                            <h3 className="text-xl font-black text-[#113130]">{selectedNote.title}</h3>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                                Fecha del evento: {mockTimelines[activeTimeline].find(s => s.id === noteStageId)?.date || 'Desconocida'}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 mb-8">
+                        <p className="text-sm font-medium text-slate-600 leading-relaxed whitespace-pre-wrap">
+                            {selectedNote.content || 'Sin observaciones detalladas.'}
+                        </p>
+                    </div>
+
+                    <button 
+                        onClick={() => setIsNoteModalOpen(false)}
+                        className="w-full py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors"
+                    >
+                        Cerrar Detalles
+                    </button>
+                </div>
+            ) : (
+                /* MODO EDICIÓN: Formulario activo */
+                <div>
+                    <h3 className="text-xl font-black text-[#113130] mb-6">{selectedNote.id ? 'Modificar Nota Clínica' : 'Nueva Nota Clínica'}</h3>
+                    
+                    <div className="space-y-5">
+                        <div>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Título Corto</label>
+                            <input 
+                                type="text" 
+                                value={selectedNote.title} 
+                                onChange={(e) => setSelectedNote({...selectedNote, title: e.target.value})}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 focus:ring-[#0F766E]"
+                                placeholder="Ej. Mejora de movilidad"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Observaciones / Detalles</label>
+                            <textarea 
+                                value={selectedNote.content} 
+                                onChange={(e) => setSelectedNote({...selectedNote, content: e.target.value})}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-600 focus:outline-none focus:ring-2 focus:ring-[#0F766E] min-h-[120px] resize-none"
+                                placeholder="Describe los detalles de este evento..."
+                            />
+                        </div>
+                    </div>
+
+                    <div className="flex gap-3 mt-8">
+                        {selectedNote.id && (
+                            <button 
+                                onClick={() => handleDeleteNote(noteStageId, selectedNote.id)}
+                                className="px-5 py-3.5 bg-rose-50 hover:bg-rose-100 text-rose-500 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center shrink-0"
+                                title="Eliminar Nota"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                             </button>
-
-                            <h3 className="text-xl font-black text-[#113130] mb-6">{selectedNote.id ? 'Detalles de Nota' : 'Nueva Nota Clínica'}</h3>
-                            
-                            <div className="space-y-5">
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Título Corto</label>
-                                    <input 
-                                        type="text" 
-                                        value={selectedNote.title} 
-                                        onChange={(e) => setSelectedNote({...selectedNote, title: e.target.value})}
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 focus:ring-[#0F766E]"
-                                        placeholder="Ej. Mejora de movilidad"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Observaciones</label>
-                                    <textarea 
-                                        value={selectedNote.content} 
-                                        onChange={(e) => setSelectedNote({...selectedNote, content: e.target.value})}
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-600 focus:outline-none focus:ring-2 focus:ring-[#0F766E] min-h-[120px] resize-none"
-                                        placeholder="Describe los detalles de esta etapa..."
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="flex gap-3 mt-8">
-                                {selectedNote.id && (
-                                    <button 
-                                        onClick={() => handleDeleteNote(noteStageId, selectedNote.id)}
-                                        className="px-5 py-3.5 bg-rose-50 hover:bg-rose-100 text-rose-500 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center shrink-0"
-                                        title="Eliminar Nota"
-                                    >
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                    </button>
-                                )}
-                                <button 
-                                    onClick={handleSaveNote}
-                                    className="flex-1 py-3.5 bg-[#0F766E] hover:bg-[#0D9488] text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-teal-900/20 transition-colors"
-                                >
-                                    Guardar Cambios
-                                </button>
-                            </div>
-                        </div>
-                    </div>, document.body
-                )}
-
-                {/* MODAL: CONFIRMAR BORRADO DE LÍNEA DE TIEMPO */}
-                {showDeleteTimelineModal && createPortal(
-                    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-                        <div className="absolute inset-0 bg-[#113130]/70 backdrop-blur-md" onClick={() => setShowDeleteTimelineModal(false)}></div>
-                        <div className="bg-white rounded-[2rem] w-full max-w-sm p-8 relative z-10 shadow-2xl animate-fade-in border border-rose-100/50 text-center">
-                            <div className="mx-auto w-20 h-20 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mb-6 shadow-inner border border-rose-100">
-                                <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                            </div>
-                            <h3 className="text-xl font-black text-[#113130] mb-3">¿Limpiar Línea de Tiempo?</h3>
-                            <p className="text-sm text-slate-500 font-medium mb-8">Borrarás todas las etapas y notas de la vista de "<span className="font-bold text-[#113130]">{activeTimeline === 'estado' ? 'Estado del Padecimiento' : 'Avance de Terapia'}</span>".</p>
-                            <div className="flex gap-3">
-                                <button onClick={() => setShowDeleteTimelineModal(false)} className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors">Cancelar</button>
-                                <button onClick={clearTimeline} className="flex-1 py-3.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-rose-500/30 transition-colors">Confirmar</button>
-                            </div>
-                        </div>
-                    </div>, document.body
-                )}
+                        )}
+                        <button 
+                            onClick={handleSaveNote}
+                            className="flex-1 py-3.5 bg-[#0F766E] hover:bg-[#0D9488] text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-teal-900/20 transition-colors"
+                        >
+                            Guardar Cambios
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
+    </div>, document.body
+)}
 
     return null;
 };
