@@ -14,14 +14,14 @@ const Pacientes = () => {
     const [formErrors, setFormErrors] = useState({}); 
     const [formData, setFormData] = useState({ id: null, name: '', phone: '', email: '', age: '', status: 'Activo', sex: '' });
 
-// ================= ESTADOS DE LA LÍNEA DE TIEMPO INTERACTIVA =================
-    const [activeTimeline, setActiveTimeline] = useState('estado'); // 'estado' o 'terapia'
+    // ================= ESTADOS DE LA LÍNEA DE TIEMPO INTERACTIVA =================
+    const [activeTimeline, setActiveTimeline] = useState('estado');
     const [isTimelineEditMode, setIsTimelineEditMode] = useState(false);
     
     // Modal para Notas
-    const [selectedNote, setSelectedNote] = useState(null); // Guarda la nota seleccionada o nueva
+    const [selectedNote, setSelectedNote] = useState(null);
     const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
-    const [noteStageId, setNoteStageId] = useState(null); // Saber a qué etapa pertenece la nota
+    const [noteStageId, setNoteStageId] = useState(null);
     
     // Modal para borrar toda la línea
     const [showDeleteTimelineModal, setShowDeleteTimelineModal] = useState(false);
@@ -42,17 +42,14 @@ const Pacientes = () => {
 
     // --- FUNCIONES DE LA LÍNEA DE TIEMPO ---
     const handleSaveNote = () => {
-        // Lógica simulada para guardar o editar una nota
         const updatedTimelines = { ...mockTimelines };
         const stageIndex = updatedTimelines[activeTimeline].findIndex(s => s.id === noteStageId);
         
         if (stageIndex !== -1) {
             if (selectedNote.id) {
-                // Modificar existente
                 const noteIndex = updatedTimelines[activeTimeline][stageIndex].notes.findIndex(n => n.id === selectedNote.id);
                 updatedTimelines[activeTimeline][stageIndex].notes[noteIndex] = selectedNote;
             } else {
-                // Crear nueva
                 updatedTimelines[activeTimeline][stageIndex].notes.push({ ...selectedNote, id: `new-${Date.now()}` });
             }
             setMockTimelines(updatedTimelines);
@@ -92,15 +89,11 @@ const Pacientes = () => {
         setShowDeleteTimelineModal(false);
     };
 
-
-    // 🌟 1. Inicializamos con un array vacío para que no use datos ficticios
     const [patients, setPatients] = useState([]);
 
-    // 🌟 2. FUNCIÓN MAESTRA PARA TRAER LOS PACIENTES DESDE POSTGRESQL
     const obtenerPacientes = async () => {
         try {
             const token = localStorage.getItem('token');
-
             if (!token) {
                 console.log("No se encontró ningún token de acceso.");
                 return;
@@ -116,8 +109,6 @@ const Pacientes = () => {
 
             if (respuesta.ok) {
                 const datosServidor = await respuesta.json();
-                
-                // 🕵️‍♂️ TRADUCCIÓN DE IDIOMA: Pasamos de formato Base de Datos a formato de UI de React
                 const pacientesFormateados = datosServidor.map(p => ({
                     id: p.id, 
                     name: p.nombre,
@@ -125,12 +116,10 @@ const Pacientes = () => {
                     email: p.email || 'Sin correo',
                     age: p.edad,
                     status: p.estado || 'Activo',
-                    timeline: [], // Se llenará cuando implementen eventos por paciente
-                    reports: []   // Se llenará cuando implementen reportes por paciente
+                    timeline: [], 
+                    reports: [] 
                 }));
-
                 setPatients(pacientesFormateados);
-                console.log("¡Pacientes cargados con éxito desde PostgreSQL!", pacientesFormateados);
             } else {
                 console.error("El guardia del backend rechazó el acceso a la lista.");
             }
@@ -139,12 +128,10 @@ const Pacientes = () => {
         }
     };
 
-    // 🌟 3. EFECTO AUTOMÁTICO PARA CARGAR AL ENTRAR A LA PESTAÑA
     useEffect(() => {
         obtenerPacientes();
     }, []);
 
-    // Manejo del scroll en el cuerpo cuando el modal de borrado está activo
     useEffect(() => {
         if (patientToDelete) document.body.style.overflow = 'hidden';
         else document.body.style.overflow = 'unset';
@@ -154,8 +141,6 @@ const Pacientes = () => {
     const handleOpenForm = (patient = null) => {
         setFormErrors({});
         if (patient) {
-            // ¡EL ARREGLO ESTÁ AQUÍ!
-            // Traducimos de vuelta los nombres de la interfaz a los nombres que espera el formulario
             setFormData({
                 id: patient.id,
                 name: patient.name,
@@ -163,7 +148,7 @@ const Pacientes = () => {
                 email: patient.email === 'Sin correo' ? '' : patient.email,
                 age: patient.age || '',
                 status: patient.status || 'Activo',
-                sex: patient.sex || '' // Aseguramos que el campo '
+                sex: patient.sex || '' 
             });
         } else {
             setFormData({ id: null, name: '', phone: '', email: '', age: '', status: 'Activo', sex: '' }); 
@@ -190,14 +175,13 @@ const Pacientes = () => {
             nombre: formData.name,
             telefono: formData.phone,
             email: formData.email, 
-            // Esto evita que envíe 'NaN' si la edad está vacía
             edad: formData.age ? parseInt(formData.age) : null, 
             estado: formData.status,
             sexo: formData.sex
         };
 
         try {
-            const url = 'http://localhost:8000/pacientes';
+            const url = 'http://127.0.0.1:8000/pacientes';
             const metodoHTTP = formData.id ? 'PUT' : 'POST';
             const urlFinal = formData.id ? `${url}/${formData.id}` : url;
 
@@ -211,49 +195,50 @@ const Pacientes = () => {
             });
 
             if (respuesta.ok) {
-                const pacienteGuardado = await respuesta.json();
-                console.log("¡Éxito desde FastAPI!", pacienteGuardado);
-                
-                // Recargamos la lista directo del servidor para asegurar sincronía total
                 obtenerPacientes();
                 alert(formData.id ? "¡Expediente actualizado!" : "¡Expediente creado exitosamente!");
                 setView('list'); 
             } else {
-                const errorData = await respuesta.json();
-                console.error("El backend rechazó los datos:", errorData);
                 alert("Hubo un error al guardar. Revisa la consola.");
             }
         } catch (error) {
-            console.error("Error de conexión:", error);
             alert("No se pudo conectar con el servidor.");
         }
     };
 
     const handleDeletePatient = (id) => { setPatientToDelete(id); };
-    const confirmDeletePatient = async () => {
+const confirmDeletePatient = async () => {
         try {
-            // 1. Le decimos al mesero (FastAPI) que borre el registro en la base de datos
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert("No tenés token de sesión. Volvé a loguearte.");
+                return;
+            }
+
+            // 🌟 Usamos 'localhost' para mantener consistencia con tus otros endpoints
             const respuesta = await fetch(`http://127.0.0.1:8000/pacientes/${patientToDelete}`, {
                 method: 'DELETE',
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}` // Enseñamos el gafete
+                    'Authorization': `Bearer ${token}` // Enseñamos el gafete
                 }
             });
 
             if (respuesta.ok) {
-                // 2. Si FastAPI dice "OK", entonces SÍ lo borramos de la pantalla
+                // Si FastAPI dice OK, lo borramos de la pantalla
                 setPatients(patients.filter(p => p.id !== patientToDelete));
                 setPatientToDelete(null);
+                setSelectedPatient(null); // Por si estabas dentro del expediente
                 setView('list'); 
-                console.log("¡Paciente eliminado definitivamente de PostgreSQL!");
+                alert("¡Expediente eliminado definitivamente!");
             } else {
-                const error = await respuesta.json();
-                console.error("FastAPI no quiso borrarlo:", error);
-                alert("No se pudo eliminar el expediente. Revisa la consola.");
+                const errorData = await respuesta.json();
+                // 🕵️‍♂️ Esto te va a decir exactamente por qué el backend no quiere borrarlo:
+                const mensajeError = errorData.detail || "Error desconocido en el servidor";
+                alert(`FastAPI rechazó el borrado: ${mensajeError}`);
             }
         } catch (error) {
             console.error("Error de conexión:", error);
-            alert("No se pudo conectar con el servidor para eliminar.");
+            alert("No se pudo conectar con el servidor para eliminar. ¿Está encendido FastAPI?");
         }
     };
 
@@ -325,20 +310,31 @@ const Pacientes = () => {
                         ))}
                     </div>
                 )}
+            {/* MODAL DE ELIMINAR: PEGAR JUSTO ANTES DEL ÚLTIMO </div> DE LA VISTA */}
+                {patientToDelete && createPortal(
+                    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+                        <div className="absolute inset-0 bg-[#113130]/70 backdrop-blur-md" onClick={() => setPatientToDelete(null)}></div>
+                        <div className="bg-white rounded-[2rem] w-full max-w-sm p-8 relative z-10 text-center">
+                            <h3 className="text-2xl font-black text-[#113130] mb-3">¿Eliminar Expediente?</h3>
+                            <p className="text-sm text-slate-500 mb-8">Esta acción es permanente en HorizonFlow.</p>
+                            <div className="flex gap-3">
+                                <button onClick={() => setPatientToDelete(null)} className="w-full py-3.5 bg-slate-100 text-slate-600 rounded-xl text-[11px] font-black uppercase tracking-widest">Cancelar</button>
+                                <button onClick={confirmDeletePatient} className="w-full py-3.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-[11px] font-black uppercase tracking-widest transition-colors">Sí, Eliminar</button>
+                            </div>
+                        </div>
+                    </div>, document.body
+                )}
             </div>
         );
     }
 
     // ================= VISTA 2: DETALLE DEL EXPEDIENTE =================
     if (view === 'details' && selectedPatient) {
-        const trend = getTrendInfo(selectedPatient.status); 
-
         return (
             <div className="space-y-6 relative animate-fade-in pb-10">
                 <style>{cssStyles}</style>
                 <button onClick={() => setView('list')} className="flex items-center gap-2 text-slate-500 hover:text-[#0F766E] text-xs font-black uppercase tracking-widest transition-colors mb-2 bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100 w-fit hover:shadow-md"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg> Directorio</button>
 
-                {/* HEADER DEL PERFIL */}
                 <div className="bg-white rounded-[2.5rem] p-6 sm:p-10 shadow-sm border border-slate-100 flex flex-col md:flex-row gap-8 justify-between items-start md:items-center relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-80 h-80 bg-teal-50 rounded-full blur-[100px] pointer-events-none"></div>
                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 relative z-10 w-full md:w-auto">
@@ -367,15 +363,13 @@ const Pacientes = () => {
                         <div className="bg-white rounded-[2rem] p-7 shadow-sm border border-slate-100 h-full">
                             <div className="flex justify-between items-center mb-5 border-b border-slate-50 pb-4">
                                 <h3 className="text-sm font-black text-[#113130] uppercase tracking-widest">Reportes IA</h3>
-                                <button className="text-[#0F766E] hover:bg-teal-50 p-1.5 rounded-lg transition-colors bg-slate-50" title="Generar Nuevo"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg></button>
                             </div>
                             {selectedPatient.reports && selectedPatient.reports.length > 0 ? (
                                 <div className="space-y-3">
                                     {selectedPatient.reports.map(report => (
                                         <div key={report.id} className="flex items-center gap-4 p-4 rounded-2xl border border-slate-100 hover:border-teal-100 hover:bg-teal-50/30 transition-colors cursor-pointer group">
                                             <div className="w-10 h-10 bg-rose-50 text-rose-500 rounded-xl flex items-center justify-center shrink-0 group-hover:bg-rose-100 transition-colors"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg></div>
-                                            <div className="flex-1 overflow-hidden"><h4 className="text-sm font-bold text-[#113130] truncate">{report.title}</h4><p className="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-widest">{report.date} • {report.size}</p></div>
-                                            <svg className="w-4 h-4 text-slate-300 group-hover:text-[#0F766E]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                                            <div className="flex-1 overflow-hidden"><h4 className="text-sm font-bold text-[#113130] truncate">{report.title}</h4></div>
                                         </div>
                                     ))}
                                 </div>
@@ -383,148 +377,85 @@ const Pacientes = () => {
                         </div>
                     </div>
 
-
-{/* ================= LÍNEA DE TIEMPO INTERACTIVA DUAL ================= */}
-<div className="bg-[#F8FAFA] rounded-[2rem] p-6 sm:p-10 shadow-inner border border-slate-200 overflow-hidden relative">
-    
-    {/* Cabecera (Título y Botón de Edición a la derecha) */}
-    <div className="flex justify-between items-start md:items-center gap-6 mb-8">
-        <div>
-            <h3 className="text-xl font-black text-[#113130] flex items-center gap-3">
-                Historial Evolutivo
-            </h3>
-            <p className="text-xs text-slate-500 font-medium mt-1">Línea de tiempo gráfica del progreso clínico</p>
-        </div>
-        <button 
-            onClick={() => setIsTimelineEditMode(!isTimelineEditMode)}
-            className={`p-3 rounded-2xl transition-all flex items-center gap-2 ${isTimelineEditMode ? 'bg-[#0F766E] text-white shadow-lg shadow-teal-900/20' : 'bg-white text-slate-400 hover:text-[#0F766E] shadow-sm border border-slate-100 hover:border-teal-200'}`}
-            title="Modificar Línea de Tiempo"
-        >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-            <span className="hidden sm:inline text-[10px] font-black uppercase tracking-widest">{isTimelineEditMode ? 'Guardar Cambios' : 'Modificar'}</span>
-        </button>
-    </div>
-
-    {/* Controles Centrados: Switcher y Botón de Agregar Etapa */}
-    <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mb-12 border-b border-slate-200/60 pb-8">
-        <div className="flex bg-white p-1.5 rounded-2xl shadow-sm border border-slate-200 shrink-0 overflow-x-auto hide-scrollbar">
-            <button 
-                onClick={() => setActiveTimeline('estado')} 
-                className={`px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all whitespace-nowrap ${activeTimeline === 'estado' ? 'bg-[#0F766E] text-white shadow-md' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'}`}
-            >
-                Estado del Padecimiento
-            </button>
-            <button 
-                onClick={() => setActiveTimeline('terapia')} 
-                className={`px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all whitespace-nowrap ${activeTimeline === 'terapia' ? 'bg-[#0F766E] text-white shadow-md' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'}`}
-            >
-                Avance de Terapia
-            </button>
-        </div>
-        
-        {/* Botón central para agregar una nueva etapa/evento a la línea actual */}
-        {isTimelineEditMode && (
-            <button 
-                onClick={handleAddStage} 
-                className="bg-white border-2 border-[#0F766E] text-[#0F766E] hover:bg-teal-50 px-6 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-sm"
-            >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" /></svg> Agregar Evento
-            </button>
-        )}
-    </div>
-
-    {/* Contenedor Gráfico de la Línea de Tiempo */}
-    {mockTimelines[activeTimeline].length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-[2rem] border border-dashed border-slate-300">
-            <p className="text-sm font-bold text-slate-500 mb-4">No hay registros en esta línea de tiempo.</p>
-        </div>
-    ) : (
-        <div className="relative w-full overflow-x-auto pb-16 pt-32 px-4 md:px-10 hide-scrollbar flex items-center min-h-[350px]">
-            {/* La línea horizontal de fondo (ahora un poco más visible) */}
-            <div className="absolute top-[60%] left-0 right-0 h-2 bg-slate-200/80 rounded-full z-0"></div>
-
-            <div className="flex items-center gap-20 md:gap-32 w-max min-w-full">
-                {mockTimelines[activeTimeline].map((stage, index) => (
-                    <div key={stage.id} className="relative z-10 flex flex-col items-center shrink-0 w-32 group">
-                        
-                        {/* Área de las Notas (Arriba del nodo) */}
-                        <div className="absolute bottom-[calc(100%+30px)] flex flex-col-reverse gap-2 w-full items-center">
-                            {stage.notes.map(note => (
-                                <button 
-                                    key={note.id}
-                                    onClick={() => { setSelectedNote(note); setNoteStageId(stage.id); setIsNoteModalOpen(true); }}
-                                    className={`p-3 rounded-xl shadow-md text-[9px] font-black uppercase tracking-widest w-32 truncate transition-transform hover:-translate-y-1 border-2 bg-white ${activeTimeline === 'estado' ? 'text-amber-700 border-amber-300 hover:border-amber-400' : 'text-emerald-700 border-emerald-300 hover:border-emerald-400'}`}
-                                    title={note.title}
-                                >
-                                    {note.title}
-                                </button>
-                            ))}
-                            
-                            {/* Botón flotante para agregar nota específica a este evento */}
+                    {/* LÍNEA DE TIEMPO INTERACTIVA */}
+                    <div className="bg-[#F8FAFA] rounded-[2rem] p-6 sm:p-10 shadow-inner border border-slate-200 overflow-hidden relative">
+                        <div className="flex justify-between items-start md:items-center gap-6 mb-8">
+                            <div>
+                                <h3 className="text-xl font-black text-[#113130] flex items-center gap-3">Historial Evolutivo</h3>
+                                <p className="text-xs text-slate-500 font-medium mt-1">Línea de tiempo gráfica del progreso clínico</p>
+                            </div>
+                            <button onClick={() => setIsTimelineEditMode(!isTimelineEditMode)} className={`p-3 rounded-2xl transition-all flex items-center gap-2 ${isTimelineEditMode ? 'bg-[#0F766E] text-white' : 'bg-white text-slate-400 hover:text-[#0F766E]'}`}>
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                <span className="hidden sm:inline text-[10px] font-black uppercase tracking-widest">{isTimelineEditMode ? 'Guardar Cambios' : 'Modificar'}</span>
+                            </button>
+                        </div>
+                        <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mb-12 border-b border-slate-200/60 pb-8">
+                            <div className="flex bg-white p-1.5 rounded-2xl shadow-sm border border-slate-200 shrink-0 overflow-x-auto hide-scrollbar">
+                                <button onClick={() => setActiveTimeline('estado')} className={`px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${activeTimeline === 'estado' ? 'bg-[#0F766E] text-white shadow-md' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'}`}>Estado del Padecimiento</button>
+                                <button onClick={() => setActiveTimeline('terapia')} className={`px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${activeTimeline === 'terapia' ? 'bg-[#0F766E] text-white shadow-md' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'}`}>Avance de Terapia</button>
+                            </div>
                             {isTimelineEditMode && (
-                                <button 
-                                    onClick={() => { setNoteStageId(stage.id); setSelectedNote({ title: '', content: '' }); setIsNoteModalOpen(true); }}
-                                    className="w-7 h-7 rounded-full bg-slate-800 text-white flex items-center justify-center hover:bg-slate-700 shadow-lg hover:scale-110 transition-transform mb-2"
-                                    title="Agregar Nota a este Evento"
-                                >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" /></svg>
+                                <button onClick={handleAddStage} className="bg-white border-2 border-[#0F766E] text-[#0F766E] hover:bg-teal-50 px-6 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-sm">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" /></svg> Agregar Evento
                                 </button>
                             )}
                         </div>
-
-                        {/* Línea conectora de notas al nodo central */}
-                        {stage.notes.length > 0 && <div className="absolute bottom-[calc(100%+15px)] h-4 w-0.5 bg-slate-300"></div>}
-
-                        {/* Nodo Principal de la Línea de Tiempo (más prominente) */}
-                        <div className={`w-6 h-6 rounded-full border-4 border-white shadow-md z-20 ${activeTimeline === 'estado' ? 'bg-amber-500' : 'bg-[#0F766E]'}`}></div>
-
-                        {/* Título de la Etapa (Debajo del nodo) */}
-                        <div className="mt-6 text-center bg-white p-3 rounded-2xl shadow-sm border border-slate-100 w-36">
-                            <h4 className="text-xs font-black text-[#113130] truncate">{stage.title}</h4>
-                            <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest">{stage.date}</p>
-                        </div>
-
-                        {/* Botones de edición del nodo (Solo en Edit Mode) */}
-                        {isTimelineEditMode && (
-                            <div className="absolute top-[calc(100%+70px)] flex gap-2">
-                                <button onClick={() => handleDeleteStage(stage.id)} className="w-8 h-8 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center hover:bg-rose-100 transition-colors shadow-sm"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                        {mockTimelines[activeTimeline].length === 0 ? (
+                            <div className="text-center py-16 bg-white rounded-[2rem] border border-dashed border-slate-300">
+                                <p className="text-sm font-bold text-slate-500 mb-4">No hay registros en esta línea de tiempo.</p>
+                            </div>
+                        ) : (
+                            <div className="relative w-full overflow-x-auto pb-16 pt-32 px-4 md:px-10 hide-scrollbar flex items-center min-h-[350px]">
+                                <div className="absolute top-[60%] left-0 right-0 h-2 bg-slate-200/80 rounded-full z-0"></div>
+                                <div className="flex items-center gap-20 md:gap-32 w-max min-w-full">
+                                    {mockTimelines[activeTimeline].map((stage) => (
+                                        <div key={stage.id} className="relative z-10 flex flex-col items-center shrink-0 w-32 group">
+                                            <div className="absolute bottom-[calc(100%+30px)] flex flex-col-reverse gap-2 w-full items-center">
+                                                {stage.notes.map(note => (
+                                                    <button key={note.id} onClick={() => { setSelectedNote(note); setNoteStageId(stage.id); setIsNoteModalOpen(true); }} className={`p-3 rounded-xl shadow-md text-[9px] font-black uppercase tracking-widest w-32 truncate transition-transform hover:-translate-y-1 border-2 bg-white ${activeTimeline === 'estado' ? 'text-amber-700 border-amber-300 hover:border-amber-400' : 'text-emerald-700 border-emerald-300 hover:border-emerald-400'}`}>{note.title}</button>
+                                                ))}
+                                                {isTimelineEditMode && (
+                                                    <button onClick={() => { setNoteStageId(stage.id); setSelectedNote({ title: '', content: '' }); setIsNoteModalOpen(true); }} className="w-7 h-7 rounded-full bg-slate-800 text-white flex items-center justify-center hover:bg-slate-700 shadow-lg hover:scale-110 transition-transform mb-2"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" /></svg></button>
+                                                )}
+                                            </div>
+                                            {stage.notes.length > 0 && <div className="absolute bottom-[calc(100%+15px)] h-4 w-0.5 bg-slate-300"></div>}
+                                            <div className={`w-6 h-6 rounded-full border-4 border-white shadow-md z-20 ${activeTimeline === 'estado' ? 'bg-amber-500' : 'bg-[#0F766E]'}`}></div>
+                                            <div className="mt-6 text-center bg-white p-3 rounded-2xl shadow-sm border border-slate-100 w-36">
+                                                <h4 className="text-xs font-black text-[#113130] truncate">{stage.title}</h4>
+                                                <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest">{stage.date}</p>
+                                            </div>
+                                            {isTimelineEditMode && (
+                                                <div className="absolute top-[calc(100%+70px)] flex gap-2">
+                                                    <button onClick={() => handleDeleteStage(stage.id)} className="w-8 h-8 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center hover:bg-rose-100 transition-colors shadow-sm"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         )}
                     </div>
-                ))}
-            </div>
-        </div>
-    )}
-
-    {/* Botón inferior para borrar toda la línea */}
-    {isTimelineEditMode && mockTimelines[activeTimeline].length > 0 && (
-        <div className="mt-8 pt-6 border-t border-slate-200 flex justify-end">
-            <button 
-                onClick={() => setShowDeleteTimelineModal(true)}
-                className="flex items-center gap-2 px-6 py-3 bg-white border border-rose-100 hover:bg-rose-50 text-rose-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors shadow-sm"
-            >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                Limpiar Línea Completa
-            </button>
-        </div>
-    )}
-</div>
-
-                {/* MODAL DE ELIMINACIÓN GLOBAL */}
+                </div>
+                {/* MODAL DE ELIMINAR: PEGAR JUSTO ANTES DEL ÚLTIMO </div> DE LA VISTA */}
                 {patientToDelete && createPortal(
-                    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 w-screen h-screen">
-                        <div className="absolute inset-0 bg-[#113130]/70 backdrop-blur-md" onClick={() => setPatientToDelete(null)} />
-                        <div className="bg-white rounded-[2rem] w-full max-w-sm p-8 relative z-10 shadow-2xl animate-fade-in border border-rose-100/50 text-center m-4">
-                            <div className="mx-auto w-20 h-20 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mb-6 shadow-inner border border-rose-100"><svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></div>
-                            <h3 className="text-2xl font-black text-[#113130] mb-3">¿Eliminar Expediente?</h3><p className="text-sm text-slate-500 font-medium mb-8 leading-relaxed">Esta acción es <span className="font-bold text-rose-500">permanente</span>. Se borrarán todas las notas de sesión, historial evolutivo y reportes asociados.</p>
-                            <div className="flex flex-col sm:flex-row gap-3"><button onClick={() => setPatientToDelete(null)} className="w-full py-3.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-[11px] font-black uppercase tracking-widest transition-colors">Cancelar</button><button onClick={confirmDeletePatient} className="w-full py-3.5 px-4 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-[11px] font-black uppercase tracking-widest shadow-lg shadow-rose-500/30 transition-colors">Sí, Eliminar</button></div>
+                    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+                        <div className="absolute inset-0 bg-[#113130]/70 backdrop-blur-md" onClick={() => setPatientToDelete(null)}></div>
+                        <div className="bg-white rounded-[2rem] w-full max-w-sm p-8 relative z-10 text-center">
+                            <h3 className="text-2xl font-black text-[#113130] mb-3">¿Eliminar Expediente?</h3>
+                            <p className="text-sm text-slate-500 mb-8">Esta acción es permanente en HorizonFlow.</p>
+                            <div className="flex gap-3">
+                                <button onClick={() => setPatientToDelete(null)} className="w-full py-3.5 bg-slate-100 text-slate-600 rounded-xl text-[11px] font-black uppercase tracking-widest">Cancelar</button>
+                                <button onClick={confirmDeletePatient} className="w-full py-3.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-[11px] font-black uppercase tracking-widest transition-colors">Sí, Eliminar</button>
+                            </div>
                         </div>
                     </div>, document.body
                 )}
             </div>
-        </div>
         );
-        
+    }
+
+    // ================= VISTA 3: FORMULARIO =================
+    if (view === 'form') { 
         return (
             <div className="max-w-2xl mx-auto space-y-6 relative animate-fade-in pb-10">
                 <style>{cssStyles}</style>
@@ -537,9 +468,7 @@ const Pacientes = () => {
                         <p className="text-sm text-slate-400 font-medium mt-1">Completa la información básica para el directorio clínico.</p>
                     </div>
                     <form onSubmit={handleSavePatient} className="space-y-6" noValidate>
-                       {/* NUEVA GRILLA: Nombre y Sexo */}
                         <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-6">
-                            {/* Columna Nombre (Toma 2 fracciones de espacio) */}
                             <div>
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nombre Completo <span className="text-rose-500">*</span></label>
                                 <input 
@@ -550,10 +479,8 @@ const Pacientes = () => {
                                     placeholder="Ej. Juan Pérez..." 
                                     className={`w-full rounded-2xl px-4 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.name ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-slate-50 border-slate-200 focus:ring-[#0F766E] border'}`} 
                                 />
-                                {formErrors.name && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Este campo es obligatorio</p>}
+                                {formErrors.name && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Obligatorio</p>}
                             </div>
-
-                            {/* Columna Sexo (Toma 1 fracción de espacio, para que se vea más pequeño) */}
                             <div>
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Sexo <span className="text-rose-500">*</span></label>
                                 <select 
@@ -561,62 +488,39 @@ const Pacientes = () => {
                                     onChange={(e) => setFormData({...formData, sex: e.target.value})} 
                                     className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 focus:ring-[#0F766E] transition-all"
                                 >
+                                    <option value="">Seleccione...</option>
                                     <option value="Masculino">Masculino</option>
                                     <option value="Femenino">Femenino</option>
                                 </select>
+                                {formErrors.sex && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Obligatorio</p>}
                             </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Teléfono <span className="text-rose-500">*</span></label>
-                                <input 
-                                    type="tel" 
-                                    required
-                                    value={formData.phone} 
-                                    onChange={(e) => setFormData({...formData, phone: e.target.value})} 
-                                    placeholder="+505 8888 8888" 
-                                    className={`w-full rounded-2xl px-4 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.phone ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-slate-50 border-slate-200 focus:ring-[#0F766E] border'}`} 
-                                />
-                                {formErrors.phone && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Este campo es obligatorio</p>}
+                                <input type="tel" required value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} placeholder="+505 8888 8888" className={`w-full rounded-2xl px-4 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.phone ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-slate-50 border-slate-200 focus:ring-[#0F766E] border'}`} />
+                                {formErrors.phone && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Obligatorio</p>}
                             </div>
                             <div>
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Correo Electrónico</label>
-                                <input 
-                                    type="email" 
-                                    value={formData.email} 
-                                    onChange={(e) => setFormData({...formData, email: e.target.value})} 
-                                    placeholder="correo@ejemplo.com" 
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 focus:ring-[#0F766E] transition-all" 
-                                />
+                                <input type="email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} placeholder="correo@ejemplo.com" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 focus:ring-[#0F766E] transition-all" />
                             </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Edad <span className="text-rose-500">*</span></label>
-                                <input 
-                                    type="number" 
-                                    required
-                                    value={formData.age} 
-                                    onChange={(e) => setFormData({...formData, age: e.target.value})} 
-                                    placeholder="Ej. 30" 
-                                    className={`w-full rounded-2xl px-4 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.age ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-slate-50 border-slate-200 focus:ring-[#0F766E] border'}`} 
-                                />
-                                {formErrors.age && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Este campo es obligatorio</p>}
+                                <input type="number" required value={formData.age} onChange={(e) => setFormData({...formData, age: e.target.value})} placeholder="Ej. 30" className={`w-full rounded-2xl px-4 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.age ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-slate-50 border-slate-200 focus:ring-[#0F766E] border'}`} />
+                                {formErrors.age && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Obligatorio</p>}
                             </div>
                             <div>
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Estado</label>
-                                <select 
-                                    value={formData.status} 
-                                    onChange={(e) => setFormData({...formData, status: e.target.value})} 
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 focus:ring-[#0F766E] transition-all"
-                                >
+                                <select value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 focus:ring-[#0F766E] transition-all">
                                     <option value="Activo">Activo (En tratamiento)</option>
                                     <option value="Pendiente">Pendiente (Por evaluar)</option>
                                     <option value="Alta">Alta (Tratamiento terminado)</option>
                                 </select>
                             </div>
                         </div>
-                        
                         <div className="pt-8 border-t border-slate-100 flex gap-4">
                             <button type="submit" className="w-full bg-[#0F766E] hover:bg-[#0D9488] text-white py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-lg shadow-teal-900/20 transition-colors">
                                 {formData.id ? 'Guardar Cambios' : 'Crear Expediente'}
@@ -628,97 +532,63 @@ const Pacientes = () => {
         );
     }
 
-{/* MODAL: DETALLE / EDICIÓN DE NOTA DE LA LÍNEA DE TIEMPO */}
-{isNoteModalOpen && selectedNote && createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-        <div className="absolute inset-0 bg-[#113130]/60 backdrop-blur-sm" onClick={() => setIsNoteModalOpen(false)}></div>
-        <div className="bg-white rounded-[2rem] w-full max-w-md p-8 relative z-10 shadow-2xl animate-fade-in border border-slate-100">
-            
-            {/* Botón Cerrar (X) */}
-            <button onClick={() => setIsNoteModalOpen(false)} className="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-colors">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
-            </button>
-
-            {/* Condicional: Visor vs Editor */}
-            {!isTimelineEditMode && selectedNote.id ? (
-                /* MODO VISTA: Solo lectura */
-                <div>
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${activeTimeline === 'estado' ? 'bg-amber-50 text-amber-500' : 'bg-teal-50 text-[#0F766E]'}`}>
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                        </div>
-                        <div>
-                            <h3 className="text-xl font-black text-[#113130]">{selectedNote.title}</h3>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                                Fecha del evento: {mockTimelines[activeTimeline].find(s => s.id === noteStageId)?.date || 'Desconocida'}
-                            </p>
-                        </div>
-                    </div>
-                    
-                    <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 mb-8">
-                        <p className="text-sm font-medium text-slate-600 leading-relaxed whitespace-pre-wrap">
-                            {selectedNote.content || 'Sin observaciones detalladas.'}
-                        </p>
-                    </div>
-
-                    <button 
-                        onClick={() => setIsNoteModalOpen(false)}
-                        className="w-full py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors"
-                    >
-                        Cerrar Detalles
-                    </button>
-                </div>
-            ) : (
-                /* MODO EDICIÓN: Formulario activo */
-                <div>
-                    <h3 className="text-xl font-black text-[#113130] mb-6">{selectedNote.id ? 'Modificar Nota Clínica' : 'Nueva Nota Clínica'}</h3>
-                    
-                    <div className="space-y-5">
-                        <div>
-                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Título Corto</label>
-                            <input 
-                                type="text" 
-                                value={selectedNote.title} 
-                                onChange={(e) => setSelectedNote({...selectedNote, title: e.target.value})}
-                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 focus:ring-[#0F766E]"
-                                placeholder="Ej. Mejora de movilidad"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Observaciones / Detalles</label>
-                            <textarea 
-                                value={selectedNote.content} 
-                                onChange={(e) => setSelectedNote({...selectedNote, content: e.target.value})}
-                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-600 focus:outline-none focus:ring-2 focus:ring-[#0F766E] min-h-[120px] resize-none"
-                                placeholder="Describe los detalles de este evento..."
-                            />
-                        </div>
-                    </div>
-
-                    <div className="flex gap-3 mt-8">
-                        {selectedNote.id && (
-                            <button 
-                                onClick={() => handleDeleteNote(noteStageId, selectedNote.id)}
-                                className="px-5 py-3.5 bg-rose-50 hover:bg-rose-100 text-rose-500 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center shrink-0"
-                                title="Eliminar Nota"
-                            >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                            </button>
-                        )}
-                        <button 
-                            onClick={handleSaveNote}
-                            className="flex-1 py-3.5 bg-[#0F766E] hover:bg-[#0D9488] text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-teal-900/20 transition-colors"
-                        >
-                            Guardar Cambios
+    // ================= FALLBACK Y MODALES GLOBALES =================
+    return (
+        <>
+            {isNoteModalOpen && selectedNote && createPortal(
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-[#113130]/60 backdrop-blur-sm" onClick={() => setIsNoteModalOpen(false)}></div>
+                    <div className="bg-white rounded-[2rem] w-full max-w-md p-8 relative z-10 shadow-2xl animate-fade-in border border-slate-100">
+                        <button onClick={() => setIsNoteModalOpen(false)} className="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-colors">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
+                        {!isTimelineEditMode && selectedNote.id ? (
+                            <div>
+                                <h3 className="text-xl font-black text-[#113130]">{selectedNote.title}</h3>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 mb-6">
+                                    Fecha: {mockTimelines[activeTimeline].find(s => s.id === noteStageId)?.date || 'Desconocida'}
+                                </p>
+                                <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 mb-8">
+                                    <p className="text-sm font-medium text-slate-600 leading-relaxed whitespace-pre-wrap">{selectedNote.content}</p>
+                                </div>
+                                <button onClick={() => setIsNoteModalOpen(false)} className="w-full py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors">Cerrar Detalles</button>
+                            </div>
+                        ) : (
+                            <div>
+                                <h3 className="text-xl font-black text-[#113130] mb-6">{selectedNote.id ? 'Modificar Nota' : 'Nueva Nota'}</h3>
+                                <div className="space-y-5">
+                                    <input type="text" value={selectedNote.title} onChange={(e) => setSelectedNote({...selectedNote, title: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-[#113130]" placeholder="Título" />
+                                    <textarea value={selectedNote.content} onChange={(e) => setSelectedNote({...selectedNote, content: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-600 min-h-[120px] resize-none" placeholder="Detalles..." />
+                                </div>
+                                <div className="flex gap-3 mt-8">
+                                    {selectedNote.id && <button onClick={() => handleDeleteNote(noteStageId, selectedNote.id)} className="px-5 py-3.5 bg-rose-50 text-rose-500 rounded-xl text-[10px] font-black uppercase">Eliminar</button>}
+                                    <button onClick={handleSaveNote} className="flex-1 py-3.5 bg-[#0F766E] text-white rounded-xl text-[10px] font-black uppercase">Guardar Cambios</button>
+                                </div>
+                            </div>
+                        )}
                     </div>
+                </div>, document.body
+            )}
+            
+            {patientToDelete && createPortal(
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-[#113130]/70 backdrop-blur-md" onClick={() => setPatientToDelete(null)}></div>
+                    <div className="bg-white rounded-[2rem] w-full max-w-sm p-8 relative z-10 text-center">
+                        <h3 className="text-2xl font-black text-[#113130] mb-3">¿Eliminar Expediente?</h3>
+                        <p className="text-sm text-slate-500 mb-8">Esta acción es permanente.</p>
+                        <div className="flex gap-3"><button onClick={() => setPatientToDelete(null)} className="w-full py-3.5 bg-slate-100 text-slate-600 rounded-xl text-[11px] font-black uppercase">Cancelar</button><button onClick={confirmDeletePatient} className="w-full py-3.5 bg-rose-500 text-white rounded-xl text-[11px] font-black uppercase">Sí, Eliminar</button></div>
+                    </div>
+                </div>, document.body
+            )}
+
+            {view !== 'list' && view !== 'details' && view !== 'form' && (
+                <div className="flex flex-col items-center justify-center p-20 text-center">
+                     <h2 className="text-xl font-bold text-slate-500">Error: Vista no encontrada</h2>
+                     <button onClick={() => setView('list')} className="mt-4 px-4 py-2 bg-teal-600 text-white rounded-lg">Volver al Inicio</button>
                 </div>
             )}
-        </div>
-    </div>, document.body
-)}
-
-    return null;
+        </>
+    );
 };
 
 export default Pacientes;

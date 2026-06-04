@@ -164,7 +164,7 @@ const Citas = () => {
             const datosParaCita = {
                 motivo: formData.reason,
                 fecha_cita: fechaCombinada,
-                atencion: formData.atention,
+                modalidad: formData.atention,
                 estado: formData.status
             };
 

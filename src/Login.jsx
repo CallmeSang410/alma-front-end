@@ -30,7 +30,7 @@ export default function Login({ onLoginSuccess }) {
     button:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.18); }
   `;
 
-  const handleSubmit = async (e) => {
+const handleSubmit = async (e) => {
     e.preventDefault();
     const errors = {};
 
@@ -91,10 +91,11 @@ export default function Login({ onLoginSuccess }) {
           setFormErrors({ ...formErrors, password: errorMsg });
         }
       } else {
+        // 🌟 PAQUETE CORREGIDO PARA ALINEARSE CON FASTAPI 🌟
         const datosNuevoUsuario = {
           email: email,
           password: password,
-          consultorio: clinicName,
+          nombre_clinica: clinicName, // 🏢 ¡Cambiado de 'consultorio' a 'nombre_clinica'!
           rol: role
         };
 
@@ -120,7 +121,7 @@ export default function Login({ onLoginSuccess }) {
     } finally {
       setIsLoading(false);
     }
-  };
+};
 
   const handleForgotPassword = (e) => {
     e.preventDefault();

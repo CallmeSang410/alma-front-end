@@ -60,12 +60,13 @@ const Reportes = () => {
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [formErrors, setFormErrors] = useState({});
 
-    const initialFormState = {
+const initialFormState = {
         cita_id: '', 
         reason: '', 
         interviewNotes: '', 
         testsUsed: [], 
         otherTestDescription: '', 
+        analisis_ia: '', // 🌟 NUEVO: El espacio para que la IA escriba
         finalDiagnosis: '', 
         recommendations: '', 
         nextStep: 'Tratamiento Terapéutico',
@@ -134,43 +135,9 @@ const Reportes = () => {
         cargarDatos();
     }, []);
 
-    // ================= FUNCIONES DEL WIZARD =================
-    const handleNextStep = () => {
-        const errors = {};
-        
-        if (step === 1) {
-            if (!formData.cita_id) errors.cita_id = true;
-            if (!formData.reason.trim()) errors.reason = true;
-        } else if (step === 2) {
-            if (!formData.interviewNotes.trim()) errors.interviewNotes = true;
-            if (formData.testsUsed.length === 0) errors.testsUsed = true;
-            if (formData.testsUsed.includes("Otros") && !formData.otherTestDescription.trim()) errors.otherTestDescription = true;
-        } else if (step === 3) {
-            if (!formData.finalDiagnosis.trim()) errors.finalDiagnosis = true;
-            if (!formData.recommendations.trim()) errors.recommendations = true;
-            if (formData.nextStep === 'Otros' && !formData.otherNextStepDescription.trim()) errors.otherNextStepDescription = true;
-        }
 
-        if (Object.keys(errors).length > 0) {
-            setFormErrors(errors);
-            return;
-        }
 
-        setFormErrors({});
-        
-        if (step < 3) {
-            setStep(step + 1);
-        } else {
-            // Pasamos al paso 4 (Pantalla de carga de IA) y disparamos la petición
-            setStep(4);
-            submitReportToAI();
-        }
-    };
 
-    const handlePrevStep = () => {
-        setFormErrors({});
-        if (step > 1) setStep(step - 1);
-    };
 
     const toggleTest = (test) => {
         setFormErrors({...formErrors, testsUsed: false}); 
@@ -185,11 +152,83 @@ const Reportes = () => {
         }
     };
 
-    // ENVÍO DE DATOS A FASTAPI Y GEMINI
+    // ================= FUNCIONES DEL WIZARD =================
+    
+    // 🌟 NUEVA FUNCIÓN: Llama a la IA en el Paso 3
+    const generarAnalisisIA = async () => {
+        setIsAnalyzing(true);
+        setStep(3); 
+        
+        try {
+            const token = localStorage.getItem('token');
+            let testsString = formData.testsUsed.filter(t => t !== 'Otros').join(', ');
+            if (formData.testsUsed.includes('Otros') && formData.otherTestDescription) testsString += `, ${formData.otherTestDescription}`;
+
+            const payload = {
+                motivo_consulta: formData.reason,
+                notas_psicologo: formData.interviewNotes,
+                pruebas_aplicadas: testsString || "Ninguna"
+            };
+
+            // Llamamos al nuevo endpoint de FastAPI que procesará con Gemini
+            const respuesta = await fetch(`http://127.0.0.1:8000/reportes/analizar`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(payload)
+            });
+
+            if (respuesta.ok) {
+                const data = await respuesta.json();
+                setFormData(prev => ({ ...prev, analisis_ia: data.analisis }));
+            } else {
+                setFormData(prev => ({ ...prev, analisis_ia: "⚠️ No se pudo generar el análisis. Procedé con tu evaluación manual." }));
+            }
+        } catch (error) {
+            setFormData(prev => ({ ...prev, analisis_ia: "⚠️ Error de conexión con la IA." }));
+        } finally {
+            setIsAnalyzing(false);
+        }
+    };
+
+    const handleNextStep = () => {
+        const errors = {};
+        
+        if (step === 1) {
+            if (!formData.cita_id) errors.cita_id = true;
+            if (!formData.reason.trim()) errors.reason = true;
+        } else if (step === 2) {
+            if (!formData.interviewNotes.trim()) errors.interviewNotes = true;
+            if (formData.testsUsed.length === 0) errors.testsUsed = true;
+            if (formData.testsUsed.includes("Otros") && !formData.otherTestDescription.trim()) errors.otherTestDescription = true;
+        } else if (step === 4) { // Ahora el final es el 4
+            if (!formData.finalDiagnosis.trim()) errors.finalDiagnosis = true;
+            if (!formData.recommendations.trim()) errors.recommendations = true;
+            if (formData.nextStep === 'Otros' && !formData.otherNextStepDescription.trim()) errors.otherNextStepDescription = true;
+        }
+
+        if (Object.keys(errors).length > 0) {
+            setFormErrors(errors);
+            return;
+        }
+        setFormErrors({});
+        
+        if (step === 1) setStep(2);
+        else if (step === 2) generarAnalisisIA(); // 🌟 Del paso 2, pasamos a la IA
+        else if (step === 3) setStep(4); // 🌟 De la IA, pasamos al Veredicto
+        else if (step === 4) submitReportToAI(); // 🌟 Guardado final
+    };
+
+    const handlePrevStep = () => {
+        setFormErrors({});
+        if (step > 1) setStep(step - 1);
+    };
+
+    // ... (Tu toggleTest queda igualito, no lo toques) ...
+
+    // 🌟 ACTUALIZAMOS EL GUARDADO FINAL PARA INCLUIR LA IA
     const submitReportToAI = async () => {
         setIsAnalyzing(true);
         
-        // Formateamos las pruebas
         let testsString = formData.testsUsed.filter(t => t !== 'Otros').join(', ');
         if (formData.testsUsed.includes('Otros') && formData.otherTestDescription) {
             testsString += (testsString ? ', ' : '') + `${formData.otherTestDescription}`;
@@ -201,6 +240,7 @@ const Reportes = () => {
             motivo_consulta: formData.reason,
             notas_psicologo: formData.interviewNotes,
             pruebas_aplicadas: testsString || "Ninguna registrada",
+            analisis_ia: formData.analisis_ia, // 🌟 AHORA MANDAMOS EL TEXTO DE LA IA AL BACKEND
             diagnostico_final: formData.finalDiagnosis,
             recomendaciones: formData.recommendations,
             plan_accion: planFinal
@@ -212,36 +252,25 @@ const Reportes = () => {
             
             const respuesta = await fetch(url, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify(payload)
             });
 
             if (respuesta.ok) {
-                const reporteGenerado = await respuesta.json();
-                
-                // Recargamos los datos para obtener el reporte con los nombres unidos
                 await cargarDatos();
-                
-                // Cambiamos a la vista de detalle
                 setIsAnalyzing(false);
                 setView('list');
                 setStep(1);
                 setFormData(initialFormState);
-                alert("¡Informe generado y guardado exitosamente!");
+                alert("¡Informe guardado con éxito en el expediente!");
             } else {
                 const errorData = await respuesta.json();
-                alert(`Error al generar el reporte: ${errorData.detail}`);
+                alert(`Error al guardar: ${errorData.detail}`);
                 setIsAnalyzing(false);
-                setStep(3); // Lo regresamos por si quiere corregir algo
             }
         } catch (error) {
-            console.error("Error conectando con la IA:", error);
             alert("No se pudo conectar con el servidor.");
             setIsAnalyzing(false);
-            setStep(3);
         }
     };
 
@@ -250,12 +279,12 @@ const Reportes = () => {
         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
     );
 
-    const getStepTitle = (s) => {
+ const getStepTitle = (s) => {
         switch(s) {
             case 1: return "Datos Iniciales";
             case 2: return "Evaluación Clínica";
-            case 3: return "Cierre y Diagnóstico";
-            case 4: return "Procesando Informe...";
+            case 3: return "Análisis de HorizonFlow"; // 🌟 Nuevo paso
+            case 4: return "Veredicto y Cierre"; // 🌟 Ahora es el 4
             default: return "";
         }
     };
@@ -378,7 +407,7 @@ const Reportes = () => {
                         </p>
                     </div>
 
-                    {/* PASO 1 */}
+                    {/* PASO 1: DATOS INICIALES */}
                     {step === 1 && (
                         <div className="space-y-6 animate-fade-in">
                             <div>
@@ -405,7 +434,7 @@ const Reportes = () => {
                         </div>
                     )}
 
-                    {/* PASO 2 */}
+                    {/* PASO 2: NOTAS Y PRUEBAS */}
                     {step === 2 && (
                         <div className="space-y-8 animate-fade-in">
                             <div>
@@ -448,8 +477,37 @@ const Reportes = () => {
                         </div>
                     )}
 
-                    {/* PASO 3 (ANTES PASO 4) */}
+                   {/* 🌟 PASO 3: EL CEREBRO DE LA IA 🌟 */}
                     {step === 3 && (
+                        <div className="space-y-6 animate-fade-in">
+                            {isAnalyzing ? (
+                                <div className="py-20 text-center flex flex-col items-center justify-center space-y-6">
+                                    <div className="relative w-24 h-24 flex items-center justify-center">
+                                        <div className="absolute inset-0 border-4 border-teal-100 rounded-full"></div>
+                                        <div className="absolute inset-0 border-4 border-[#0F766E] rounded-full border-t-transparent animate-spin"></div>
+                                        <svg className="w-10 h-10 text-[#0F766E]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-black text-[#113130] animate-pulse">HorizonFlow está analizando...</h3>
+                                        <p className="text-sm text-slate-500 mt-2">Buscando patrones y generando sugerencias clínicas.</p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="bg-teal-50/50 border border-teal-100 rounded-2xl p-6">
+                                    <div className="flex items-center gap-3 mb-4 border-b border-teal-100 pb-4">
+                                        <div className="w-10 h-10 rounded-xl bg-teal-100 text-[#0F766E] flex items-center justify-center">✨</div>
+                                        <h3 className="text-lg font-black text-[#113130]">Análisis Generado por IA</h3>
+                                    </div>
+                                    <div className="max-h-[300px] overflow-y-auto">
+                                        <TextoFormateadoIA texto={formData.analisis_ia} />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* 🌟 PASO 4: VEREDICTO FINAL Y CIERRE 🌟 */}
+                    {step === 4 && !isAnalyzing && (
                         <div className="space-y-6 animate-fade-in">
                             <div>
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Diagnóstico Final (Profesional)</label>
@@ -506,23 +564,8 @@ const Reportes = () => {
                         </div>
                     )}
 
-                    {/* PANTALLA DE CARGA IA (Paso 4) */}
-                    {step === 4 && (
-                        <div className="py-20 text-center flex flex-col items-center justify-center space-y-6 animate-fade-in">
-                            <div className="relative w-24 h-24 flex items-center justify-center">
-                                <div className="absolute inset-0 border-4 border-teal-100 rounded-full"></div>
-                                <div className="absolute inset-0 border-4 border-[#0F766E] rounded-full border-t-transparent animate-spin"></div>
-                                <svg className="w-10 h-10 text-[#0F766E]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                            </div>
-                            <div>
-                                <h3 className="text-xl font-black text-[#113130] animate-pulse">ALMA está generando el reporte...</h3>
-                                <p className="text-sm text-slate-500 mt-2">Conectando con Gemini, estructurando diagnóstico y guardando expediente.</p>
-                            </div>
-                        </div>
-                    )}
-
                     {/* Botonera del Wizard */}
-                    {step < 4 && (
+                    {step <= 4 && !isAnalyzing && (
                         <div className="mt-10 pt-6 border-t border-slate-100 flex items-center justify-between gap-4">
                             <button 
                                 onClick={handlePrevStep}
@@ -536,11 +579,10 @@ const Reportes = () => {
                                 disabled={availableAppointments.length === 0}
                                 className="px-8 py-3.5 bg-[#0F766E] hover:bg-[#0D9488] text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-lg shadow-teal-900/20 transition-colors disabled:opacity-50 flex items-center gap-2"
                             >
-                                {step === 3 ? (
-                                    <>Generar con IA <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg></>
-                                ) : (
-                                    <>Siguiente <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" /></svg></>
-                                )}
+                                {step === 1 ? 'Siguiente: Notas' : 
+                                 step === 2 ? <>✨ Analizar con IA</> : 
+                                 step === 3 ? 'Siguiente: Diagnóstico Final' : 
+                                 'Guardar Expediente'}
                             </button>
                         </div>
                     )}
