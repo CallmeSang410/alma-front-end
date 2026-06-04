@@ -10,6 +10,8 @@ import logoEmpresa from './assets/logo.png';
 import CampanaAlertas from './CampanaAlertas';
 import Experiencia from './Experiencia';
 import Ajustes from './Ajustes'; 
+// 1. IMPORTAMOS LA LIBRERÍA DE GEMINI
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 
 // --- ICONOS VECTORIALES CLÍNICOS ---
@@ -60,7 +62,6 @@ const IconLogout = () => (
 );
 
 
-
 export default function Interface({ onLogout }) {
     const { t, i18n } = useTranslation();
     const [langMenuOpen, setLangMenuOpen] = useState(false);
@@ -75,13 +76,12 @@ export default function Interface({ onLogout }) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [showLogoutModal, setShowLogoutModal] = useState(false);
-       const [showCalendar, setShowCalendar] = useState(false);
+    const [showCalendar, setShowCalendar] = useState(false);
     const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
     const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
     
     // Fecha pinneada de ejemplo (cita de mañana)
     const appointmentDate = new Date(new Date().getTime() + 24 * 60 * 60 * 1000);
-
 
     const menuItems = [
         { id: 'dashboard', label: t('Dashboard'), icon: <IconDashboard /> },
@@ -155,7 +155,8 @@ export default function Interface({ onLogout }) {
         
         return days;
     };
-   const renderContent = () => {
+    
+    const renderContent = () => {
         switch (activeTab) {
             case 'dashboard':
                 return <Dashboard />;
@@ -175,6 +176,82 @@ export default function Interface({ onLogout }) {
         }
     };
     
+    // =========================================================
+    // LÓGICA DEL CHATBOT CON GEMINI (Directo en React)
+    // =========================================================
+    const [chatInput, setChatInput] = useState('');
+    const [cargandoChat, setCargandoChat] = useState(false);
+    
+    // Historial inicial. Nota: Gemini usa "user" (usuario) y "model" (IA)
+    const [mensajesChat, setMensajesChat] = useState([
+        { 
+            role: "model", 
+            parts: [{ text: "Hola Dr., soy tu asistente de soporte. ¿En qué te puedo ayudar hoy con la plataforma?" }] 
+        }
+    ]);
+
+    // 2. Configurar la API Key y el modelo con las reglas de ALMA
+    // ⚠️ ATENCIÓN: Poner la API Key en React es útil para desarrollo local, 
+    // pero en producción (cuando lo subas a internet) debes ocultarla en el backend.
+const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+const genAI = new GoogleGenerativeAI(API_KEY);
+
+    const instrucciones_alma = `
+    Eres el asistente virtual oficial de soporte técnico del sistema ALMA (HorizonFlow).
+    Tu objetivo es ayudar a psicólogos y administradores clínicos a usar la plataforma.
+
+    Conoces las siguientes funcionalidades clave del sistema:
+    1. Directorio de Pacientes: Permite agregar pacientes, ver su expediente, editar su perfil y eliminarlos.
+    2. Expediente Clínico: Contiene la línea de tiempo gráfica (Historial Evolutivo) y los reportes.
+    3. Reportes IA: El sistema usa IA para estructurar notas clínicas.
+    4. Ajustes: Permite cambiar Tema Claro/Oscuro, el tamaño de texto, alertas y reportar bugs.
+
+    Reglas:
+    - Sé amable, conciso y muy profesional. Dirígete al usuario de forma respetuosa.
+    - Responde en párrafos cortos o viñetas.
+    - Eres soporte técnico de software: NO des consejos médicos ni diagnósticos a pacientes.
+    `;
+
+    const model = genAI.getGenerativeModel({ 
+        model: "gemini-2.5-flash",
+        systemInstruction: instrucciones_alma
+    });
+
+   const handleEnviarMensaje = async (e) => {
+        e.preventDefault();
+        if (!chatInput.trim()) return;
+
+        // 1. Agregamos el mensaje del usuario a la pantalla
+        const nuevoMensaje = { role: "user", parts: [{ text: chatInput }] };
+        const historialActualizado = [...mensajesChat, nuevoMensaje];
+        setMensajesChat(historialActualizado);
+        setChatInput('');
+        setCargandoChat(true);
+
+        try {
+            // 2. LA SOLUCIÓN: Copiamos todo el historial, pero eliminamos el primer mensaje (índice 0) 
+            // que es el saludo del modelo. Así, para Gemini, la charla empieza con el usuario.
+            const historialParaGemini = mensajesChat.slice(1);
+
+            // 3. Iniciamos el chat pasándole el historial limpio
+            const chat = model.startChat({
+                history: historialParaGemini
+            });
+
+            // 4. Enviamos el mensaje nuevo
+            const result = await chat.sendMessage(chatInput);
+            const responseText = result.response.text();
+
+            // 5. Agregamos la respuesta de la IA a la pantalla
+            setMensajesChat([...historialActualizado, { role: "model", parts: [{ text: responseText }] }]);
+        } catch (error) {
+            console.error("Error de Gemini:", error);
+            setMensajesChat([...historialActualizado, { role: "model", parts: [{ text: "Hubo un error de conexión. Verifica tu API Key o tu internet." }] }]);
+        } finally {
+            setCargandoChat(false);
+        }
+    };
+
 
     return (
         <div className="min-h-screen font-sans bg-[#F4F8F8] text-[#113130] flex flex-col lg:flex-row antialiased relative">
@@ -205,10 +282,6 @@ export default function Interface({ onLogout }) {
             <div className="flex flex-col">
            {/* CONTENEDOR DEL LOGO (MÁXIMO TAMAÑO) */}
             <div className="w-full pt-8 pb-4 px-2 flex flex-col items-center relative">
-                {/* Se cambió max-w-[220px] a max-w-[250px] 
-                  Se añadió scale-110 para agrandarlo visualmente
-                  Se ajustó el margen inferior (pb-4) para equilibrarlo
-                */}
                 <img 
                     src={logoEmpresa} 
                     alt="Logo" 
@@ -282,48 +355,47 @@ export default function Interface({ onLogout }) {
                     </span>
                 </div>
 
-{/* Perfil del Usuario e Idiomas Responsivo */}
+                {/* Perfil del Usuario e Idiomas Responsivo */}
                 <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 sm:gap-4 w-full md:w-auto mt-2 md:mt-0">
                     
                     {/* CONTENEDOR DE ICONOS Y ALARMAS */}
                     <div className="flex items-center gap-2 sm:gap-4 z-50 relative">
                         {/* Botón de Idioma */}
-<div className="relative z-50">
-    <div 
-        onClick={() => setLangMenuOpen(!langMenuOpen)}
-        className="text-xs font-bold px-3 py-1.5 bg-white rounded-xl shadow-xs border border-teal-100/40 flex items-center gap-1.5 cursor-pointer hover:bg-teal-50/50 transition-colors"
-    >
-        {/* Muestra el idioma actual en mayúsculas (ej: ES, EN, POR) */}
-        <span>{(i18n.language || 'es').toUpperCase()}</span>
-        <span className="text-[8px] text-teal-600">▼</span>
-    </div>
+                        <div className="relative z-50">
+                            <div 
+                                onClick={() => setLangMenuOpen(!langMenuOpen)}
+                                className="text-xs font-bold px-3 py-1.5 bg-white rounded-xl shadow-xs border border-teal-100/40 flex items-center gap-1.5 cursor-pointer hover:bg-teal-50/50 transition-colors"
+                            >
+                                <span>{(i18n.language || 'es').toUpperCase()}</span>
+                                <span className="text-[8px] text-teal-600">▼</span>
+                            </div>
 
-    {/* Dropdown de opciones */}
-    {langMenuOpen && (
-        <div className="absolute top-full left-0 mt-2 w-full min-w-[70px] bg-white border border-teal-100/60 rounded-xl shadow-lg overflow-hidden animate-fade-in">
-            <button 
-                onClick={() => changeLanguage('es')} 
-                className="block w-full text-center px-3 py-2 text-xs font-bold text-[#113130] hover:bg-teal-50 hover:text-[#0F766E] transition-colors"
-            >
-                ES
-            </button>
-            <button 
-                onClick={() => changeLanguage('en')} 
-                className="block w-full text-center px-3 py-2 text-xs font-bold text-[#113130] hover:bg-teal-50 hover:text-[#0F766E] transition-colors"
-            >
-                EN
-            </button>
-            <button 
-                onClick={() => changeLanguage('pt')} 
-                className="block w-full text-center px-3 py-2 text-xs font-bold text-[#113130] hover:bg-teal-50 hover:text-[#0F766E] transition-colors"
-            >
-                POR
-            </button>
-        </div>
-    )}
-</div>
+                            {/* Dropdown de opciones */}
+                            {langMenuOpen && (
+                                <div className="absolute top-full left-0 mt-2 w-full min-w-[70px] bg-white border border-teal-100/60 rounded-xl shadow-lg overflow-hidden animate-fade-in">
+                                    <button 
+                                        onClick={() => changeLanguage('es')} 
+                                        className="block w-full text-center px-3 py-2 text-xs font-bold text-[#113130] hover:bg-teal-50 hover:text-[#0F766E] transition-colors"
+                                    >
+                                        ES
+                                    </button>
+                                    <button 
+                                        onClick={() => changeLanguage('en')} 
+                                        className="block w-full text-center px-3 py-2 text-xs font-bold text-[#113130] hover:bg-teal-50 hover:text-[#0F766E] transition-colors"
+                                    >
+                                        EN
+                                    </button>
+                                    <button 
+                                        onClick={() => changeLanguage('pt')} 
+                                        className="block w-full text-center px-3 py-2 text-xs font-bold text-[#113130] hover:bg-teal-50 hover:text-[#0F766E] transition-colors"
+                                    >
+                                        POR
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                         
-                                               {/* Botón de Calendario (Reemplazó al botón de Mensajes) */}
+                        {/* Botón de Calendario */}
                         <div className="relative">
                             <button 
                                 onClick={() => setShowCalendar(!showCalendar)}
@@ -425,7 +497,6 @@ export default function Interface({ onLogout }) {
             {/* Área de Contenido Dinámico */}
             <div className="flex-1 p-6 lg:p-8 animate-fade-in">
                 {renderContent()}
-                {/* Aquí se renderizará el contenido según tus vistas dinámicas */}
             </div>
         </div>
 
@@ -466,6 +537,7 @@ export default function Interface({ onLogout }) {
                 </div>
             </div>
         )}
+        
         {/* ========================================================= */}
         {/* CHATBOT GLOBAL (NIVEL INTERFAZ)                             */}
         {/* ========================================================= */}
@@ -489,6 +561,7 @@ export default function Interface({ onLogout }) {
 
         {/* 3. Barra Lateral del Chatbot */}
         <div className={`fixed top-0 right-0 h-full w-full sm:w-[400px] bg-white shadow-2xl z-[80] transform transition-transform duration-300 ease-in-out flex flex-col ${isChatOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+            {/* Cabecera */}
             <div className="bg-slate-50 p-5 border-b border-slate-100 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-[#0F766E]/10 flex items-center justify-center text-[#0F766E] shadow-sm border border-teal-100">
@@ -507,38 +580,54 @@ export default function Interface({ onLogout }) {
                 </button>
             </div>
 
+            {/* Área de Mensajes Dinámica */}
             <div className="flex-1 p-5 bg-white flex flex-col gap-4 overflow-y-auto">
-                <div className="flex gap-2">
-                    <div className="bg-slate-50 p-3.5 rounded-2xl rounded-tl-sm border border-slate-100 text-xs text-slate-600 font-medium leading-relaxed max-w-[85%] shadow-sm">
-                        Hola Dr., soy tu asistente de soporte. ¿En qué te puedo ayudar hoy con la plataforma?
+                {mensajesChat.map((msg, idx) => (
+                    <div key={idx} className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`p-3.5 text-xs font-medium leading-relaxed max-w-[85%] shadow-sm ${
+                            msg.role === 'user' 
+                            ? 'bg-[#0F766E] rounded-2xl rounded-tr-sm text-white shadow-md' 
+                            : 'bg-slate-50 rounded-2xl rounded-tl-sm border border-slate-100 text-slate-600'
+                        }`}>
+                            {msg.parts[0].text}
+                        </div>
                     </div>
-                </div>
-                <div className="flex gap-2 justify-end">
-                    <div className="bg-[#0F766E] p-3.5 rounded-2xl rounded-tr-sm text-xs text-white shadow-md font-medium leading-relaxed max-w-[85%]">
-                        ¿Cómo exporto el reporte mensual?
+                ))}
+                
+                {/* Animación de "Escribiendo..." */}
+                {cargandoChat && (
+                    <div className="flex gap-2 justify-start">
+                        <div className="bg-slate-50 p-3.5 rounded-2xl rounded-tl-sm border border-slate-100 text-slate-400 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></span>
+                            <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></span>
+                            <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+                        </div>
                     </div>
-                </div>
-                <div className="flex gap-2">
-                    <div className="bg-slate-50 p-3.5 rounded-2xl rounded-tl-sm border border-slate-100 text-xs text-slate-600 font-medium leading-relaxed max-w-[85%] shadow-sm">
-                        ¡Claro! Ve a la pestaña de "Reportes" en tu menú principal, selecciona el mes que deseas y haz clic en el botón verde de "Exportar a PDF" arriba a la derecha. ¿Te ayudo con algo más?
-                    </div>
-                </div>
+                )}
             </div>
 
+            {/* Input de Texto Formulario */}
             <div className="p-5 border-t border-slate-100 bg-slate-50">
-                <div className="relative">
+                <form onSubmit={handleEnviarMensaje} className="relative">
                     <input 
                         type="text" 
+                        value={chatInput}
+                        onChange={(e) => setChatInput(e.target.value)}
+                        disabled={cargandoChat}
                         placeholder="Escribe tu pregunta..." 
-                        className="w-full text-xs font-medium pl-4 pr-12 py-3.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-[#0F766E] focus:ring-1 focus:ring-[#0F766E] transition-all shadow-sm" 
+                        className="w-full text-xs font-medium pl-4 pr-12 py-3.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-[#0F766E] focus:ring-1 focus:ring-[#0F766E] transition-all shadow-sm disabled:bg-slate-100" 
                     />
-                    <button className="absolute right-2 top-2 p-1.5 bg-[#0F766E] text-white rounded-lg hover:bg-[#0D9488] transition-colors">
+                    <button 
+                        type="submit"
+                        disabled={cargandoChat || !chatInput.trim()}
+                        className="absolute right-2 top-2 p-1.5 bg-[#0F766E] text-white rounded-lg hover:bg-[#0D9488] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
                         <svg className="w-4 h-4 transform rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
                     </button>
-                </div>
+                </form>
             </div>
         </div>
-
-        </div>
+        
+    </div>
     );
 }
