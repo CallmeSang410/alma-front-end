@@ -10,8 +10,7 @@ import logoEmpresa from './assets/logo.png';
 import CampanaAlertas from './CampanaAlertas';
 import Experiencia from './Experiencia';
 import Ajustes from './Ajustes'; 
-// 1. IMPORTAMOS LA LIBRERÍA DE GEMINI
-import { GoogleGenerativeAI } from "@google/generative-ai";
+
 
 
 // --- ICONOS VECTORIALES CLÍNICOS ---
@@ -190,32 +189,7 @@ export default function Interface({ onLogout }) {
         }
     ]);
 
-    // 2. Configurar la API Key y el modelo con las reglas de ALMA
-    // ⚠️ ATENCIÓN: Poner la API Key en React es útil para desarrollo local, 
-    // pero en producción (cuando lo subas a internet) debes ocultarla en el backend.
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-const genAI = new GoogleGenerativeAI(API_KEY);
-
-    const instrucciones_alma = `
-    Eres el asistente virtual oficial de soporte técnico del sistema ALMA (HorizonFlow).
-    Tu objetivo es ayudar a psicólogos y administradores clínicos a usar la plataforma.
-
-    Conoces las siguientes funcionalidades clave del sistema:
-    1. Directorio de Pacientes: Permite agregar pacientes, ver su expediente, editar su perfil y eliminarlos.
-    2. Expediente Clínico: Contiene la línea de tiempo gráfica (Historial Evolutivo) y los reportes.
-    3. Reportes IA: El sistema usa IA para estructurar notas clínicas.
-    4. Ajustes: Permite cambiar Tema Claro/Oscuro, el tamaño de texto, alertas y reportar bugs.
-
-    Reglas:
-    - Sé amable, conciso y muy profesional. Dirígete al usuario de forma respetuosa.
-    - Responde en párrafos cortos o viñetas.
-    - Eres soporte técnico de software: NO des consejos médicos ni diagnósticos a pacientes.
-    `;
-
-    const model = genAI.getGenerativeModel({ 
-        model: "gemini-2.5-flash",
-        systemInstruction: instrucciones_alma
-    });
+  
 
    const handleEnviarMensaje = async (e) => {
         e.preventDefault();
@@ -229,29 +203,38 @@ const genAI = new GoogleGenerativeAI(API_KEY);
         setCargandoChat(true);
 
         try {
-            // 2. LA SOLUCIÓN: Copiamos todo el historial, pero eliminamos el primer mensaje (índice 0) 
-            // que es el saludo del modelo. Así, para Gemini, la charla empieza con el usuario.
-            const historialParaGemini = mensajesChat.slice(1);
+            // 2. Preparamos el historial para mandarlo al backend (FastAPI)
+            const historialParaBackend = historialActualizado.map(msg => ({
+                role: msg.role,
+                texto: msg.parts[0].text
+            }));
 
-            // 3. Iniciamos el chat pasándole el historial limpio
-            const chat = model.startChat({
-                history: historialParaGemini
+            // 3. Hacemos el pedido al Chef (FastAPI)
+            const token = localStorage.getItem('token');
+            const respuesta = await fetch('http://127.0.0.1:8000/soporte/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ historial: historialParaBackend })
             });
 
-            // 4. Enviamos el mensaje nuevo
-            const result = await chat.sendMessage(chatInput);
-            const responseText = result.response.text();
+            if (respuesta.ok) {
+                const data = await respuesta.json();
+                // 4. Agregamos la respuesta de la IA a la pantalla
+                setMensajesChat([...historialActualizado, { role: "model", parts: [{ text: data.respuesta }] }]);
+            } else {
+                throw new Error("FastAPI rechazó la conexión.");
+            }
 
-            // 5. Agregamos la respuesta de la IA a la pantalla
-            setMensajesChat([...historialActualizado, { role: "model", parts: [{ text: responseText }] }]);
         } catch (error) {
-            console.error("Error de Gemini:", error);
-            setMensajesChat([...historialActualizado, { role: "model", parts: [{ text: "Hubo un error de conexión. Verifica tu API Key o tu internet." }] }]);
+            console.error("Error de Chatbot:", error);
+            setMensajesChat([...historialActualizado, { role: "model", parts: [{ text: "Hubo un error de conexión con el servidor ALMA." }] }]);
         } finally {
             setCargandoChat(false);
         }
     };
-
 
     return (
         <div className="min-h-screen font-sans bg-[#F4F8F8] text-[#113130] flex flex-col lg:flex-row antialiased relative">
@@ -584,7 +567,8 @@ const genAI = new GoogleGenerativeAI(API_KEY);
             <div className="flex-1 p-5 bg-white flex flex-col gap-4 overflow-y-auto">
                 {mensajesChat.map((msg, idx) => (
                     <div key={idx} className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`p-3.5 text-xs font-medium leading-relaxed max-w-[85%] shadow-sm ${
+                        {/* 🌟 AQUÍ ESTÁ EL CAMBIO: agregué whitespace-pre-wrap 🌟 */}
+                        <div className={`p-3.5 text-xs font-medium leading-relaxed max-w-[85%] shadow-sm whitespace-pre-wrap ${
                             msg.role === 'user' 
                             ? 'bg-[#0F766E] rounded-2xl rounded-tr-sm text-white shadow-md' 
                             : 'bg-slate-50 rounded-2xl rounded-tl-sm border border-slate-100 text-slate-600'
