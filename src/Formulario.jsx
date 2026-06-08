@@ -1,7 +1,6 @@
-
-
 import React, { useState, useEffect } from 'react';
 import logo from './assets/logo.png';
+import { useParams } from 'react-router-dom';
 // import './Formulario.css'; // <-- DESCOMENTA ESTA LÍNEA EN TU VS CODE
 
 const LogoSVG = ({ className }) => (
@@ -33,24 +32,23 @@ const IconClipboard = () => (
 );
 
 export default function Formulario() {
-    // Control de paginación (1: Carta de Presentación, 2: Formulario, 3: Pantalla de Éxito)
+    const { psicologoId } = useParams(); // 🌟 2. JALAMOS EL ID DE LA URL
     const [pasoActual, setPasoActual] = useState(1);
 
-    // Estado con las 10 métricas clave
+    // 🌟 3. RENOMBRAMOS LAS VARIABLES PARA FASTAPI
     const [respuestas, setRespuestas] = useState({
-        satisfaccion_general: 0,
-        instalaciones: 0,
-        expectativas: '',
-        empatia: '',
-        claridad_pautas: '',
-        estado_animo: '',
-        recomendacion: '',
-        confianza_espacio: '',
-        aspectos_valorados: [], // Array para permitir múltiples selecciones
-        sugerencias: ''
+        q1_satisfaccion_general: 0,
+        q5_instalaciones: 0,
+        q2_cumplimiento_expectativas: '',
+        q3_empatia_conexion: '',
+        q6_claridad_pautas: '',
+        q7_impacto_animo: '',
+        q9_indice_recomendacion: '',
+        q8_confianza_seguridad: '',
+        q4_aspectos_valorados: [], // Lo dejamos como array para que funcione su diseño
+        q10_comentarios: ''
     });
 
-    // Efecto para subir al inicio de la pantalla automáticamente al cambiar de página
     useEffect(() => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }, [pasoActual]);
@@ -78,22 +76,46 @@ export default function Formulario() {
     };
 
     // Envío del formulario completo
-    const handleSubmit = (e) => {
+    // 🌟 4. EL ENVÍO REAL A LA BASE DE DATOS
+    const handleSubmit = async (e) => { // Agregamos "async"
         e.preventDefault();
         
-        // Validación estricta para evitar envío de encuestas incompletas
-        const faltanEscalas = ['satisfaccion_general', 'instalaciones'].some(key => respuestas[key] === 0);
-        const faltanSeleccionesUnicas = ['expectativas', 'empatia', 'claridad_pautas', 'estado_animo', 'recomendacion', 'confianza_espacio'].some(key => respuestas[key] === '');
-        const faltanSeleccionesMultiples = respuestas.aspectos_valorados.length === 0;
+        // Validación con los nuevos nombres
+        const faltanEscalas = ['q1_satisfaccion_general', 'q5_instalaciones'].some(key => respuestas[key] === 0);
+        const faltanSeleccionesUnicas = ['q2_cumplimiento_expectativas', 'q3_empatia_conexion', 'q6_claridad_pautas', 'q7_impacto_animo', 'q9_indice_recomendacion', 'q8_confianza_seguridad'].some(key => respuestas[key] === '');
+        const faltanSeleccionesMultiples = respuestas.q4_aspectos_valorados.length === 0;
         
         if (faltanEscalas || faltanSeleccionesUnicas || faltanSeleccionesMultiples) {
             alert("Por favor, responda todas las preguntas (excepto las opcionales) antes de enviar el formulario.");
             return;
         }
 
-        console.log("Datos listos para enviar al backend (PostgreSQL):", respuestas);
-        // Aquí conectarás con el Backend: axios.post('/api/experiencia', respuestas)
-        setPasoActual(3); // Avanzamos a la pantalla de agradecimiento
+        try {
+            // FastAPI espera que la Pregunta 4 sea un texto separado por comas, no un array []. 
+            // Aquí lo convertimos rapidito antes de enviarlo:
+            const datosAEnviar = {
+                ...respuestas,
+                q4_aspectos_valorados: respuestas.q4_aspectos_valorados.join(', ')
+            };
+
+            // Disparamos a tu ruta pública anónima
+            const res = await fetch(`http://127.0.0.1:8000/encuestas/publica/${psicologoId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(datosAEnviar)
+            });
+
+            if (res.ok) {
+                setPasoActual(3); // ¡Éxito! Avanzamos a la pantalla de agradecimiento
+            } else {
+                const errorData = await res.json();
+                console.error("Error Backend:", errorData);
+                alert("Hubo un problema al guardar la encuesta.");
+            }
+        } catch (error) {
+            console.error("Error de Red:", error);
+            alert("El servidor no responde, revisá tu conexión.");
+        }
     };
 
     const EscalaPuntuacion = ({ preguntaId }) => {
@@ -294,13 +316,13 @@ export default function Formulario() {
                         
                         <div className="mb-8">
                             <label className="block text-sm font-bold text-[#113130] mb-2">1. Indique su nivel de satisfacción general con el servicio brindado por el psicólogo hoy.</label>
-                            <EscalaPuntuacion preguntaId="satisfaccion_general" />
+                            <EscalaPuntuacion preguntaId="q1_satisfaccion_general" />
                         </div>
 
                         <div className="mb-8">
                             <label className="block text-sm font-bold text-[#113130] mb-2">2. ¿La atención brindada por el especialista cumplió con sus expectativas previas a la consulta?</label>
                             <OpcionesMultiples 
-                                preguntaId="expectativas" 
+                                preguntaId="q2_cumplimiento_expectativas" 
                                 opciones={['Superó ampliamente mis expectativas', 'Cumplió totalmente mis expectativas', 'Cumplió parcialmente', 'No cumplió mis expectativas']} 
                             />
                         </div>
@@ -308,7 +330,7 @@ export default function Formulario() {
                         <div>
                             <label className="block text-sm font-bold text-[#113130] mb-2">3. ¿El especialista demostró trato respetuoso, empatía y escucha activa durante su intervención?</label>
                             <OpcionesMultiples 
-                                preguntaId="empatia" 
+                                preguntaId="q3_empatia_conexion" 
                                 opciones={['Sí, en todo momento', 'La mayor parte del tiempo', 'Solo en algunos momentos', 'No, me sentí poco comprendido(a)']} 
                             />
                         </div>
@@ -322,7 +344,7 @@ export default function Formulario() {
                             <label className="block text-sm font-bold text-[#113130] mb-1">4. ¿Qué aspecto(s) valora más de la atención médica recibida el día de hoy?</label>
                             <p className="text-xs text-slate-500 mb-2 font-medium">Puede seleccionar más de una opción.</p>
                             <OpcionesMultiplesCheckbox 
-                                preguntaId="aspectos_valorados" 
+                                preguntaId="q4_aspectos_valorados" 
                                 opciones={[
                                     'La escucha activa y empatía del psicólogo', 
                                     'La claridad de las explicaciones y herramientas brindadas', 
@@ -334,7 +356,7 @@ export default function Formulario() {
 
                         <div>
                             <label className="block text-sm font-bold text-[#113130] mb-2">5. Indique su nivel de satisfacción con la comodidad, tranquilidad e higiene de las instalaciones.</label>
-                            <EscalaPuntuacion preguntaId="instalaciones" />
+                            <EscalaPuntuacion preguntaId="q5_instalaciones" />
                         </div>
                     </div>
 
@@ -345,7 +367,7 @@ export default function Formulario() {
                         <div className="mb-8">
                             <label className="block text-sm font-bold text-[#113130] mb-2">6. ¿Considera que las explicaciones o pautas abordadas hoy le resultaron claras y útiles para su proceso?</label>
                             <OpcionesMultiples 
-                                preguntaId="claridad_pautas" 
+                                preguntaId="q6_claridad_pautas" 
                                 opciones={[
                                     'Totalmente claras y fáciles de aplicar', 
                                     'Claras en su mayoría', 
@@ -358,7 +380,7 @@ export default function Formulario() {
                         <div className="mb-8">
                             <label className="block text-sm font-bold text-[#113130] mb-2">7. En comparación al inicio de la sesión, ¿cómo describiría su estado de ánimo al finalizar?</label>
                             <OpcionesMultiples 
-                                preguntaId="estado_animo" 
+                                preguntaId="q7_impacto_animo" 
                                 opciones={['Mucho mejor, me siento con mayor claridad', 'Algo mejor, me siento escuchado(a)', 'Igual que al llegar', 'Peor / Más confundido(a)']} 
                             />
                         </div>
@@ -366,7 +388,7 @@ export default function Formulario() {
                         <div className="mb-8">
                             <label className="block text-sm font-bold text-[#113130] mb-2">8. ¿Sintió que el consultorio brindaba el ambiente de confianza y seguridad necesario para expresarse libremente?</label>
                             <OpcionesMultiples 
-                                preguntaId="confianza_espacio" 
+                                preguntaId="q8_confianza_seguridad" 
                                 opciones={[
                                     'Sí, me sentí completamente seguro(a) y en confianza', 
                                     'En su mayor parte me sentí cómodo(a)', 
@@ -379,7 +401,7 @@ export default function Formulario() {
                         <div>
                             <label className="block text-sm font-bold text-[#113130] mb-2">9. ¿Qué tan probable es que recomiende a este especialista a un familiar o amigo que necesite apoyo psicológico?</label>
                             <OpcionesMultiples 
-                                preguntaId="recomendacion" 
+                                preguntaId="q9_indice_recomendacion" 
                                 opciones={['Definitivamente lo recomendaría', 'Probablemente lo recomendaría', 'Poco probable', 'Definitivamente no lo recomendaría']} 
                             />
                         </div>
@@ -392,8 +414,8 @@ export default function Formulario() {
                         </label>
                         <p className="text-xs text-slate-500 mb-4">¿Qué sugerencias nos podría dar para mejorar continuamente la atención en el consultorio?</p>
                         <textarea 
-                            value={respuestas.sugerencias}
-                            onChange={(e) => setRespuestas(prev => ({ ...prev, sugerencias: e.target.value }))}
+                            value={respuestas.q10_comentarios}
+                            onChange={(e) => setRespuestas(prev => ({ ...prev, q10_comentarios: e.target.value }))}
                             placeholder="Describa de forma libre sus sugerencias o lo que más le agradó..."
                             className="w-full bg-slate-50 border border-slate-300 rounded-xl p-4 text-sm text-[#113130] focus:outline-none focus:ring-2 focus:ring-[#0F766E]/30 focus:border-[#0F766E] transition-all resize-none h-32"
                         />

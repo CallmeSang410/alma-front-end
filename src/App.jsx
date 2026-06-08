@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Login from './Login';
 import Interface from './Interface';
-import FormularioPaciente from './FormularioPaciente'; // 🌟 Tu nueva página
+// ✅ PONÉ ESTA (asegurate de usar el nombre correcto del archivo de Dervin):
+import Formulario from './Formulario';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -26,10 +27,10 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* 🌐 RUTA PÚBLICA: El paciente entra aquí y NO le pide contraseña */}
-        <Route path="/feedback/:psicologoId" element={<FormularioPaciente />} />
+        {/* 🌐 RUTA PÚBLICA: Ahora apunta al componente de Dervin */}
+        <Route path="/feedback/:psicologoId" element={<Formulario />} />
 
-        {/* 🔒 RUTA PRIVADA: Cualquier otra página, ejecuta tu lógica de Login/Interface */}
+        {/* 🔒 RUTA PRIVADA: Tu dashboard */}
         <Route path="/*" element={<AplicacionPrivada />} />
       </Routes>
     </BrowserRouter>

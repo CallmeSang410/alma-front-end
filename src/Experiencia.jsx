@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { QRCodeCanvas } from 'qrcode.react';
 import './Experiencia.css'; 
 
 // --- ÍCONOS VECTORIALES ---
@@ -113,6 +114,7 @@ const DonutChart = ({ data, total }) => {
     );
 };
 
+
 // --- ESTADO INICIAL VACÍO ---
 const estadisticasVacias = {
     total_evaluaciones: 0, promedio_satisfaccion: 0, porcentaje_recomendacion: 0,
@@ -177,7 +179,20 @@ const estadisticasVacias = {
 export default function Experiencia() {
     const [filtroTiempo, setFiltroTiempo] = useState('mes');
     const [estadisticas, setEstadisticas] = useState(estadisticasVacias);
+    // 🌟 2. NUEVO ESTADO: Para controlar si se ve el QR o no
+    const [mostrarQR, setMostrarQR] = useState(false);
 
+    // 🌟 3. GENERADOR DEL LINK PARA EL QR
+    let linkEncuesta = "";
+    const token = localStorage.getItem('token');
+    if (token) {
+        try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            linkEncuesta = `${window.location.origin}/feedback/${payload.usuario_id}`;
+        } catch (e) {
+            console.error("Error leyendo token");
+        }
+    }
     const procesarDatosEncuestas = (datosCrudos) => {
         // SEGURO DE VIDA
         if (!Array.isArray(datosCrudos)) {
@@ -267,7 +282,7 @@ export default function Experiencia() {
                 }))
         });
     };
-
+    
     useEffect(() => {
         const cargarExperiencias = async () => {
             try {
@@ -289,6 +304,7 @@ export default function Experiencia() {
 
         cargarExperiencias();
     }, [filtroTiempo]);
+
     // --- FUNCIÓN PARA GENERAR Y COPIAR EL LINK PÚBLICO ---
     const copiarLinkPaciente = () => {
         try {
@@ -330,16 +346,16 @@ export default function Experiencia() {
                     </div>
                 </div>
                 
-                {/* 🌟 ENVOLVEMOS TODO EN ESTE DIV PARA QUE QUEDEN A LA PAR */}
+                {/* CONTENEDOR DERECHO: Botón + Filtros */}
                 <div className="flex flex-col sm:flex-row items-center gap-3">
                     
-                    {/* 🌟 EL BOTÓN NUEVO */}
+                    {/* 🌟 EL BOTÓN NUEVO (REEMPLAZA AL VIEJO AQUÍ) */}
                     <button 
-                        onClick={copiarLinkPaciente}
+                        onClick={() => setMostrarQR(true)}
                         className="px-4 py-2 bg-[#0F766E] text-white text-[11px] font-bold uppercase tracking-wider rounded-2xl shadow-sm hover:bg-[#0D9488] transition-colors flex items-center gap-2"
                     >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
-                        Copiar Link
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path></svg>
+                        Compartir Encuesta
                     </button>
 
                     {/* TUS FILTROS ORIGINALES */}
@@ -356,10 +372,10 @@ export default function Experiencia() {
                             >
                                 {f === 'historico' ? 'Histórico' : `Este ${f}`}
                             </button>
-                        ))} 
-                    </div> {/* 🌟 AQUÍ CERRAMOS EL DIV DE LOS FILTROS */}
-                </div> {/* 🌟 AQUÍ CERRAMOS EL DIV QUE ENVUELVE AL BOTÓN Y LOS FILTROS */}
-            </div> {/* 🌟 AQUÍ CERRAMOS EL DIV DE LA CABECERA (LA CABECERA ORIGINAL) */}
+                        ))}
+                    </div>
+                </div>
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:gap-6 mb-10">
                 <KpiCard 
@@ -479,6 +495,53 @@ export default function Experiencia() {
                     )}
                 </div>
             </div>
+            {/* 🌟 EL MODAL DEL QR OPTIMIZADO (Sin blur para evitar lag y manchas negras) */}
+            {mostrarQR && (
+                <div className="fixed inset-0 bg-[#113130]/80 flex items-center justify-center z-[9999] p-4 transition-opacity">
+                    <div className="bg-white p-8 rounded-[2rem] shadow-2xl text-center max-w-sm w-full relative animate-fade-in-up">
+                        
+                        {/* Botón de cerrar modificado para verse más limpio */}
+                        <button 
+                            onClick={() => setMostrarQR(false)} 
+                            className="absolute top-4 right-4 text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-colors p-2 rounded-full"
+                        >
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                        
+                        <div className="mb-6 mt-2">
+                            <h3 className="text-xl font-black text-[#113130] mb-2 tracking-tight">Evaluación de Calidad</h3>
+                            <p className="text-sm text-slate-500 font-medium px-4">Pídale al paciente que escanee este código con la cámara de su celular.</p>
+                        </div>
+                        
+                        {/* El Código QR con un marco más elegante */}
+                        <div className="flex justify-center mb-8">
+                            <div className="p-5 bg-white border-2 border-slate-100 rounded-3xl shadow-sm">
+                                <QRCodeCanvas 
+                                    value={linkEncuesta} 
+                                    size={180} 
+                                    level={"H"} 
+                                    fgColor={"#0F766E"} // QR en tono verde HorizonFlow
+                                />
+                            </div>
+                        </div>
+                        
+                        {/* Separador sutil */}
+                        <div className="flex items-center gap-3 mb-5 opacity-70">
+                            <div className="h-px bg-slate-200 flex-1"></div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Opción Alternativa</span>
+                            <div className="h-px bg-slate-200 flex-1"></div>
+                        </div>
+                        
+                        <button 
+                            onClick={copiarLinkPaciente} 
+                            className="w-full bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 hover:text-[#113130] text-xs font-bold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
+                            Copiar Link Directo
+                        </button>
+                    </div>
+                </div>
+            )} 
         </div>
     );
 }
