@@ -30,95 +30,126 @@ const Pacientes = () => {
     // Modal para borrar toda la línea
     const [showDeleteTimelineModal, setShowDeleteTimelineModal] = useState(false);
 
-    // DATOS DE EJEMPLO FUNCIONALES (Mock Data)
-    const [mockTimelines, setMockTimelines] = useState({
-        estado: [
-            { id: 'est-1', date: '10 May', title: 'Inicio de Síntomas', notes: [{ id: 'n1', title: 'Dolor Agudo', content: 'Paciente reporta dolor punzante en la zona lumbar (8/10).' }] },
-            { id: 'est-2', date: '25 May', title: 'Crisis Intermedia', notes: [] },
-            { id: 'est-3', date: '10 Jun', title: 'Estabilización', notes: [{ id: 'n2', title: 'Mejora leve', content: 'El dolor se ha reducido a 4/10 tras primera fase de descanso.' }] }
-        ],
-        terapia: [
-            { id: 'ter-1', date: '15 May', title: 'Evaluación Inicial', notes: [{ id: 'n3', title: 'Plan Físico', content: 'Se planifican 10 sesiones de termoterapia.' }] },
-            { id: 'ter-2', date: '01 Jun', title: 'Sesión 5 - Ajuste', notes: [{ id: 'n4', title: 'Buena respuesta', content: 'Aumento del rango de movilidad en un 30%.' }] },
-            { id: 'ter-3', date: '15 Jun', title: 'Reevaluación', notes: [] }
-        ]
-    });
+   // 🌟 REEMPLAZO DE MOCK DATA POR DATOS REALES DE BASE DE DATOS
+    const [timelineEvents, setTimelineEvents] = useState([]);
+    const [eventsToDelete, setEventsToDelete] = useState([]); // Rastrea los IDs eliminados en el frontend
 
-    // --- FUNCIONES DE LA LÍNEA DE TIEMPO (CORREGIDAS) ---
+    // Función para descargar los eventos desde FastAPI
+    const cargarEventosPaciente = async (pacienteId) => {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`http://127.0.0.1:8000/pacientes/${pacienteId}/eventos`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setTimelineEvents(data);
+            }
+        } catch (error) {
+            console.error("Error al cargar eventos de la línea de tiempo:", error);
+        }
+    };
+
+// --- 🌟 FUNCIONES DE NOTAS (USANDO LAS NUEVAS COLUMNAS) ---
     const handleSaveNote = () => {
-        setMockTimelines(prev => {
-            const updated = { ...prev };
-            const currentTimeline = [...updated[activeTimeline]];
-            const stageIndex = currentTimeline.findIndex(s => s.id === noteStageId);
-            
-            if (stageIndex !== -1) {
-                const stage = { ...currentTimeline[stageIndex] };
-                const notes = [...stage.notes];
-                
-                if (selectedNote.id) {
-                    const noteIndex = notes.findIndex(n => n.id === selectedNote.id);
-                    notes[noteIndex] = selectedNote;
-                } else {
-                    notes.push({ ...selectedNote, id: `new-${Date.now()}` });
-                }
-                stage.notes = notes;
-                currentTimeline[stageIndex] = stage;
-                updated[activeTimeline] = currentTimeline;
+        setTimelineEvents(prev => prev.map(evt => {
+            if (evt.id === noteStageId) {
+                return {
+                    ...evt,
+                    // Guardamos directo en las variables oficiales
+                    nota_titulo: selectedNote.titulo || '',
+                    nota_contenido: selectedNote.contenido || ''
+                };
             }
-            return updated;
-        });
-        setIsNoteModalOpen(false);
+            return evt;
+        }));
+        setIsNoteModalOpen(false); 
     };
 
-    const handleDeleteNote = (stageId, noteId) => {
-        setMockTimelines(prev => {
-            const updated = { ...prev };
-            const currentTimeline = [...updated[activeTimeline]];
-            const stageIndex = currentTimeline.findIndex(s => s.id === stageId);
-            
-            if (stageIndex !== -1) {
-                const stage = { ...currentTimeline[stageIndex] };
-                stage.notes = stage.notes.filter(n => n.id !== noteId);
-                currentTimeline[stageIndex] = stage;
-                updated[activeTimeline] = currentTimeline;
+    const handleDeleteNote = (stageId) => {
+        setTimelineEvents(prev => prev.map(evt => {
+            if (evt.id === stageId) {
+                // Vaciamos los campos nuevos
+                return { ...evt, nota_titulo: '', nota_contenido: '' }; 
             }
-            return updated;
-        });
+            return evt;
+        }));
         setIsNoteModalOpen(false);
     };
-
     const handleDeleteStage = (stageId) => {
-        setMockTimelines(prev => ({
-            ...prev,
-            [activeTimeline]: prev[activeTimeline].filter(s => s.id !== stageId)
-        }));
+        // Si el evento ya existía en la base de datos (ID numérico), lo anotamos para borrarlo en el backend
+        if (typeof stageId === 'number') {
+            setEventsToDelete(prev => [...prev, stageId]);
+        }
+        setTimelineEvents(prev => prev.filter(s => s.id !== stageId));
     };
 
-    const handleAddStage = () => {
-        setMockTimelines(prev => ({
+   const handleAddStage = () => {
+        setTimelineEvents(prev => [
             ...prev,
-            [activeTimeline]: [
-                ...prev[activeTimeline],
-                { id: `stage-${Date.now()}`, date: 'DD/MM', title: '', notes: [] }
-            ]
-        }));
+            // 🌟 Usamos titulo y fecha_evento para que FastAPI lo entienda
+            { id: `temp-${Date.now()}`, fecha_evento: 'DD/MM', titulo: '', descripcion: '', impacto: activeTimeline }
+        ]);
     };
 
-    // 🌟 NUEVA FUNCIÓN: Permite escribir el título y la fecha
     const handleChangeStage = (stageId, field, value) => {
-        setMockTimelines(prev => {
-            const updated = { ...prev };
-            const currentTimeline = [...updated[activeTimeline]];
-            const stageIndex = currentTimeline.findIndex(s => s.id === stageId);
-            
-            if (stageIndex !== -1) {
-                const stage = { ...currentTimeline[stageIndex] };
-                stage[field] = value;
-                currentTimeline[stageIndex] = stage;
-                updated[activeTimeline] = currentTimeline;
+        setTimelineEvents(prev => prev.map(s => s.id === stageId ? { ...s, [field]: value } : s));
+    };
+
+    // 🌟 GUARDADO MAESTRO EN LA BASE DE DATOS
+    const toggleTimelineEditMode = async () => {
+        if (isTimelineEditMode) {
+            try {
+                const token = localStorage.getItem('token');
+                const headers = { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` 
+                };
+
+                // 1. Borrar de la BD los nodos eliminados
+                await Promise.all(eventsToDelete.map(id => 
+                    fetch(`http://127.0.0.1:8000/eventos/${id}`, { method: 'DELETE', headers })
+                ));
+                setEventsToDelete([]);
+
+            // 2. Guardar o actualizar los nodos actuales
+                const eventosGuardados = await Promise.all(timelineEvents.map(async (evt) => {
+                    const cuerpo = {
+                        titulo: evt.titulo || 'Nueva Etapa',
+                        fecha_evento: evt.fecha_evento || 'DD/MM',
+                        descripcion: evt.descripcion || '', // Tu descripción original queda a salvo
+                        impacto: evt.impacto,
+                        nota_titulo: evt.nota_titulo || '',       // 🌟 ENVIAMOS EL NUEVO CAMPO
+                        nota_contenido: evt.nota_contenido || ''  // 🌟 ENVIAMOS EL NUEVO CAMPO
+                    };
+
+                    if (typeof evt.id === 'string' && evt.id.startsWith('temp-')) {
+                        // Es un nodo nuevo creado en el frontend -> POST
+                        const res = await fetch(`http://127.0.0.1:8000/pacientes/${selectedPatient.id}/eventos`, {
+                            method: 'POST',
+                            headers,
+                            body: JSON.stringify(cuerpo)
+                        });
+                        return res.json();
+                    } else {
+                        // Es un nodo viejo modificado -> PUT
+                        const res = await fetch(`http://127.0.0.1:8000/eventos/${evt.id}`, {
+                            method: 'PUT',
+                            headers,
+                            body: JSON.stringify(cuerpo)
+                        });
+                        return res.json();
+                    }
+                }));
+
+                setTimelineEvents(eventosGuardados);
+                alert("¡Línea de tiempo guardada en la base de datos exitosamente!");
+            } catch (error) {
+                console.error(error);
+                alert("Error al sincronizar la línea de tiempo con el servidor.");
             }
-            return updated;
-        });
+        }
+        setIsTimelineEditMode(!isTimelineEditMode);
     };
 
     
@@ -132,25 +163,22 @@ const Pacientes = () => {
     const [patients, setPatients] = useState([]);
 
     // 🌟 NUEVA VERSIÓN DE CARGAR DATOS (Ahora trae TODO: Pacientes, Citas y Reportes)
-    const obtenerDatosCompletos = async () => {
+ const obtenerDatosCompletos = async () => {
         try {
             const token = localStorage.getItem('token');
             if (!token) return;
 
             const headers = { 'Authorization': `Bearer ${token}` };
 
-            // Descargamos las tres listas al mismo tiempo para ahorrar tiempo de carga
             const [resPacientes, resCitas, resReportes] = await Promise.all([
                 fetch('http://127.0.0.1:8000/pacientes', { headers }),
                 fetch('http://127.0.0.1:8000/citas', { headers }),
                 fetch('http://127.0.0.1:8000/reportes', { headers })
             ]);
 
-            if (resPacientes.ok && resCitas.ok && resReportes.ok) {
+            // 🌟 CADA UNO SE CARGA POR SEPARADO PARA EVITAR APAGONES GLOBALES
+            if (resPacientes.ok) {
                 const datosPacientes = await resPacientes.json();
-                const datosCitas = await resCitas.json();
-                const datosReportes = await resReportes.json();
-
                 const pacientesFormateados = datosPacientes.map(p => ({
                     id: p.id, 
                     name: p.nombre,
@@ -158,15 +186,25 @@ const Pacientes = () => {
                     email: p.email || 'Sin correo',
                     age: p.edad,
                     status: p.estado || 'Activo',
-                    sexo: p.sexo, // Aseguramos que guardamos el sexo
+                    sexo: p.sexo, 
                     timeline: [], 
                     reports: [] 
                 }));
-                
                 setPatients(pacientesFormateados);
+            } else {
+                print("Error al cargar pacientes:", resPacientes.status);
+            }
+
+            if (resCitas.ok) {
+                const datosCitas = await resCitas.json();
                 setTodasLasCitas(datosCitas);
+            }
+
+            if (resReportes.ok) {
+                const datosReportes = await resReportes.json();
                 setTodosLosReportes(datosReportes);
             }
+
         } catch (error) {
             console.error("Error al cargar datos:", error);
         }
@@ -299,9 +337,10 @@ const confirmDeletePatient = async () => {
         }
     };
 
-    const handleViewDetails = (patient) => {
+    const handleViewDetails = async (patient) => {
         setSelectedPatient(patient);
         setView('details');
+        await cargarEventosPaciente(patient.id); // 🌟 Sincroniza de inmediato
     };
 
     const filteredPatients = patients.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -470,9 +509,16 @@ const confirmDeletePatient = async () => {
                                 <h3 className="text-xl font-black text-[#113130] flex items-center gap-3">Historial Evolutivo</h3>
                                 <p className="text-xs text-slate-500 font-medium mt-1">Línea de tiempo gráfica del progreso clínico</p>
                             </div>
-                            <button onClick={() => setIsTimelineEditMode(!isTimelineEditMode)} className={`p-3 rounded-2xl transition-all flex items-center gap-2 ${isTimelineEditMode ? 'bg-[#0F766E] text-white' : 'bg-white text-slate-400 hover:text-[#0F766E]'}`}>
+                            
+                            {/* 🌟 AQUÍ ESTÁ EL BOTÓN CORREGIDO */}
+                            <button 
+                                onClick={toggleTimelineEditMode} 
+                                className={`p-3 rounded-2xl transition-all flex items-center gap-2 ${isTimelineEditMode ? 'bg-[#0F766E] text-white shadow-md' : 'bg-white text-slate-400 hover:text-[#0F766E] border border-slate-200'}`}
+                            >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                                <span className="hidden sm:inline text-[10px] font-black uppercase tracking-widest">{isTimelineEditMode ? 'Guardar Cambios' : 'Modificar'}</span>
+                                <span className="hidden sm:inline text-[10px] font-black uppercase tracking-widest">
+                                    {isTimelineEditMode ? 'Guardar Cambios' : 'Modificar'}
+                                </span>
                             </button>
                         </div>
                         <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mb-12 border-b border-slate-200/60 pb-8">
@@ -486,109 +532,163 @@ const confirmDeletePatient = async () => {
                                 </button>
                             )}
                         </div>
-                        {mockTimelines[activeTimeline].length === 0 ? (
+                    {/* 🌟 FILTRAMOS LOS EVENTOS SEGÚN LA LÍNEA ACTIVA Y LOS DATOS DE FASTAPI */}
+                        {timelineEvents.filter(e => e.impacto === activeTimeline).length === 0 ? (
                             <div className="text-center py-16 bg-white rounded-[2rem] border border-dashed border-slate-300">
                                 <p className="text-sm font-bold text-slate-500 mb-4">No hay registros en esta línea de tiempo.</p>
                             </div>
                         ) : (
-                            <div className="relative w-full overflow-x-auto pb-20 pt-36 px-4 md:px-10 custom-scrollbar flex items-center min-h-[380px]">
-                                {/* LÍNEA DE FONDO DEGRADADA */}
-                                <div className={`absolute top-[60%] left-0 right-0 h-1.5 rounded-full z-0 ${activeTimeline === 'estado' ? 'bg-gradient-to-r from-amber-100 via-amber-200/50 to-slate-200' : 'bg-gradient-to-r from-teal-100 via-teal-200/50 to-slate-200'}`}></div>
+                            <div className="relative w-full overflow-x-auto py-10 px-4 md:px-10 custom-scrollbar flex items-center min-h-[350px]">
                                 
-                                <div className="flex items-center gap-20 md:gap-32 w-max min-w-full px-10">
-                                    {mockTimelines[activeTimeline].map((stage) => (
-                                        <div key={stage.id} className="relative z-10 flex flex-col items-center shrink-0 w-36 group">
-                                            
-                                            {/* ÁREA SUPERIOR: NOTAS (BURBUJAS DE DIÁLOGO) */}
-                                            <div className="absolute bottom-[calc(100%+32px)] flex flex-col-reverse gap-3 w-full items-center">
-                                                {stage.notes.map(note => (
-                                                    <button 
-                                                        key={note.id} 
-                                                        onClick={() => { setSelectedNote(note); setNoteStageId(stage.id); setIsNoteModalOpen(true); }} 
-                                                        className={`relative p-3.5 rounded-2xl shadow-sm text-[10px] font-black uppercase tracking-widest w-full truncate transition-all duration-300 hover:shadow-md hover:-translate-y-1 bg-white border ${activeTimeline === 'estado' ? 'text-amber-700 border-amber-100 hover:border-amber-300' : 'text-teal-700 border-teal-100 hover:border-teal-300'}`}
-                                                    >
-                                                        {/* El triangulito de la burbuja */}
-                                                        <div className={`absolute -bottom-1.5 left-1/2 transform -translate-x-1/2 w-3 h-3 rotate-45 border-r border-b bg-white transition-colors duration-300 ${activeTimeline === 'estado' ? 'border-amber-100 group-hover:border-amber-300' : 'border-teal-100 group-hover:border-teal-300'}`}></div>
-                                                        <span className="block truncate">{note.title}</span>
-                                                    </button>
-                                                ))}
+                                {/* LA LÍNEA DE FONDO (Anclada al centro) */}
+                                <div className={`absolute top-1/2 left-0 right-0 h-1.5 transform -translate-y-1/2 z-0 ${activeTimeline === 'estado' ? 'bg-gradient-to-r from-amber-100 via-amber-200 to-slate-200' : 'bg-gradient-to-r from-teal-100 via-teal-200 to-slate-200'}`}></div>
+                                
+                                <div className="flex items-center gap-10 md:gap-16 w-max min-w-full px-10 relative z-10">
+                                    {timelineEvents.filter(e => e.impacto === activeTimeline).map((evt) => {
+                                        const notaTitulo = evt.nota_titulo;
+                                        const notaContenido = evt.nota_contenido;
+
+                                        return (
+                                            // 🌟 EL SECRETO ESTÁ AQUÍ: Un contenedor alto (h-[300px]) que obliga a los elementos a separarse naturalmente
+                                            <div key={evt.id} className="relative flex flex-col items-center justify-center shrink-0 w-36 group h-[300px]">
                                                 
-                                                {/* BOTÓN DE AGREGAR NOTA (MODO EDICIÓN) */}
-                                                {isTimelineEditMode && (
-                                                    <button 
-                                                        onClick={() => { setNoteStageId(stage.id); setSelectedNote({ title: '', content: '' }); setIsNoteModalOpen(true); }} 
-                                                        className="w-8 h-8 rounded-full bg-slate-800 text-white flex items-center justify-center hover:bg-[#0F766E] shadow-md hover:scale-110 transition-all mb-2"
-                                                    >
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" /></svg>
-                                                    </button>
-                                                )}
-                                            </div>
-
-                                            {/* NODO CENTRAL (EL PUNTO EN LA LÍNEA) */}
-                                            <div className={`w-7 h-7 rounded-full border-[5px] border-white shadow-md z-20 flex items-center justify-center transition-transform duration-300 group-hover:scale-125 ${activeTimeline === 'estado' ? 'bg-amber-500 shadow-amber-500/30' : 'bg-[#0F766E] shadow-teal-700/30'}`}>
-                                                <div className="w-2 h-2 bg-white rounded-full"></div>
-                                            </div>
-
-                                            {/* ÁREA INFERIOR: TÍTULO Y FECHA */}
-                                            <div className="mt-6 text-center w-40 transition-transform duration-300 group-hover:-translate-y-1">
-                                                {isTimelineEditMode ? (
-                                                    <div className="space-y-3 px-2 bg-white/50 p-2 rounded-xl backdrop-blur-sm border border-slate-200 shadow-inner">
-                                                        <input 
-                                                            type="text" 
-                                                            value={stage.title} 
-                                                            onChange={(e) => handleChangeStage(stage.id, 'title', e.target.value)}
-                                                            className="w-full text-xs font-black text-[#113130] text-center border-b-2 border-[#0F766E] focus:outline-none bg-transparent placeholder-slate-300"
-                                                            placeholder="Título etapa..."
-                                                        />
-                                                        <input 
-                                                            type="text" 
-                                                            value={stage.date} 
-                                                            onChange={(e) => handleChangeStage(stage.id, 'date', e.target.value)}
-                                                            className="w-[80%] mx-auto text-[9px] font-black text-slate-500 text-center border-b border-slate-300 focus:outline-none focus:border-[#0F766E] bg-transparent uppercase placeholder-slate-300"
-                                                            placeholder="DD/MM"
-                                                        />
-                                                    </div>
-                                                ) : (
-                                                    <>
-                                                        <h4 className="text-sm font-black text-[#113130] truncate px-2">{stage.title || 'Sin Título'}</h4>
-                                                        <div className="mt-2">
-                                                            <span className="text-[9px] font-black text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg uppercase tracking-widest inline-block border border-slate-200">
-                                                                {stage.date || '--/--'}
-                                                            </span>
-                                                        </div>
-                                                    </>
-                                                )}
-                                            </div>
-
-                                            {/* BOTÓN DE ELIMINAR NODO (MODO EDICIÓN) */}
-                                            {isTimelineEditMode && (
-                                                <div className="absolute top-[calc(100%+65px)] flex gap-2">
-                                                    <button 
-                                                        onClick={() => handleDeleteStage(stage.id)} 
-                                                        className="w-8 h-8 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all shadow-sm"
-                                                    >
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                                    </button>
+                                                {/* 🌟 ÁREA SUPERIOR (Usa el 50% de arriba. Sin absolute, clics 100% garantizados) */}
+                                                <div className="flex-1 w-full flex items-end justify-center pb-4 z-50">
+                                                    {notaTitulo ? (
+                                                        <button 
+                                                            type="button"
+                                                            onClick={() => { 
+                                                                setSelectedNote({ id: evt.id, titulo: notaTitulo, contenido: notaContenido }); 
+                                                                setNoteStageId(evt.id); 
+                                                                setIsNoteModalOpen(true); 
+                                                            }} 
+                                                            className={`relative p-3.5 rounded-2xl shadow-sm text-[10px] font-black uppercase tracking-widest w-full truncate transition-all duration-300 hover:shadow-md hover:-translate-y-1 bg-white border ${activeTimeline === 'estado' ? 'text-amber-700 border-amber-100 hover:border-amber-300' : 'text-teal-700 border-teal-100 hover:border-teal-300'}`}
+                                                        >
+                                                            <div className={`absolute -bottom-1.5 left-1/2 transform -translate-x-1/2 w-3 h-3 rotate-45 border-r border-b bg-white transition-colors duration-300 ${activeTimeline === 'estado' ? 'border-amber-100 group-hover:border-amber-300' : 'border-teal-100 group-hover:border-teal-300'}`}></div>
+                                                            <span className="block truncate">{notaTitulo}</span>
+                                                        </button>
+                                                    ) : (
+                                                        isTimelineEditMode && (
+                                                            <button 
+                                                                type="button"
+                                                                onClick={() => { 
+                                                                    console.log("¡Por fin un clic real en:", evt.id, "!");
+                                                                    setSelectedNote({ titulo: '', contenido: '' }); 
+                                                                    setNoteStageId(evt.id); 
+                                                                    setIsNoteModalOpen(true); 
+                                                                }} 
+                                                                className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center hover:bg-[#0F766E] shadow-lg hover:scale-110 transition-all cursor-pointer border-2 border-white"
+                                                            >
+                                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" /></svg>
+                                                            </button>
+                                                        )
+                                                    )}
                                                 </div>
-                                            )}
-                                        </div>
-                                    ))}
+
+                                                {/* 🌟 NODO CENTRAL (Siempre atrapado en el medio exacto) */}
+                                                <div className={`shrink-0 w-8 h-8 rounded-full border-[6px] border-white shadow-md z-20 flex items-center justify-center transition-transform duration-300 group-hover:scale-110 ${activeTimeline === 'estado' ? 'bg-amber-500 shadow-amber-500/40' : 'bg-[#0F766E] shadow-teal-700/40'}`}>
+                                                    <div className="w-2 h-2 bg-white rounded-full"></div>
+                                                </div>
+
+                                                {/* 🌟 ÁREA INFERIOR (Usa el 50% de abajo) */}
+                                                <div className="flex-1 w-48 flex flex-col justify-start pt-4 z-40 items-center text-center">
+                                                    {isTimelineEditMode ? (
+                                                        <div className="space-y-3 px-3 py-2 bg-white/90 rounded-xl backdrop-blur-md border border-slate-200 shadow-sm w-full">
+                                                            <input 
+                                                                type="text" 
+                                                                value={evt.titulo} 
+                                                                onChange={(e) => handleChangeStage(evt.id, 'titulo', e.target.value)}
+                                                                className="w-full text-xs font-black text-[#113130] text-center border-b-2 border-[#0F766E] focus:outline-none bg-transparent placeholder-slate-300"
+                                                                placeholder="Etapa..."
+                                                            />
+                                                            <input 
+                                                                type="text" 
+                                                                value={evt.fecha_evento} 
+                                                                onChange={(e) => handleChangeStage(evt.id, 'fecha_evento', e.target.value)}
+                                                                className="w-20 mx-auto text-[10px] font-black text-slate-500 text-center border-b border-slate-300 focus:outline-none focus:border-[#0F766E] bg-transparent uppercase placeholder-slate-300 block"
+                                                                placeholder="DD/MM"
+                                                            />
+                                                        </div>
+                                                    ) : (
+                                                        <div className="bg-white/70 p-2 rounded-xl backdrop-blur-sm inline-block min-w-[80%]">
+                                                            <h4 className="text-sm font-black text-[#113130] truncate px-1">{evt.titulo || 'Sin Título'}</h4>
+                                                            <div className="mt-1.5">
+                                                                <span className="text-[10px] font-black text-slate-500 bg-white px-3 py-1.5 rounded-lg uppercase tracking-widest inline-block border border-slate-200 shadow-sm">
+                                                                    {evt.fecha_evento || '--/--'}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {/* BOTÓN ELIMINAR NODO (También rediseñado para que no lo tapen) */}
+                                                    {isTimelineEditMode && (
+                                                        <div className="mt-4 flex gap-2">
+                                                            <button 
+                                                                type="button"
+                                                                onClick={() => handleDeleteStage(evt.id)} 
+                                                                className="w-8 h-8 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all shadow-sm"
+                                                            >
+                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         )}
-                    </div>
+                        </div>
                 </div>
-                {/* MODAL DE ELIMINAR: PEGAR JUSTO ANTES DEL ÚLTIMO </div> DE LA VISTA */}
-                {patientToDelete && createPortal(
+{/* 🌟 MODAL DE NOTAS CLÍNICAS (MUDADO ADENTRO DE VISTA 2 PARA QUE NO SEA FANTASMA) */}
+                {isNoteModalOpen && selectedNote && createPortal(
                     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-                        <div className="absolute inset-0 bg-[#113130]/70 backdrop-blur-md" onClick={() => setPatientToDelete(null)}></div>
-                        <div className="bg-white rounded-[2rem] w-full max-w-sm p-8 relative z-10 text-center">
-                            <h3 className="text-2xl font-black text-[#113130] mb-3">¿Eliminar Expediente?</h3>
-                            <p className="text-sm text-slate-500 mb-8">Esta acción es permanente en HorizonFlow.</p>
-                            <div className="flex gap-3">
-                                <button onClick={() => setPatientToDelete(null)} className="w-full py-3.5 bg-slate-100 text-slate-600 rounded-xl text-[11px] font-black uppercase tracking-widest">Cancelar</button>
-                                <button onClick={confirmDeletePatient} className="w-full py-3.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-[11px] font-black uppercase tracking-widest transition-colors">Sí, Eliminar</button>
-                            </div>
+                        <div className="absolute inset-0 bg-[#113130]/60 backdrop-blur-sm" onClick={() => setIsNoteModalOpen(false)}></div>
+                        <div className="bg-white rounded-[2rem] w-full max-w-md p-8 relative z-10 shadow-2xl animate-fade-in border border-slate-100">
+                            <button onClick={() => setIsNoteModalOpen(false)} className="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-colors">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+
+                            {/* MODO LECTURA */}
+                            {!isTimelineEditMode && selectedNote.titulo ? (
+                                <div>
+                                    <h3 className="text-xl font-black text-[#113130]">{selectedNote.titulo}</h3>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 mb-6">
+                                        Fecha: {timelineEvents.find(s => s.id === noteStageId)?.fecha_evento || 'Desconocida'}
+                                    </p>
+                                    <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 mb-8">
+                                        <p className="text-sm font-medium text-slate-600 leading-relaxed whitespace-pre-wrap">{selectedNote.contenido}</p>
+                                    </div>
+                                    <button onClick={() => setIsNoteModalOpen(false)} className="w-full py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors">Cerrar Detalles</button>
+                                </div>
+                            ) : (
+                                /* MODO EDICIÓN */
+                                <div>
+                                    <h3 className="text-xl font-black text-[#113130] mb-6">{selectedNote.titulo ? 'Modificar Nota' : 'Nueva Nota'}</h3>
+                                    <div className="space-y-5">
+                                        <input 
+                                            type="text" 
+                                            value={selectedNote.titulo || ''} 
+                                            onChange={(e) => setSelectedNote({...selectedNote, titulo: e.target.value})} 
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-[#113130] focus:outline-none focus:border-[#0F766E]" 
+                                            placeholder="Título (Ej. Crisis de Pánico)" 
+                                        />
+                                        <textarea 
+                                            value={selectedNote.contenido || ''} 
+                                            onChange={(e) => setSelectedNote({...selectedNote, contenido: e.target.value})} 
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-600 min-h-[120px] resize-none focus:outline-none focus:border-[#0F766E]" 
+                                            placeholder="Detalles clínicos de la etapa..." 
+                                        />
+                                    </div>
+                                    <div className="flex gap-3 mt-8">
+                                        {selectedNote.titulo && (
+                                            <button onClick={() => handleDeleteNote(noteStageId)} className="px-5 py-3.5 bg-rose-50 text-rose-500 rounded-xl text-[10px] font-black uppercase hover:bg-rose-100 transition-colors">Eliminar</button>
+                                        )}
+                                        <button onClick={handleSaveNote} className="flex-1 py-3.5 bg-[#0F766E] text-white rounded-xl text-[10px] font-black uppercase hover:bg-[#0D9488] transition-colors shadow-md shadow-teal-900/20">Guardar Nota</button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>, document.body
                 )}
@@ -677,6 +777,7 @@ const confirmDeletePatient = async () => {
     // ================= FALLBACK Y MODALES GLOBALES =================
     return (
         <>
+            {/* 🌟 MODAL DE NOTAS CLÍNICAS (Ya conectado a la Base de Datos) */}
             {isNoteModalOpen && selectedNote && createPortal(
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-[#113130]/60 backdrop-blur-sm" onClick={() => setIsNoteModalOpen(false)}></div>
@@ -684,27 +785,43 @@ const confirmDeletePatient = async () => {
                         <button onClick={() => setIsNoteModalOpen(false)} className="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-colors">
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
-                        {!isTimelineEditMode && selectedNote.id ? (
+
+                       {/* MODO LECTURA */}
+                        {!isTimelineEditMode && selectedNote.titulo ? (
                             <div>
-                                <h3 className="text-xl font-black text-[#113130]">{selectedNote.title}</h3>
+                                <h3 className="text-xl font-black text-[#113130]">{selectedNote.titulo}</h3>
                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 mb-6">
-                                    Fecha: {mockTimelines[activeTimeline].find(s => s.id === noteStageId)?.date || 'Desconocida'}
+                                    Fecha: {timelineEvents.find(s => s.id === noteStageId)?.fecha_evento || 'Desconocida'}
                                 </p>
                                 <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 mb-8">
-                                    <p className="text-sm font-medium text-slate-600 leading-relaxed whitespace-pre-wrap">{selectedNote.content}</p>
+                                    <p className="text-sm font-medium text-slate-600 leading-relaxed whitespace-pre-wrap">{selectedNote.contenido}</p>
                                 </div>
                                 <button onClick={() => setIsNoteModalOpen(false)} className="w-full py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors">Cerrar Detalles</button>
                             </div>
                         ) : (
+                            /* MODO EDICIÓN */
                             <div>
-                                <h3 className="text-xl font-black text-[#113130] mb-6">{selectedNote.id ? 'Modificar Nota' : 'Nueva Nota'}</h3>
+                                <h3 className="text-xl font-black text-[#113130] mb-6">{selectedNote.titulo ? 'Modificar Nota' : 'Nueva Nota'}</h3>
                                 <div className="space-y-5">
-                                    <input type="text" value={selectedNote.title} onChange={(e) => setSelectedNote({...selectedNote, title: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-[#113130]" placeholder="Título" />
-                                    <textarea value={selectedNote.content} onChange={(e) => setSelectedNote({...selectedNote, content: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-600 min-h-[120px] resize-none" placeholder="Detalles..." />
+                                    <input 
+                                        type="text" 
+                                        value={selectedNote.titulo || ''} 
+                                        onChange={(e) => setSelectedNote({...selectedNote, titulo: e.target.value})} 
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-[#113130] focus:outline-none focus:border-[#0F766E]" 
+                                        placeholder="Título (Ej. Crisis de Pánico)" 
+                                    />
+                                    <textarea 
+                                        value={selectedNote.contenido || ''} 
+                                        onChange={(e) => setSelectedNote({...selectedNote, contenido: e.target.value})} 
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-600 min-h-[120px] resize-none focus:outline-none focus:border-[#0F766E]" 
+                                        placeholder="Detalles clínicos de la etapa..." 
+                                    />
                                 </div>
                                 <div className="flex gap-3 mt-8">
-                                    {selectedNote.id && <button onClick={() => handleDeleteNote(noteStageId, selectedNote.id)} className="px-5 py-3.5 bg-rose-50 text-rose-500 rounded-xl text-[10px] font-black uppercase">Eliminar</button>}
-                                    <button onClick={handleSaveNote} className="flex-1 py-3.5 bg-[#0F766E] text-white rounded-xl text-[10px] font-black uppercase">Guardar Cambios</button>
+                                    {selectedNote.titulo && (
+                                        <button onClick={() => handleDeleteNote(noteStageId)} className="px-5 py-3.5 bg-rose-50 text-rose-500 rounded-xl text-[10px] font-black uppercase hover:bg-rose-100 transition-colors">Eliminar</button>
+                                    )}
+                                    <button onClick={handleSaveNote} className="flex-1 py-3.5 bg-[#0F766E] text-white rounded-xl text-[10px] font-black uppercase hover:bg-[#0D9488] transition-colors shadow-md shadow-teal-900/20">Guardar Nota</button>
                                 </div>
                             </div>
                         )}
@@ -712,21 +829,26 @@ const confirmDeletePatient = async () => {
                 </div>, document.body
             )}
             
+            {/* 🌟 MODAL DE ELIMINAR PACIENTE DEFINITIVAMENTE */}
             {patientToDelete && createPortal(
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-[#113130]/70 backdrop-blur-md" onClick={() => setPatientToDelete(null)}></div>
-                    <div className="bg-white rounded-[2rem] w-full max-w-sm p-8 relative z-10 text-center">
+                    <div className="bg-white rounded-[2rem] w-full max-w-sm p-8 relative z-10 text-center shadow-2xl animate-fade-in border border-slate-100">
                         <h3 className="text-2xl font-black text-[#113130] mb-3">¿Eliminar Expediente?</h3>
-                        <p className="text-sm text-slate-500 mb-8">Esta acción es permanente.</p>
-                        <div className="flex gap-3"><button onClick={() => setPatientToDelete(null)} className="w-full py-3.5 bg-slate-100 text-slate-600 rounded-xl text-[11px] font-black uppercase">Cancelar</button><button onClick={confirmDeletePatient} className="w-full py-3.5 bg-rose-500 text-white rounded-xl text-[11px] font-black uppercase">Sí, Eliminar</button></div>
+                        <p className="text-sm text-slate-500 mb-8">Esta acción es permanente en HorizonFlow.</p>
+                        <div className="flex gap-3">
+                            <button onClick={() => setPatientToDelete(null)} className="w-full py-3.5 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-xl text-[11px] font-black uppercase tracking-widest transition-colors">Cancelar</button>
+                            <button onClick={confirmDeletePatient} className="w-full py-3.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-[11px] font-black uppercase tracking-widest transition-colors shadow-md shadow-rose-900/20">Sí, Eliminar</button>
+                        </div>
                     </div>
                 </div>, document.body
             )}
 
+            {/* FALLBACK EN CASO DE ERROR DE VISTA */}
             {view !== 'list' && view !== 'details' && view !== 'form' && (
                 <div className="flex flex-col items-center justify-center p-20 text-center">
                      <h2 className="text-xl font-bold text-slate-500">Error: Vista no encontrada</h2>
-                     <button onClick={() => setView('list')} className="mt-4 px-4 py-2 bg-teal-600 text-white rounded-lg">Volver al Inicio</button>
+                     <button onClick={() => setView('list')} className="mt-4 px-4 py-2 bg-[#0F766E] text-white rounded-lg">Volver al Inicio</button>
                 </div>
             )}
         </>

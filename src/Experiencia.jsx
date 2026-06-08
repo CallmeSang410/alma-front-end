@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './Experiencia.css'; 
 
 // --- ÍCONOS VECTORIALES ---
@@ -20,79 +20,7 @@ const IconTrending = () => (
     </svg>
 );
 
-// --- DATOS SIMULADOS (Estructura lista para reemplazar con Fetch/Axios) ---
-const estadisticas = {
-    // KPIs Generales
-    total_evaluaciones: 142,
-    promedio_satisfaccion: 4.8,
-    porcentaje_recomendacion: 94, 
-    
-    // Q1 a Q10 en orden estricto
-    Q1_satisfaccion: [
-        { label: '5 Estrellas (Excelente)', count: 110, color: 'bg-emerald-500' },
-        { label: '4 Estrellas (Bueno)', count: 25, color: 'bg-teal-400' },
-        { label: '3 Estrellas (Regular)', count: 5, color: 'bg-amber-400' },
-        { label: '2 Estrellas (Malo)', count: 2, color: 'bg-orange-400' },
-        { label: '1 Estrella (Pésimo)', count: 0, color: 'bg-rose-500' }
-    ],
-    Q2_expectativas: [
-        { label: 'Superó ampliamente', count: 85, color: 'bg-emerald-600', hex: '#059669' },
-        { label: 'Cumplió totalmente', count: 45, color: 'bg-teal-400', hex: '#2DD4BF' },
-        { label: 'Cumplió parcialmente', count: 10, color: 'bg-amber-400', hex: '#FBBF24' },
-        { label: 'No cumplió', count: 2, color: 'bg-rose-500', hex: '#F43F5E' }
-    ],
-    Q3_empatia: [
-        { label: 'Sí, en todo momento', count: 120, color: 'bg-emerald-600', hex: '#059669' },
-        { label: 'La mayor parte', count: 15, color: 'bg-teal-400', hex: '#2DD4BF' },
-        { label: 'Solo a veces', count: 5, color: 'bg-amber-400', hex: '#FBBF24' },
-        { label: 'No, me sentí incomprendido', count: 2, color: 'bg-rose-500', hex: '#F43F5E' }
-    ],
-    Q4_aspectos: [
-        { label: 'Escucha activa y empatía', count: 130, color: 'bg-[#0F766E]' },
-        { label: 'Claridad de explicaciones', count: 115, color: 'bg-[#0F766E]' },
-        { label: 'Privacidad del espacio', count: 98, color: 'bg-[#0F766E]' },
-        { label: 'Puntualidad', count: 82, color: 'bg-[#0F766E]' }
-    ],
-    Q5_instalaciones: [
-        { label: '5 Estrellas', count: 125, color: 'bg-emerald-500' },
-        { label: '4 Estrellas', count: 12, color: 'bg-teal-400' },
-        { label: '3 Estrellas', count: 5, color: 'bg-amber-400' },
-        { label: '1 - 2 Estrellas', count: 0, color: 'bg-rose-500' }
-    ],
-    Q6_claridad: [
-        { label: 'Totalmente claras', count: 95, color: 'bg-emerald-600', hex: '#059669' },
-        { label: 'Claras en su mayoría', count: 35, color: 'bg-teal-400', hex: '#2DD4BF' },
-        { label: 'Me quedaron dudas', count: 10, color: 'bg-amber-400', hex: '#FBBF24' },
-        { label: 'Fueron confusas', count: 2, color: 'bg-rose-500', hex: '#F43F5E' }
-    ],
-    Q7_animo: [
-        { label: 'Mucho mejor', count: 98, color: 'bg-emerald-500' },
-        { label: 'Algo mejor', count: 35, color: 'bg-teal-400' },
-        { label: 'Igual', count: 7, color: 'bg-slate-300' },
-        { label: 'Peor', count: 2, color: 'bg-rose-400' }
-    ],
-    Q8_confianza: [
-        { label: 'Completamente seguro', count: 115, color: 'bg-emerald-600', hex: '#059669' },
-        { label: 'En su mayor parte', count: 20, color: 'bg-teal-400', hex: '#2DD4BF' },
-        { label: 'Me costó abrirme', count: 7, color: 'bg-amber-400', hex: '#FBBF24' },
-        { label: 'No me sentí seguro', count: 0, color: 'bg-rose-500', hex: '#F43F5E' }
-    ],
-    Q9_recomendacion: [
-        { label: 'Definitivamente', count: 133, color: 'bg-emerald-600', hex: '#059669' },
-        { label: 'Probablemente', count: 7, color: 'bg-teal-400', hex: '#2DD4BF' },
-        { label: 'Poco probable', count: 2, color: 'bg-amber-400', hex: '#FBBF24' },
-        { label: 'Definitivamente no', count: 0, color: 'bg-rose-500', hex: '#F43F5E' }
-    ],
-    Q10_comentarios: [
-        { id: 1, fecha: 'Hoy, 10:30 AM', texto: 'Me sentí muy seguro hablando de mis problemas. El consultorio transmite mucha paz.', tag: 'Positivo' },
-        { id: 2, fecha: 'Ayer, 04:15 PM', texto: 'Las herramientas que me dio el psicólogo hoy fueron justo lo que necesitaba para mi ansiedad.', tag: 'Positivo' },
-        { id: 3, fecha: '12 May, 09:00 AM', texto: 'Todo excelente, quizás podrían tener agua disponible en la sala de espera.', tag: 'Sugerencia' }
-    ]
-};
-
 // --- COMPONENTES UI REUTILIZABLES ---
-
-// 1. Tarjeta de KPI Superior
 const KpiCard = ({ titulo, valor, subtitulo, icono, color_icono }) => (
     <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
         <div className={`p-4 rounded-2xl shrink-0 ${color_icono}`}>
@@ -106,7 +34,6 @@ const KpiCard = ({ titulo, valor, subtitulo, icono, color_icono }) => (
     </div>
 );
 
-// 2. Gráfica de Barras Clásica
 const CustomBarChart = ({ data, total }) => (
     <div className="space-y-3 mt-4">
         {data.map((item, idx) => {
@@ -129,14 +56,10 @@ const CustomBarChart = ({ data, total }) => (
     </div>
 );
 
-// 3. Gráfico de Pastel (Donut) mejorado: 
-// Se coloca el gráfico a la izquierda y la leyenda a la derecha en pantallas grandes, 
-// o uno arriba del otro en pantallas pequeñas. Así evitamos superposiciones.
 const DonutChart = ({ data, total }) => {
     let cumulativePercent = 0;
     const gradientStops = [];
 
-    // Calcular los segmentos del círculo
     data.forEach((item) => {
         const percent = (item.count / total) * 100;
         if (percent > 0) {
@@ -151,25 +74,21 @@ const DonutChart = ({ data, total }) => {
 
     return (
         <div className="flex flex-col sm:flex-row items-center gap-6 mt-6">
-            
-            {/* El Gráfico Circular */}
             <div className="relative w-32 h-32 shrink-0">
                 <div 
                     className="absolute inset-0 rounded-full shadow-sm"
                     style={{ background: `conic-gradient(${conicGradientString})` }}
                 ></div>
-                {/* Hueco del centro para hacerlo "Donut" */}
                 <div className="absolute inset-3 bg-white rounded-full flex flex-col items-center justify-center shadow-inner">
                     <span className="text-xl font-black text-[#113130]">{total}</span>
                     <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Total</span>
                 </div>
             </div>
 
-            {/* La Leyenda (Lista de opciones) */}
             <div className="flex-1 w-full space-y-2.5">
                 {data.map((item, idx) => {
                     const percent = Math.round((item.count / total) * 100) || 0;
-                    if (percent === 0) return null; // Ocultar si tiene 0% para mantenerlo limpio
+                    if (percent === 0) return null; 
 
                     return (
                         <div key={idx} className="flex items-center justify-between group">
@@ -190,13 +109,211 @@ const DonutChart = ({ data, total }) => {
                     );
                 })}
             </div>
-
         </div>
     );
 };
 
+// --- ESTADO INICIAL VACÍO ---
+const estadisticasVacias = {
+    total_evaluaciones: 0, promedio_satisfaccion: 0, porcentaje_recomendacion: 0,
+    Q1_satisfaccion: [
+        { label: '5 Estrellas (Excelente)', count: 0, color: 'bg-emerald-500' },
+        { label: '4 Estrellas (Bueno)', count: 0, color: 'bg-teal-400' },
+        { label: '3 Estrellas (Regular)', count: 0, color: 'bg-amber-400' },
+        { label: '2 Estrellas (Malo)', count: 0, color: 'bg-orange-400' },
+        { label: '1 Estrella (Pésimo)', count: 0, color: 'bg-rose-500' }
+    ],
+    Q2_expectativas: [
+        { label: 'Superó ampliamente', count: 0, color: 'bg-emerald-600', hex: '#059669' },
+        { label: 'Cumplió totalmente', count: 0, color: 'bg-teal-400', hex: '#2DD4BF' },
+        { label: 'Cumplió parcialmente', count: 0, color: 'bg-amber-400', hex: '#FBBF24' },
+        { label: 'No cumplió', count: 0, color: 'bg-rose-500', hex: '#F43F5E' }
+    ],
+    Q3_empatia: [
+        { label: 'Sí, en todo momento', count: 0, color: 'bg-emerald-600', hex: '#059669' },
+        { label: 'La mayor parte', count: 0, color: 'bg-teal-400', hex: '#2DD4BF' },
+        { label: 'Solo a veces', count: 0, color: 'bg-amber-400', hex: '#FBBF24' },
+        { label: 'No, me sentí incomprendido', count: 0, color: 'bg-rose-500', hex: '#F43F5E' }
+    ],
+    Q4_aspectos: [
+        { label: 'Escucha activa y empatía', count: 0, color: 'bg-[#0F766E]' },
+        { label: 'Claridad de explicaciones', count: 0, color: 'bg-[#0F766E]' },
+        { label: 'Privacidad del espacio', count: 0, color: 'bg-[#0F766E]' },
+        { label: 'Puntualidad', count: 0, color: 'bg-[#0F766E]' }
+    ],
+    Q5_instalaciones: [
+        { label: '5 Estrellas', count: 0, color: 'bg-emerald-500' },
+        { label: '4 Estrellas', count: 0, color: 'bg-teal-400' },
+        { label: '3 Estrellas', count: 0, color: 'bg-amber-400' },
+        { label: '1 - 2 Estrellas', count: 0, color: 'bg-rose-500' }
+    ],
+    Q6_claridad: [
+        { label: 'Totalmente claras', count: 0, color: 'bg-emerald-600', hex: '#059669' },
+        { label: 'Claras en su mayoría', count: 0, color: 'bg-teal-400', hex: '#2DD4BF' },
+        { label: 'Me quedaron dudas', count: 0, color: 'bg-amber-400', hex: '#FBBF24' },
+        { label: 'Fueron confusas', count: 0, color: 'bg-rose-500', hex: '#F43F5E' }
+    ],
+    Q7_animo: [
+        { label: 'Mucho mejor', count: 0, color: 'bg-emerald-500' },
+        { label: 'Algo mejor', count: 0, color: 'bg-teal-400' },
+        { label: 'Igual', count: 0, color: 'bg-slate-300' },
+        { label: 'Peor', count: 0, color: 'bg-rose-400' }
+    ],
+    Q8_confianza: [
+        { label: 'Completamente seguro', count: 0, color: 'bg-emerald-600', hex: '#059669' },
+        { label: 'En su mayor parte', count: 0, color: 'bg-teal-400', hex: '#2DD4BF' },
+        { label: 'Me costó abrirme', count: 0, color: 'bg-amber-400', hex: '#FBBF24' },
+        { label: 'No me sentí seguro', count: 0, color: 'bg-rose-500', hex: '#F43F5E' }
+    ],
+    Q9_recomendacion: [
+        { label: 'Definitivamente', count: 0, color: 'bg-emerald-600', hex: '#059669' },
+        { label: 'Probablemente', count: 0, color: 'bg-teal-400', hex: '#2DD4BF' },
+        { label: 'Poco probable', count: 0, color: 'bg-amber-400', hex: '#FBBF24' },
+        { label: 'Definitivamente no', count: 0, color: 'bg-rose-500', hex: '#F43F5E' }
+    ],
+    Q10_comentarios: []
+};
+
 export default function Experiencia() {
     const [filtroTiempo, setFiltroTiempo] = useState('mes');
+    const [estadisticas, setEstadisticas] = useState(estadisticasVacias);
+
+    const procesarDatosEncuestas = (datosCrudos) => {
+        // SEGURO DE VIDA
+        if (!Array.isArray(datosCrudos)) {
+            console.error("FastAPI no devolvió una lista:", datosCrudos);
+            return;
+        }
+
+        const total = datosCrudos.length;
+        if (total === 0) return; 
+
+        const sumQ1 = datosCrudos.reduce((acc, curr) => acc + (curr.q1_satisfaccion_general || 0), 0);
+        const promedio = (sumQ1 / total).toFixed(1);
+        
+        const countRecomendacion = datosCrudos.filter(d => d.q9_indice_recomendacion === 'Definitivamente').length;
+        const porcentajeRec = Math.round((countRecomendacion / total) * 100);
+
+        const contar = (campo, valor) => datosCrudos.filter(d => d[campo] === valor).length;
+        const contarAspecto = (texto) => datosCrudos.filter(d => d.q4_aspectos_valorados && d.q4_aspectos_valorados.includes(texto)).length;
+
+        setEstadisticas({
+            total_evaluaciones: total,
+            promedio_satisfaccion: promedio,
+            porcentaje_recomendacion: porcentajeRec,
+            
+            Q1_satisfaccion: [
+                { label: '5 Estrellas (Excelente)', count: contar('q1_satisfaccion_general', 5), color: 'bg-emerald-500' },
+                { label: '4 Estrellas (Bueno)', count: contar('q1_satisfaccion_general', 4), color: 'bg-teal-400' },
+                { label: '3 Estrellas (Regular)', count: contar('q1_satisfaccion_general', 3), color: 'bg-amber-400' },
+                { label: '2 Estrellas (Malo)', count: contar('q1_satisfaccion_general', 2), color: 'bg-orange-400' },
+                { label: '1 Estrella (Pésimo)', count: contar('q1_satisfaccion_general', 1), color: 'bg-rose-500' }
+            ],
+            Q2_expectativas: [
+                { label: 'Superó ampliamente', count: contar('q2_cumplimiento_expectativas', 'Superó ampliamente'), color: 'bg-emerald-600', hex: '#059669' },
+                { label: 'Cumplió totalmente', count: contar('q2_cumplimiento_expectativas', 'Cumplió totalmente'), color: 'bg-teal-400', hex: '#2DD4BF' },
+                { label: 'Cumplió parcialmente', count: contar('q2_cumplimiento_expectativas', 'Cumplió parcialmente'), color: 'bg-amber-400', hex: '#FBBF24' },
+                { label: 'No cumplió', count: contar('q2_cumplimiento_expectativas', 'No cumplió'), color: 'bg-rose-500', hex: '#F43F5E' }
+            ],
+            Q3_empatia: [
+                { label: 'Sí, en todo momento', count: contar('q3_empatia_conexion', 'Sí, en todo momento'), color: 'bg-emerald-600', hex: '#059669' },
+                { label: 'La mayor parte', count: contar('q3_empatia_conexion', 'La mayor parte'), color: 'bg-teal-400', hex: '#2DD4BF' },
+                { label: 'Solo a veces', count: contar('q3_empatia_conexion', 'Solo a veces'), color: 'bg-amber-400', hex: '#FBBF24' },
+                { label: 'No, me sentí incomprendido', count: contar('q3_empatia_conexion', 'No, me sentí incomprendido'), color: 'bg-rose-500', hex: '#F43F5E' }
+            ],
+            Q4_aspectos: [
+                { label: 'Escucha activa y empatía', count: contarAspecto('Escucha activa y empatía'), color: 'bg-[#0F766E]' },
+                { label: 'Claridad de explicaciones', count: contarAspecto('Claridad de explicaciones'), color: 'bg-[#0F766E]' },
+                { label: 'Privacidad del espacio', count: contarAspecto('Privacidad del espacio'), color: 'bg-[#0F766E]' },
+                { label: 'Puntualidad', count: contarAspecto('Puntualidad'), color: 'bg-[#0F766E]' }
+            ],
+            Q5_instalaciones: [
+                { label: '5 Estrellas', count: contar('q5_instalaciones', 5), color: 'bg-emerald-500' },
+                { label: '4 Estrellas', count: contar('q5_instalaciones', 4), color: 'bg-teal-400' },
+                { label: '3 Estrellas', count: contar('q5_instalaciones', 3), color: 'bg-amber-400' },
+                { label: '1 - 2 Estrellas', count: contar('q5_instalaciones', 2) + contar('q5_instalaciones', 1), color: 'bg-rose-500' }
+            ],
+            Q6_claridad: [
+                { label: 'Totalmente claras', count: contar('q6_claridad_pautas', 'Totalmente claras'), color: 'bg-emerald-600', hex: '#059669' },
+                { label: 'Claras en su mayoría', count: contar('q6_claridad_pautas', 'Claras en su mayoría'), color: 'bg-teal-400', hex: '#2DD4BF' },
+                { label: 'Me quedaron dudas', count: contar('q6_claridad_pautas', 'Me quedaron dudas'), color: 'bg-amber-400', hex: '#FBBF24' },
+                { label: 'Fueron confusas', count: contar('q6_claridad_pautas', 'Fueron confusas'), color: 'bg-rose-500', hex: '#F43F5E' }
+            ],
+            Q7_animo: [
+                { label: 'Mucho mejor', count: contar('q7_impacto_animo', 'Mucho mejor'), color: 'bg-emerald-500' },
+                { label: 'Algo mejor', count: contar('q7_impacto_animo', 'Algo mejor'), color: 'bg-teal-400' },
+                { label: 'Igual', count: contar('q7_impacto_animo', 'Igual'), color: 'bg-slate-300' },
+                { label: 'Peor', count: contar('q7_impacto_animo', 'Peor'), color: 'bg-rose-400' }
+            ],
+            Q8_confianza: [
+                { label: 'Completamente seguro', count: contar('q8_confianza_seguridad', 'Completamente seguro'), color: 'bg-emerald-600', hex: '#059669' },
+                { label: 'En su mayor parte', count: contar('q8_confianza_seguridad', 'En su mayor parte'), color: 'bg-teal-400', hex: '#2DD4BF' },
+                { label: 'Me costó abrirme', count: contar('q8_confianza_seguridad', 'Me costó abrirme'), color: 'bg-amber-400', hex: '#FBBF24' },
+                { label: 'No me sentí seguro', count: contar('q8_confianza_seguridad', 'No me sentí seguro'), color: 'bg-rose-500', hex: '#F43F5E' }
+            ],
+            Q9_recomendacion: [
+                { label: 'Definitivamente', count: contar('q9_indice_recomendacion', 'Definitivamente'), color: 'bg-emerald-600', hex: '#059669' },
+                { label: 'Probablemente', count: contar('q9_indice_recomendacion', 'Probablemente'), color: 'bg-teal-400', hex: '#2DD4BF' },
+                { label: 'Poco probable', count: contar('q9_indice_recomendacion', 'Poco probable'), color: 'bg-amber-400', hex: '#FBBF24' },
+                { label: 'Definitivamente no', count: contar('q9_indice_recomendacion', 'Definitivamente no'), color: 'bg-rose-500', hex: '#F43F5E' }
+            ],
+            Q10_comentarios: datosCrudos
+                .filter(d => d.q10_comentarios && d.q10_comentarios.trim() !== '')
+                .map(d => ({
+                    id: d.id,
+                    fecha: new Date(d.fecha_generacion).toLocaleDateString(), 
+                    texto: d.q10_comentarios,
+                    tag: d.tipo_comentario || 'Neutro'
+                }))
+        });
+    };
+
+    useEffect(() => {
+        const cargarExperiencias = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) return;
+
+                const response = await fetch('http://127.0.0.1:8000/encuestas', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    procesarDatosEncuestas(data);
+                }
+            } catch (error) {
+                console.error("Error cargando encuestas:", error);
+            }
+        };
+
+        cargarExperiencias();
+    }, [filtroTiempo]);
+    // --- FUNCIÓN PARA GENERAR Y COPIAR EL LINK PÚBLICO ---
+    const copiarLinkPaciente = () => {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert("No se encontró la sesión del usuario.");
+                return;
+            }
+            
+            // Abrimos el token para sacar el usuario_id que pusiste en el login
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            const usuarioId = payload.usuario_id;
+            
+            // Armamos la URL (window.location.origin saca tu "http://localhost:5173" automático)
+            const link = `${window.location.origin}/feedback/${usuarioId}`;
+            
+            // Copiamos al portapapeles
+            navigator.clipboard.writeText(link);
+            alert("¡Link copiado con éxito! Ya podés enviárselo al paciente por WhatsApp. 🚀");
+            
+        } catch (error) {
+            console.error("Error al generar el link:", error);
+            alert("Hubo un problema al copiar el link.");
+        }
+    };
     const total = estadisticas.total_evaluaciones;
 
     return (
@@ -209,27 +326,41 @@ export default function Experiencia() {
                     <p className="text-sm text-slate-500 font-medium mt-2">Retroalimentación confidencial de pacientes.</p>
                     <div className="mt-4 inline-flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-slate-400 font-semibold">
                         <span className="inline-block w-2 h-2 rounded-full bg-emerald-400"></span>
-                        Datos rápidos de la experiencia</div>
+                        Datos rápidos de la experiencia
+                    </div>
                 </div>
                 
-                <div className="inline-flex flex-wrap items-center gap-2 bg-white p-1.5 rounded-3xl shadow-sm border border-slate-200">
-                    {['semana', 'mes', 'historico'].map((f) => (
-                        <button
-                            key={f}
-                            onClick={() => setFiltroTiempo(f)}
-                            className={`px-4 py-2 text-[11px] font-bold capitalize rounded-2xl transition-all ${
-                                filtroTiempo === f 
-                                ? 'bg-[#0F766E] text-white shadow-sm' 
-                                : 'text-slate-500 hover:bg-slate-50 hover:text-[#113130]'
-                            }`}
-                        >
-                            {f === 'historico' ? 'Histórico' : `Este ${f}`}
-                        </button>
-                    ))}
-                </div>
-            </div>
+                {/* 🌟 ENVOLVEMOS TODO EN ESTE DIV PARA QUE QUEDEN A LA PAR */}
+                <div className="flex flex-col sm:flex-row items-center gap-3">
+                    
+                    {/* 🌟 EL BOTÓN NUEVO */}
+                    <button 
+                        onClick={copiarLinkPaciente}
+                        className="px-4 py-2 bg-[#0F766E] text-white text-[11px] font-bold uppercase tracking-wider rounded-2xl shadow-sm hover:bg-[#0D9488] transition-colors flex items-center gap-2"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
+                        Copiar Link
+                    </button>
 
-            {/* --- SECCIÓN 1: RESUMEN RÁPIDO (KPIs) --- */}
+                    {/* TUS FILTROS ORIGINALES */}
+                    <div className="inline-flex flex-wrap items-center gap-2 bg-white p-1.5 rounded-3xl shadow-sm border border-slate-200">
+                        {['semana', 'mes', 'historico'].map((f) => (
+                            <button
+                                key={f}
+                                onClick={() => setFiltroTiempo(f)}
+                                className={`px-4 py-2 text-[11px] font-bold capitalize rounded-2xl transition-all ${
+                                    filtroTiempo === f 
+                                    ? 'bg-[#0F766E] text-white shadow-sm' 
+                                    : 'text-slate-500 hover:bg-slate-50 hover:text-[#113130]'
+                                }`}
+                            >
+                                {f === 'historico' ? 'Histórico' : `Este ${f}`}
+                            </button>
+                        ))} 
+                    </div> {/* 🌟 AQUÍ CERRAMOS EL DIV DE LOS FILTROS */}
+                </div> {/* 🌟 AQUÍ CERRAMOS EL DIV QUE ENVUELVE AL BOTÓN Y LOS FILTROS */}
+            </div> {/* 🌟 AQUÍ CERRAMOS EL DIV DE LA CABECERA (LA CABECERA ORIGINAL) */}
+
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:gap-6 mb-10">
                 <KpiCard 
                     titulo="Evaluaciones" 
@@ -254,73 +385,61 @@ export default function Experiencia() {
                 />
             </div>
 
-            {/* --- TÍTULO DE SECCIÓN DETALLADA --- */}
             <div className="mb-6 flex items-center gap-3">
                 <div className="h-px bg-slate-200 flex-1"></div>
                 <h2 className="text-sm font-black text-slate-400 uppercase tracking-widest">Desglose Pregunta por Pregunta</h2>
                 <div className="h-px bg-slate-200 flex-1"></div>
             </div>
 
-            {/* --- SECCIÓN 2: DESGLOSE DE PREGUNTAS (Grid Espacioso de 2 Columnas) --- */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 mb-8">
-                
-                {/* Q1: Satisfacción */}
                 <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:border-teal-100 transition-colors">
                     <h3 className="text-sm font-black text-[#113130] mb-1">Q1. Satisfacción General</h3>
                     <p className="text-xs text-slate-400 mb-4">"Indique su nivel de satisfacción con el servicio..."</p>
                     <CustomBarChart data={estadisticas.Q1_satisfaccion} total={total} />
                 </div>
 
-                {/* Q2: Expectativas (Pastel) */}
                 <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:border-teal-100 transition-colors">
                     <h3 className="text-sm font-black text-[#113130] mb-1">Q2. Cumplimiento de Expectativas</h3>
                     <p className="text-xs text-slate-400 mb-2">"¿La atención cumplió con las expectativas previas?"</p>
                     <DonutChart data={estadisticas.Q2_expectativas} total={total} />
                 </div>
 
-                {/* Q3: Empatía (Pastel) */}
                 <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:border-teal-100 transition-colors">
                     <h3 className="text-sm font-black text-[#113130] mb-1">Q3. Empatía y Conexión</h3>
                     <p className="text-xs text-slate-400 mb-2">"¿Te sentiste escuchado(a) y comprendido(a)?"</p>
                     <DonutChart data={estadisticas.Q3_empatia} total={total} />
                 </div>
 
-                {/* Q4: Aspectos Valorados */}
                 <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:border-teal-100 transition-colors">
                     <h3 className="text-sm font-black text-[#113130] mb-1">Q4. Aspectos más Valorados</h3>
                     <p className="text-xs text-slate-400 mb-4">"¿Qué aspecto(s) valora más de la atención médica?"</p>
                     <CustomBarChart data={estadisticas.Q4_aspectos} total={total} />
                 </div>
 
-                {/* Q5: Instalaciones */}
                 <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:border-teal-100 transition-colors">
                     <h3 className="text-sm font-black text-[#113130] mb-1">Q5. Instalaciones y Ambiente</h3>
                     <p className="text-xs text-slate-400 mb-4">"Satisfacción con comodidad, tranquilidad e higiene."</p>
                     <CustomBarChart data={estadisticas.Q5_instalaciones} total={total} />
                 </div>
 
-                {/* Q6: Claridad (Pastel) */}
                 <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:border-teal-100 transition-colors">
                     <h3 className="text-sm font-black text-[#113130] mb-1">Q6. Claridad de Pautas</h3>
                     <p className="text-xs text-slate-400 mb-2">"¿Las explicaciones resultaron claras y útiles?"</p>
                     <DonutChart data={estadisticas.Q6_claridad} total={total} />
                 </div>
 
-                {/* Q7: Estado de Ánimo */}
                 <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:border-teal-100 transition-colors">
                     <h3 className="text-sm font-black text-[#113130] mb-1">Q7. Impacto en el Ánimo</h3>
                     <p className="text-xs text-slate-400 mb-4">"Estado de ánimo al finalizar la sesión."</p>
                     <CustomBarChart data={estadisticas.Q7_animo} total={total} />
                 </div>
 
-                {/* Q8: Confianza (Pastel) */}
                 <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:border-teal-100 transition-colors">
                     <h3 className="text-sm font-black text-[#113130] mb-1">Q8. Confianza y Seguridad</h3>
                     <p className="text-xs text-slate-400 mb-2">"¿Sintió que el consultorio brindaba confianza?"</p>
                     <DonutChart data={estadisticas.Q8_confianza} total={total} />
                 </div>
 
-                {/* Q9: Recomendación (Pastel) */}
                 <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:border-teal-100 transition-colors">
                     <h3 className="text-sm font-black text-[#113130] mb-1">Q9. Índice de Recomendación</h3>
                     <p className="text-xs text-slate-400 mb-2">"¿Qué tan probable es que recomiende a este especialista?"</p>
@@ -328,7 +447,6 @@ export default function Experiencia() {
                 </div>
             </div>
 
-            {/* --- SECCIÓN 3: PREGUNTA ABIERTA (Q10) --- */}
             <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-100 shadow-sm hover:border-teal-100 transition-colors animate-fade-in-up delay-300">
                 <div className="flex justify-between items-center mb-6">
                     <div>
@@ -341,23 +459,26 @@ export default function Experiencia() {
                 </div>
 
                 <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin">
-                    {estadisticas.Q10_comentarios.map((comentario) => (
-                        <div key={comentario.id} className="p-5 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors group">
-                            <div className="flex justify-between items-start mb-3">
-                                <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-md ${
-                                    comentario.tag === 'Positivo' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
-                                }`}>
-                                    {comentario.tag}
-                                </span>
-                                <span className="text-[10px] text-slate-400 font-medium group-hover:text-slate-500">{comentario.fecha}</span>
+                    {estadisticas.Q10_comentarios.length === 0 ? (
+                         <p className="text-sm text-slate-400 text-center py-10">Aún no hay comentarios registrados.</p>
+                    ) : (
+                        estadisticas.Q10_comentarios.map((comentario) => (
+                            <div key={comentario.id} className="p-5 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors group">
+                                <div className="flex justify-between items-start mb-3">
+                                    <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-md ${
+                                        comentario.tag === 'POSITIVO' ? 'bg-emerald-100 text-emerald-700' : 
+                                        comentario.tag === 'NEGATIVO' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'
+                                    }`}>
+                                        {comentario.tag}
+                                    </span>
+                                    <span className="text-[10px] text-slate-400 font-medium group-hover:text-slate-500">{comentario.fecha}</span>
+                                </div>
+                                <p className="text-sm text-slate-700 leading-relaxed italic">"{comentario.texto}"</p>
                             </div>
-                            <p className="text-sm text-slate-700 leading-relaxed italic">"{comentario.texto}"</p>
-                        </div>
-                    ))}
+                        ))
+                    )}
                 </div>
             </div>
-
-           
         </div>
     );
 }
