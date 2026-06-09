@@ -77,10 +77,11 @@ export default function Formulario() {
 
     // Envío del formulario completo
     // 🌟 4. EL ENVÍO REAL A LA BASE DE DATOS
-    const handleSubmit = async (e) => { // Agregamos "async"
+    // Envío del formulario completo
+    const handleSubmit = async (e) => { 
         e.preventDefault();
         
-        // Validación con los nuevos nombres
+        // Validación
         const faltanEscalas = ['q1_satisfaccion_general', 'q5_instalaciones'].some(key => respuestas[key] === 0);
         const faltanSeleccionesUnicas = ['q2_cumplimiento_expectativas', 'q3_empatia_conexion', 'q6_claridad_pautas', 'q7_impacto_animo', 'q9_indice_recomendacion', 'q8_confianza_seguridad'].some(key => respuestas[key] === '');
         const faltanSeleccionesMultiples = respuestas.q4_aspectos_valorados.length === 0;
@@ -91,14 +92,33 @@ export default function Formulario() {
         }
 
         try {
-            // FastAPI espera que la Pregunta 4 sea un texto separado por comas, no un array []. 
-            // Aquí lo convertimos rapidito antes de enviarlo:
-            const datosAEnviar = {
-                ...respuestas,
-                q4_aspectos_valorados: respuestas.q4_aspectos_valorados.join(', ')
+            // 🌟 NUEVO: Diccionarios para traducir las opciones largas de la UI a las opciones cortas del Dashboard
+            const mapeoQ4 = {
+                'La escucha activa y empatía del psicólogo': 'Escucha activa y empatía',
+                'La claridad de las explicaciones y herramientas brindadas': 'Claridad de explicaciones',
+                'La privacidad y comodidad del espacio terapéutico': 'Privacidad del espacio',
+                'La puntualidad de la cita': 'Puntualidad'
             };
 
-            // Disparamos a tu ruta pública anónima
+            const mapeoQ7 = {
+                'Mucho mejor, me siento con mayor claridad': 'Mucho mejor',
+                'Algo mejor, me siento escuchado(a)': 'Algo mejor',
+                'Igual que al llegar': 'Igual',
+                'Peor / Más confundido(a)': 'Peor'
+            };
+
+            // Convertimos el array de Q4 a los textos cortos y los unimos por comas
+            const q4_traducido = respuestas.q4_aspectos_valorados.map(item => mapeoQ4[item]).join(', ');
+            
+            // Convertimos la respuesta única de Q7 a su texto corto
+            const q7_traducido = mapeoQ7[respuestas.q7_impacto_animo];
+
+            const datosAEnviar = {
+                ...respuestas,
+                q4_aspectos_valorados: q4_traducido,
+                q7_impacto_animo: q7_traducido
+            };
+
             const res = await fetch(`http://127.0.0.1:8000/encuestas/publica/${psicologoId}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -106,7 +126,7 @@ export default function Formulario() {
             });
 
             if (res.ok) {
-                setPasoActual(3); // ¡Éxito! Avanzamos a la pantalla de agradecimiento
+                setPasoActual(3);
             } else {
                 const errorData = await res.json();
                 console.error("Error Backend:", errorData);
