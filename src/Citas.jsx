@@ -226,12 +226,46 @@ const respuesta = await fetch(url, {
             console.error("Error al eliminar:", error);
         }
     };
+    const handleCompletarCita = async (citaId) => {
+        console.log("¡Hicieron clic en el check! Intentando completar la cita ID:", citaId);
+    const token = localStorage.getItem('token');
+    if (!token) return;
 
+    try {
+        const res = await fetch(`http://${window.location.hostname}:8000/citas/${citaId}/completar`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (res.ok) {
+            // 🌟 MAGIA: Filtramos la cita completada para que desaparezca de la vista inmediatamente
+            setAppointments(prevCitas => prevCitas.filter(cita => cita.id !== citaId));
+        } else {
+            alert("No se pudo completar la cita.");
+        }
+    } catch (error) {
+        console.error("Error al completar la cita:", error);
+    }
+};
     // ================= FILTRADO Y HELPERS VISUALES =================
+   // ================= FILTRADO Y HELPERS VISUALES =================
     const filteredAppointments = appointments.filter(appt => {
         const matchesSearch = appt.patientName.toLowerCase().includes(searchQuery.toLowerCase()) || 
                               appt.reason.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesFilter = filterStatus === 'Todas' || appt.status === filterStatus;
+        
+        // 🌟 LÓGICA DE OCULTAMIENTO INTELIGENTE:
+        // Si el filtro está en 'Todas', mostramos todas MENOS las completadas (para mantener la agenda limpia)
+        // Si eligen un filtro específico (ej: 'Completada', 'Pendiente'), respetamos ese filtro.
+        let matchesFilter;
+        if (filterStatus === 'Todas') {
+            matchesFilter = appt.status.toLowerCase() !== 'completada'; 
+        } else {
+            matchesFilter = appt.status === filterStatus;
+        }
+
         return matchesSearch && matchesFilter;
     });
 
@@ -369,6 +403,15 @@ const getAtentionStyles = (atention) => {
                                     >
                                         Editar
                                     </button>
+                                    {/* 🌟 NUEVO BOTÓN: Check para Completar */}
+            <button 
+                onClick={() => handleCompletarCita(appt.id)}
+                className="p-3 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-600 rounded-xl transition-colors flex items-center justify-center"
+                title="Marcar como Completada"
+            >
+                {/* Icono de Check */}
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"></path></svg>
+            </button>
                                     <button 
                                         onClick={() => setAppointmentToCancel(appt.id)} 
                                         className="px-4 bg-rose-50 hover:bg-rose-100 text-rose-500 rounded-xl transition-colors" 

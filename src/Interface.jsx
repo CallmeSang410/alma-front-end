@@ -64,7 +64,13 @@ const IconLogout = () => (
 export default function Interface({ onLogout }) {
     const { t, i18n } = useTranslation();
     const [langMenuOpen, setLangMenuOpen] = useState(false);
+    const [citaParaReporte, setCitaParaReporte] = useState(null);
 
+    const irAReportesDesdeAlerta = (citaId) => {
+        console.log("Paso 3: ¡Llegó a la Interface! Cambiando de pestaña. Cita:", citaId);
+        setCitaParaReporte(citaId); 
+        setActiveTab('reportes'); // 🌟 Usamos el nombre correcto de tu variable
+    };
     // Función para cambiar idioma
     const changeLanguage = (lng) => {
         i18n.changeLanguage(lng);
@@ -161,19 +167,20 @@ export default function Interface({ onLogout }) {
     const renderContent = () => {
         switch (activeTab) {
             case 'dashboard':
-                return <Dashboard />;
+                // 🌟 LE PASAMOS LA PROP AQUÍ
+                return <Dashboard onNavigateToReportes={irAReportesDesdeAlerta} />;
             case 'pacientes':
-              return <Pacientes searchQuery={searchQuery} />;
+              return <Pacientes searchQuery={searchQuery} onNavigateToReportes={irAReportesDesdeAlerta} />;
             case 'citas':
                 return <Citas />;
             case 'reportes':
-                return <Reportes />;
+                // 🌟 LE PASAMOS LA PROP AQUÍ
+                return <Reportes citaInicial={citaParaReporte} />;
             case 'experiencia':
                  return <Experiencia />;
             case 'settings':
                 return <Ajustes />;
             default:
-                // El default ahora muestra un texto genérico por si acaso
                 return <div className="text-center text-slate-500 font-bold mt-10">Pantalla no encontrada.</div>;
         }
     };

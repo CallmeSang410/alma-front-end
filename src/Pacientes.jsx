@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import HistorialSesiones from './HistorialSesiones'; // Ajustá la ruta si lo guardaste en otra carpeta
 import { createPortal } from 'react-dom';
 
-const Pacientes = () => {
+const Pacientes = ({ onNavigateToReportes }) => {
     const cssStyles = `
         .animate-fade-in { animation: fadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
@@ -448,58 +449,76 @@ const confirmDeletePatient = async () => {
 
                 <div className="flex flex-col gap-6">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div className="bg-white rounded-[2rem] p-7 shadow-sm border border-slate-100 h-full">
-                            <h3 className="text-sm font-black text-[#113130] uppercase tracking-widest mb-6 border-b border-slate-50 pb-4">Info. Personal</h3>
-                            <div className="space-y-5">
-                                <div className="flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-teal-50 text-[#0D9488] flex items-center justify-center shrink-0"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg></div><div><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Teléfono</p><p className="text-sm font-bold text-[#113130]">{selectedPatient.phone}</p></div></div>
-                                <div className="flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg></div><div className="overflow-hidden"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Email</p><p className="text-sm font-bold text-[#113130] truncate">{selectedPatient.email}</p></div></div>
-                                <div className="flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg></div><div><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Edad</p><p className="text-sm font-bold text-[#113130]">{selectedPatient.age} años</p></div></div>
-                                <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-full bg-purple-50 text-purple-500 flex items-center justify-center shrink-0">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 p-6 sm:p-8 h-full flex flex-col justify-center">
+    <h3 className="text-xs font-black text-[#113130] uppercase tracking-widest mb-6">Info. Personal</h3>
+    <div className="space-y-6"> {/* 🌟 Aumentamos un poquito el espacio a space-y-6 */}
+        
+        {/* Teléfono */}
+        <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl bg-teal-50 text-[#0D9488] flex items-center justify-center shrink-0">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+            </div>
+            <div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Teléfono</p>
+                <p className="text-base font-bold text-[#113130]">{selectedPatient.phone}</p> {/* 🌟 text-base es más grande */}
+            </div>
+        </div>
+
+        {/* Email */}
+        <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+            </div>
+            <div className="overflow-hidden">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Email</p>
+                <p className="text-base font-bold text-[#113130] truncate">{selectedPatient.email}</p>
+            </div>
+        </div>
+
+        {/* Edad */}
+        <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+            </div>
+            <div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Edad</p>
+                <p className="text-base font-bold text-[#113130]">{selectedPatient.age} años</p>
+            </div>
+        </div>
+
+        {/* Sexo (🌟 YA CORREGIDO Y ALINEADO) */}
+        <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-500 flex items-center justify-center shrink-0">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
             </div>
             <div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sexo</p>
-                <p className="text-xs font-bold text-[#113130] capitalize">{selectedPatient.sexo || 'No especificado'}</p>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Sexo</p>
+                <p className="text-base font-bold text-[#113130] capitalize">{selectedPatient.sexo || 'No especificado'}</p>
+                    </div>
+                </div>
             </div>
         </div>
-                            </div>
-                        </div>
+                        
 
-<div className="bg-white rounded-3xl p-6 md:p-8 border border-teal-100/50 shadow-sm flex-1 flex flex-col">
-            <h3 className="text-xs font-black text-[#113130] uppercase tracking-widest mb-6">Reportes IA</h3>
-            
-            {/* Evaluamos si el paciente tiene reportes (suponiendo que la variable se llama pacienteReportes) */}
-            {pacienteReportes && pacienteReportes.length > 0 ? (
-                <div className="space-y-4 overflow-y-auto max-h-[220px] pr-2 custom-scrollbar">
-                    {pacienteReportes.map((reporte, idx) => (
-                        <div key={idx} className="p-4 rounded-2xl bg-teal-50/50 border border-teal-100/50 hover:bg-teal-50 transition-colors">
-                            <div className="flex justify-between items-center mb-2">
-                                <span className="text-[10px] font-black text-[#0F766E] uppercase tracking-widest">
-                                    {new Date(reporte.fecha_generacion).toLocaleDateString()}
-                                </span>
-                                <span className="text-[9px] font-bold text-slate-500 bg-white px-2 py-1 rounded-md border border-slate-200">
-                                    Cita #{reporte.cita_id}
-                                </span>
-                            </div>
-                            <h4 className="text-sm font-bold text-[#113130] mb-2">{reporte.diagnostico_final || 'Reporte en proceso'}</h4>
-                            <p className="text-xs text-slate-600 line-clamp-3 italic">
-                                "{reporte.analisis_ia ? reporte.analisis_ia.substring(0, 150) + '...' : 'Sin análisis de IA registrado.'}"
-                            </p>
-                        </div>
-                    ))}
+                {/* Lado Derecho: El nuevo Historial de Sesiones como componente separado */}
+                <div className="flex-1 flex flex-col">
+                <HistorialSesiones 
+                    pacienteId={selectedPatient?.id} 
+                    onRedactarReporte={(citaId) => {
+                        if (onNavigateToReportes) onNavigateToReportes(citaId);
+                    }} 
+                    onVerReporte={(citaId) => {
+                        console.log("Paso 2: Pacientes escuchó el clic. Cita:", citaId);
+                        if (onNavigateToReportes) {
+                            onNavigateToReportes(citaId);
+                        } else {
+                            console.warn("🚨 ERROR: Pacientes.jsx no recibió onNavigateToReportes desde Interface");
+                        }
+                    }}
+                />
                 </div>
-            ) : (
-                <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-slate-200 rounded-2xl p-8 bg-slate-50/50">
-                    <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 mb-3">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                    </div>
-                    <p className="text-xs font-bold text-slate-400">Sin reportes generados.</p>
-                </div>
-            )}
-        </div>
                     </div>
 
                     {/* LÍNEA DE TIEMPO INTERACTIVA */}

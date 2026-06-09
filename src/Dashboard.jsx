@@ -1,14 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Clock, FileText, DollarSign, UserCheck, UserPlus, FileWarning, CalendarX, PieChart, X, CheckCircle2 } from 'lucide-react';
+import { createPortal } from 'react-dom';
 
-// ================= DATOS SIMULADOS =================
-const CITAS_HOY = [
-    { id: 1, hora: '08:00 AM', paciente: 'Ana Martínez', tipo: 'Evaluación Inicial', estado: 'completada', duracion: '60 min' },
-    { id: 2, hora: '10:30 AM', paciente: 'Carlos Ruiz', tipo: 'Terapia Cognitiva', estado: 'en_curso', duracion: '45 min' },
-    { id: 3, hora: '01:00 PM', paciente: 'Elena Gómez', tipo: 'Seguimiento', estado: 'pendiente', duracion: '30 min' },
-    { id: 4, hora: '03:15 PM', paciente: 'Luis Rodríguez', tipo: 'Terapia de Pareja', estado: 'pendiente', duracion: '90 min' },
-    { id: 5, hora: '05:00 PM', paciente: 'Sofía Castro', tipo: 'Evaluación', estado: 'pendiente', duracion: '60 min' }
-];
+
 
 const INITIAL_PACIENTES_INACTIVOS = [
     { id: 1, name: 'Marcos Ramírez', ultimaCita: 'Hace 35 días', color: 'text-amber-600', bg: 'bg-amber-50' },
@@ -24,21 +18,80 @@ const MOTIVOS_CONSULTA = [
     { motivo: 'Gestión del Estrés', porcentaje: 15, color: 'bg-indigo-400' }
 ];
 
-const Dashboard = () => {
-    // Estado para poder ocultar las alertas de pacientes inactivos
+const Dashboard = ({ onNavigateToReportes }) => {
+    // ================= ESTADOS =================
     const [pacientesInactivos, setPacientesInactivos] = useState(INITIAL_PACIENTES_INACTIVOS);
-
-    // Función para descartar/ocultar el aviso
+   
+   // Estado para abrir/cerrar la ventana flotante
+    const [modalReportesAbierto, setModalReportesAbierto] = useState(false);
+     // 🌟 NUEVO ESTADO: Memoria para los datos reales del backend
+    const [datosKpi, setDatosKpi] = useState({
+        pacientes: { total: "...", crecimiento: "Calculando..." },
+        expedientes: { pendientes: "...", lista: [] } // 🌟 Agregamos "lista: []" aquí
+    });
+    const [citasHoy, setCitasHoy] = useState([]);
     const descartarAviso = (id) => {
         setPacientesInactivos(prev => prev.filter(paciente => paciente.id !== id));
     };
 
-    // ================= KPIs CLÍNICOS =================
+    // 🌟 NUEVO MOTOR: Conexión con FastAPI al cargar el Dashboard
+    useEffect(() => {
+        const cargarDatosArriba = async () => {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+
+            const headers = { 
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            };
+
+            const baseUrl = `http://${window.location.hostname}:8000`;
+
+            try {
+                // 1. Mandamos a pedir las 3 cosas al mismo tiempo
+                const [resPacientes, resExpedientes, resAgenda] = await Promise.all([
+                    fetch(`${baseUrl}/dashboard/pacientes-activos`, { headers }),
+                    fetch(`${baseUrl}/dashboard/expedientes-pendientes`, { headers }),
+                    fetch(`${baseUrl}/dashboard/agenda-hoy`, { headers })
+                ]);
+
+                // 2. Guardamos los números de las tarjetas de arriba (KPIs)
+                if (resPacientes.ok && resExpedientes.ok) {
+                    const dataPacientes = await resPacientes.json();
+                    const dataExpedientes = await resExpedientes.json();
+
+                    setDatosKpi({
+                        pacientes: {
+                            total: dataPacientes.total,
+                            crecimiento: dataPacientes.crecimiento_mes
+                        },
+                        expedientes: {
+                            pendientes: dataExpedientes.cantidad_pendientes,
+                            lista: dataExpedientes.detalles || [] 
+                        }
+                    });
+                }
+
+                // 3. Guardamos la línea de tiempo de abajo
+                if (resAgenda.ok) {
+                    const dataAgenda = await resAgenda.json();
+                    setCitasHoy(dataAgenda);
+                }
+
+            } catch (error) {
+                console.error("Error de red cargando el dashboard:", error);
+            }
+        };
+
+        cargarDatosArriba();
+    }, []);
+
+    // ================= KPIs CLÍNICOS (Conectados al Estado Mágico) =================
     const clinicaStats = [
         { 
             title: "Pacientes Activos", 
-            value: "142", 
-            trend: "+12% este mes",
+            value: datosKpi.pacientes.total,        // 🌟 DATO REAL
+            trend: datosKpi.pacientes.crecimiento,  // 🌟 DATO REAL
             trendColor: "text-[#0D9488]", 
             icon: <UserCheck className="w-6 h-6" strokeWidth={2} />, 
             color: "text-[#0D9488]", 
@@ -47,14 +100,15 @@ const Dashboard = () => {
         },
         { 
             title: "Expedientes por Actualizar", 
-            value: "3", 
+            value: datosKpi.expedientes.pendientes, // 🌟 DATO REAL
             trend: "Más de 24h sin notas clínicas",
             trendColor: "text-rose-500 font-bold", 
             icon: <FileWarning className="w-6 h-6" strokeWidth={2} />, 
             color: "text-rose-600", 
             bg: "bg-rose-50",
             actionButton: "Redactar Reportes Ahora",
-            isAlert: true
+            isAlert: true,
+            onActionClick: () => setModalReportesAbierto(true)
         }
     ];
 
@@ -110,10 +164,18 @@ const Dashboard = () => {
                                 <p className={`text-xs mt-auto ${stat.trendColor}`}>{stat.trend}</p>
 
                                 {stat.actionButton && (
-                                    <button className={`mt-4 w-full py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-600/20`}>
-                                        {stat.actionButton}
-                                    </button>
-                                )}
+            <button 
+                onClick={stat.onActionClick}
+                disabled={stat.isAlert && datosKpi.expedientes.pendientes === 0}
+                className={`mt-4 w-full py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2 text-white shadow-md ${
+                    stat.isAlert && datosKpi.expedientes.pendientes === 0 
+                    ? 'bg-rose-300 shadow-none cursor-not-allowed' // Botón apagado si no hay pendientes
+                    : 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20' // Botón normal
+                }`}
+            >
+                {stat.actionButton}
+            </button>
+        )}
                             </div>
                         </div>
                     ))}
@@ -156,8 +218,8 @@ const Dashboard = () => {
                         <div className="flex min-w-max gap-8 px-2 pt-2 relative">
                             {/* Línea horizontal central */}
                             <div className="absolute top-[12px] left-0 right-0 h-[2px] bg-slate-100 z-0"></div>
-
-                            {CITAS_HOY.map((cita) => {
+                            
+                            {citasHoy?.map((cita) => {
                                 const isCompletada = cita.estado === 'completada';
                                 const isEnCurso = cita.estado === 'en_curso';
                                 const colorDot = isCompletada ? 'bg-emerald-500 border-emerald-500' : isEnCurso ? 'bg-amber-400 border-amber-400 animate-pulse' : 'bg-slate-300 border-slate-300';
@@ -270,8 +332,60 @@ const Dashboard = () => {
                             )}
                         </div>
                     </div>
-
                 </div>
+                {/* ================= MODAL DE EXPEDIENTES PENDIENTES ================= */}
+        {modalReportesAbierto && createPortal(
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+                {/* Fondo oscuro sin lag */}
+                <div className="absolute inset-0 bg-[#113130]/80 transition-opacity" onClick={() => setModalReportesAbierto(false)} />
+                
+                {/* Tarjeta del Modal */}
+                <div className="bg-white rounded-[2rem] w-full max-w-lg p-6 sm:p-8 relative z-10 shadow-2xl animate-fade-in border border-rose-100">
+                    
+                    <div className="flex justify-between items-center mb-6">
+                        <div>
+                            <h3 className="text-xl font-black text-[#113130] flex items-center gap-2">
+                                <svg className="w-6 h-6 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                Reportes Pendientes
+                            </h3>
+                            <p className="text-sm text-slate-500 font-medium mt-1">Sesiones que pasaron hace más de 24 horas.</p>
+                        </div>
+                        <button onClick={() => setModalReportesAbierto(false)} className="p-2 bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-500 rounded-xl transition-colors">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    </div>
+
+                    <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2 scrollbar-thin">
+                        {datosKpi.expedientes.lista?.map((cita) => (
+                            <div key={cita.cita_id} className="p-4 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-rose-50/30 hover:border-rose-100 transition-colors flex justify-between items-center gap-4">
+                                <div className="truncate">
+                                    <h4 className="text-sm font-black text-[#113130] truncate">{cita.paciente_nombre}</h4>
+                                    <div className="flex items-center gap-3 mt-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                                        <span>📅 {cita.fecha}</span>
+                                        <span className="truncate">📝 {cita.motivo}</span>
+                                    </div>
+                                </div>
+                               <button 
+                                    onClick={() => {
+                                        setModalReportesAbierto(false); // 1. Cerramos el modal para que no estorbe
+                                        
+                                        // 2. Disparamos la función que nos pasará el componente padre
+                                        if (onNavigateToReportes) {
+                                            onNavigateToReportes(cita.cita_id); 
+                                        } else {
+                                            console.warn("Falta conectar la navegación en el App.jsx");
+                                        }
+                                    }}
+                                    className="shrink-0 bg-rose-600 hover:bg-rose-700 text-white px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md shadow-rose-600/20 transition-colors"
+                                >
+                                    Redactar
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>, document.body
+        )}
             </div> 
             
             <style>{`
