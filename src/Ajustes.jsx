@@ -50,9 +50,9 @@ export default function Ajustes() {
 
     // MOCK DATA: Perfil
     const [perfilData, setPerfilData] = useState({
-        email: 'admin@horizonflow.com',
+        email: localStorage.getItem('hf_email') || 'admin@horizonflow.com',
         rol: 'Administrador Clínico',
-        nombreClinica: 'HorizonFlow Central',
+        nombreClinica: localStorage.getItem('hf_nombre_clinica') || 'HorizonFlow Central',
         passwordActual: '',
         passwordNueva: ''
     });
@@ -98,7 +98,7 @@ if (activeTab === 'perfil') {
             </div>
             
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-[#0F766E] text-white flex items-center justify-center text-xl font-black shadow-inner">A</div>
+                <div className="w-12 h-12 rounded-full bg-[#0F766E] text-white flex items-center justify-center text-xl font-black shadow-inner">{perfilData.nombreClinica ? perfilData.nombreClinica.charAt(0) : 'U'}</div>
                 <div>
                     <p className="text-sm font-bold text-[#113130]">{perfilData.nombreClinica || 'Usuario Activo'}</p>
                     <p className="text-xs text-[#0F766E] font-medium uppercase tracking-wider">{perfilData.rol}</p>
