@@ -59,6 +59,12 @@ const CampanaAlertas = () => {
 useEffect(() => {
         revisarAlertasReal();
 
+        const sincronizarDesdeAjustes = () => {
+            const nuevasHoras = parseInt(localStorage.getItem('hf_alerta_horas')) || 24;
+            setHorasAnticipacion(nuevasHoras);
+        };
+
+        window.addEventListener('configuracionAlertasActualizada', sincronizarDesdeAjustes);
         // 👂 Oreja parada: Si alguien grita "actualizarRadarCitas", la campana revisa el backend de una vez
         const escucharCambios = () => {
             revisarAlertasReal();
@@ -79,6 +85,7 @@ useEffect(() => {
         setHorasAnticipacion(horas);
         localStorage.setItem('hf_alerta_horas', horas);
         setView('alertas');
+        window.dispatchEvent(new Event('configuracionAlertasActualizada'));
     };
 
     return (

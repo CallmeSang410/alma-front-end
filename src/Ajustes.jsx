@@ -18,7 +18,34 @@ const IconShield = () => (
 );
 
 export default function Ajustes() {
-    const [activeTab, setActiveTab] = useState('perfil'); // Abierto en perfil por defecto
+    
+    // --- LÓGICA DEL TEMA GLOBAL ---
+    const [temaActual, setTemaActual] = useState(() => {
+        const temaGuardado = localStorage.getItem('temaHorizon');
+        return temaGuardado ? temaGuardado : 'light';
+    });
+
+    useEffect(() => {
+        const html = document.documentElement; 
+        if (temaActual === 'dark') {
+            html.classList.add('dark'); 
+        } else {
+            html.classList.remove('dark'); 
+        }
+        localStorage.setItem('temaHorizon', temaActual); 
+    }, [temaActual]);
+
+    useEffect(() => {
+        const sincronizarDesdeCampana = () => {
+            const horas = parseInt(localStorage.getItem('hf_alerta_horas')) || 24;
+            setPreferenciasData(prev => ({...prev, anticipacion_alerta: horas}));
+        };
+
+        window.addEventListener('configuracionAlertasActualizada', sincronizarDesdeCampana);
+        return () => window.removeEventListener('configuracionAlertasActualizada', sincronizarDesdeCampana);
+    }, []);
+
+    const [activeTab, setActiveTab] = useState('perfil'); 
     const [isSaving, setIsSaving] = useState(false);
 
     // MOCK DATA: Perfil
@@ -32,8 +59,8 @@ export default function Ajustes() {
 
     // MOCK DATA: Preferencias Globales
     const [preferenciasData, setPreferenciasData] = useState({
-        anticipacion_alerta: 24,
-        tamanoFuente: 'normal' // 'small', 'normal', 'large'
+        anticipacion_alerta: parseInt(localStorage.getItem('hf_alerta_horas')) || 24,
+        tamanoFuente: 'normal' 
     });
 
     const [reporteBug, setReporteBug] = useState({ asunto: '', descripcion: '' });
@@ -42,6 +69,22 @@ export default function Ajustes() {
         e.preventDefault();
         setIsSaving(true);
 
+if (activeTab === 'perfil') {
+            // Guardamos usando "Usuario Activo" como respaldo por si borran todo
+            localStorage.setItem('hf_nombre_clinica', perfilData.nombreClinica || 'Usuario Activo');
+            localStorage.setItem('hf_email', perfilData.email);
+            
+            // Disparamos el evento global
+            window.dispatchEvent(new Event('perfilActualizado'));
+        }
+
+        // Si estamos guardando la pestaña de alertas, actualizamos el sistema
+        if (activeTab === 'alertas') {
+            localStorage.setItem('hf_alerta_horas', preferenciasData.anticipacion_alerta);
+            
+            // Disparamos un evento para que la Campanita se entere y actualice sus citas
+            window.dispatchEvent(new Event('configuracionAlertasActualizada'));
+        }
         setTimeout(() => {
             setIsSaving(false);
         }, 800);
@@ -57,7 +100,7 @@ export default function Ajustes() {
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center gap-4">
                 <div className="w-12 h-12 rounded-full bg-[#0F766E] text-white flex items-center justify-center text-xl font-black shadow-inner">A</div>
                 <div>
-                    <p className="text-sm font-bold text-[#113130]">Usuario Activo</p>
+                    <p className="text-sm font-bold text-[#113130]">{perfilData.nombreClinica || 'Usuario Activo'}</p>
                     <p className="text-xs text-[#0F766E] font-medium uppercase tracking-wider">{perfilData.rol}</p>
                 </div>
             </div>
@@ -152,6 +195,7 @@ export default function Ajustes() {
                     </p>
                 </div>
 
+                {/* --- CONTROLES DE TAMAÑO DE TEXTO --- */}
                 <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Tamaño de Texto</label>
                     <div className="grid grid-cols-3 gap-3">
@@ -170,6 +214,34 @@ export default function Ajustes() {
                             </button>
                         ))}
                     </div>
+                </div>
+
+                {/* --- NUEVO SWITCH RESPONSIVE DE TEMA --- */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-slate-50 p-5 rounded-2xl border border-slate-200 shadow-sm transition-colors gap-4">
+                    <div>
+                        <h4 className="text-sm font-bold text-[#113130] flex items-center gap-2">
+                            {temaActual === 'dark' ? '🌙 Modo Oscuro Activado' : '☀️ Modo Claro Activado'}
+                        </h4>
+                        <p className="text-xs text-slate-500 mt-1">Alterna la paleta de colores de la interfaz.</p>
+                    </div>
+                    
+                    <button
+                        type="button"
+                        onClick={() => setTemaActual(temaActual === 'light' ? 'dark' : 'light')}
+                        className={`relative inline-flex h-7 w-14 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:ring-offset-2 ${
+                            temaActual === 'dark' ? 'bg-[#0F766E]' : 'bg-slate-300'
+                        }`}
+                        role="switch"
+                        aria-checked={temaActual === 'dark'}
+                    >
+                        <span className="sr-only">Alternar modo oscuro</span>
+                        <span
+                            aria-hidden="true"
+                            className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md ring-0 transition duration-300 ease-in-out ${
+                                temaActual === 'dark' ? 'translate-x-7' : 'translate-x-0'
+                            }`}
+                        />
+                    </button>
                 </div>
 
                 <div className="pt-4 border-t border-slate-100 flex justify-end">

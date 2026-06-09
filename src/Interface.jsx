@@ -76,6 +76,9 @@ export default function Interface({ onLogout }) {
     const [searchQuery, setSearchQuery] = useState("");
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [showCalendar, setShowCalendar] = useState(false);
+    const [perfilNombre, setPerfilNombre] = useState(localStorage.getItem('hf_nombre_clinica') || 'Usuario Activo');
+    const [perfilEmail, setPerfilEmail] = useState(localStorage.getItem('hf_email') || '');
+    const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
     const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
     
@@ -189,6 +192,14 @@ export default function Interface({ onLogout }) {
         }
     ]);
 
+    useEffect(() => {
+        const actualizarPerfil = () => {
+            setPerfilNombre(localStorage.getItem('hf_nombre_clinica') || 'Usuario Activo');
+            setPerfilEmail(localStorage.getItem('hf_email') || '');
+        };
+        window.addEventListener('perfilActualizado', actualizarPerfil);
+        return () => window.removeEventListener('perfilActualizado', actualizarPerfil);
+    }, []);
   
 
    const handleEnviarMensaje = async (e) => {
@@ -465,14 +476,53 @@ export default function Interface({ onLogout }) {
                     <div className="hidden sm:block h-6 w-px bg-teal-200/50"></div>
 
                     {/* Perfil del Usuario */}
-                    <div className="flex items-center gap-3 bg-white px-3.5 py-1.5 rounded-full shadow-xs border border-teal-100/40">
-                        <div className="w-7 h-7 rounded-full bg-[#0D9488] text-white flex items-center justify-center font-black text-xs">
-                            A
-                        </div>
-                        <div className="text-left overflow-hidden">
-                            <h4 className="text-xs font-extrabold text-[#113130] truncate max-w-[120px] sm:max-w-none">@ALMASystem</h4>
-                            <p className="text-[9px] text-[#0D9488] font-bold uppercase tracking-wider">Administrador</p>
-                        </div>
+                   <div className="relative z-40">
+                        {/* Botón Principal del Perfil */}
+                        <button 
+                            onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                            className={`flex items-center gap-3 px-3.5 py-1.5 rounded-full shadow-xs border transition-all text-left ${isProfileMenuOpen ? 'bg-teal-50 border-[#0F766E]/30' : 'bg-white border-teal-100/40 hover:bg-teal-50/50'}`}
+                        >
+                            <div className="w-7 h-7 rounded-full bg-[#0D9488] text-white flex items-center justify-center font-black text-xs uppercase shadow-inner">
+                                {perfilNombre.charAt(0)} {/* Toma la primera letra del nombre */}
+                            </div>
+                            <div className="overflow-hidden">
+                                <h4 className="text-xs font-extrabold text-[#113130] truncate max-w-[120px] sm:max-w-none">
+                                    {perfilNombre}
+                                </h4>
+                                <p className="text-[9px] text-[#0D9488] font-bold uppercase tracking-wider">Administrador</p>
+                            </div>
+                        </button>
+
+                        {/* Dropdown del Perfil (Correo y Engranaje) */}
+                        {isProfileMenuOpen && (
+                            <div className="absolute top-full right-0 mt-2 w-56 bg-white border border-teal-100/60 rounded-xl shadow-lg overflow-hidden animate-fade-in p-4 z-50">
+                                
+                                <div className="mb-3">
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Correo Registrado</p>
+                                    <p className="text-xs font-medium text-[#113130] truncate">
+                                        {perfilEmail ? perfilEmail : <span className="text-slate-400 italic">No configurado</span>}
+                                    </p>
+                                </div>
+
+                                {/* Botón de engranaje posicionado a la derecha */}
+                                <div className="flex justify-end border-t border-slate-100 pt-3">
+                                    <button 
+                                        onClick={() => {
+                                            setIsProfileMenuOpen(false); // Cerramos el menú
+                                            setActiveTab('settings');    // Navegamos a la pantalla de Ajustes
+                                        }}
+                                        className="p-1.5 text-slate-400 hover:text-[#0F766E] hover:bg-teal-50 rounded-lg transition-colors flex items-center gap-1.5"
+                                        title="Configurar Perfil"
+                                    >
+                                        <span className="text-[10px] font-bold uppercase tracking-wider">Editar</span>
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066-1.543.94-3.31-.826-2.37-2.37 1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35 1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </header>
