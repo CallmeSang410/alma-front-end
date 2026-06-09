@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
+import { createPortal } from 'react-dom';
 import './Experiencia.css'; 
 
 // --- ÍCONOS VECTORIALES ---
@@ -496,52 +497,54 @@ export default function Experiencia() {
                 </div>
             </div>
             {/* 🌟 EL MODAL DEL QR OPTIMIZADO (Sin blur para evitar lag y manchas negras) */}
-            {mostrarQR && (
-                <div className="fixed inset-0 bg-[#113130]/80 flex items-center justify-center z-[9999] p-4 transition-opacity">
-                    <div className="bg-white p-8 rounded-[2rem] shadow-2xl text-center max-w-sm w-full relative animate-fade-in-up">
-                        
-                        {/* Botón de cerrar modificado para verse más limpio */}
-                        <button 
-                            onClick={() => setMostrarQR(false)} 
-                            className="absolute top-4 right-4 text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-colors p-2 rounded-full"
-                        >
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                        </button>
-                        
-                        <div className="mb-6 mt-2">
-                            <h3 className="text-xl font-black text-[#113130] mb-2 tracking-tight">Evaluación de Calidad</h3>
-                            <p className="text-sm text-slate-500 font-medium px-4">Pídale al paciente que escanee este código con la cámara de su celular.</p>
-                        </div>
-                        
-                        {/* El Código QR con un marco más elegante */}
-                        <div className="flex justify-center mb-8">
-                            <div className="p-5 bg-white border-2 border-slate-100 rounded-3xl shadow-sm">
-                                <QRCodeCanvas 
-                                    value={linkEncuesta} 
-                                    size={180} 
-                                    level={"H"} 
-                                    fgColor={"#0F766E"} // QR en tono verde HorizonFlow
-                                />
-                            </div>
-                        </div>
-                        
-                        {/* Separador sutil */}
-                        <div className="flex items-center gap-3 mb-5 opacity-70">
-                            <div className="h-px bg-slate-200 flex-1"></div>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Opción Alternativa</span>
-                            <div className="h-px bg-slate-200 flex-1"></div>
-                        </div>
-                        
-                        <button 
-                            onClick={copiarLinkPaciente} 
-                            className="w-full bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 hover:text-[#113130] text-xs font-bold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2"
-                        >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
-                            Copiar Link Directo
-                        </button>
-                    </div>
+            {/* Usamos createPortal y le decimos que lo mande directo al document.body */}
+{mostrarQR && createPortal(
+    <div className="fixed inset-0 bg-[#113130]/80 flex items-center justify-center z-[99999] p-4 transition-opacity">
+        <div className="bg-white p-8 rounded-[2rem] shadow-2xl text-center max-w-sm w-full relative animate-fade-in-up">
+            
+            {/* Botón de cerrar modificado para verse más limpio */}
+            <button 
+                onClick={() => setMostrarQR(false)} 
+                className="absolute top-4 right-4 text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-colors p-2 rounded-full"
+            >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+            
+            <div className="mb-6 mt-2">
+                <h3 className="text-xl font-black text-[#113130] mb-2 tracking-tight">Evaluación de Calidad</h3>
+                <p className="text-sm text-slate-500 font-medium px-4">Pídale al paciente que escanee este código con la cámara de su celular.</p>
+            </div>
+            
+            {/* El Código QR con un marco más elegante */}
+            <div className="flex justify-center mb-8">
+                <div className="p-5 bg-white border-2 border-slate-100 rounded-3xl shadow-sm">
+                    <QRCodeCanvas 
+                        value={linkEncuesta} 
+                        size={180} 
+                        level={"H"} 
+                        fgColor={"#0F766E"} // QR en tono verde HorizonFlow
+                    />
                 </div>
-            )} 
+            </div>
+            
+            {/* Separador sutil */}
+            <div className="flex items-center gap-3 mb-5 opacity-70">
+                <div className="h-px bg-slate-200 flex-1"></div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Opción Alternativa</span>
+                <div className="h-px bg-slate-200 flex-1"></div>
+            </div>
+            
+            <button 
+                onClick={copiarLinkPaciente} 
+                className="w-full bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 hover:text-[#113130] text-xs font-bold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2"
+            >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
+                Copiar Link Directo
+            </button>
+        </div>
+    </div>,
+    document.body // 🌟 AQUÍ ESTÁ LA MAGIA: Lo mandamos al body
+)}
         </div>
     );
 }
