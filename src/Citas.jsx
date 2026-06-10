@@ -1,8 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import './Citas.css';
+import { useAlerta, AlertaProvider } from './AlertaContext.jsx';
 
 const Citas = () => {
+    // 🛡️ ESCUDO ANTI-PANTALLA BLANCA:
+    // Revisamos si el contexto existe antes de extraerlo. Si no existe, no explotamos.
+    const contextoAlerta = useAlerta();
+    
+    const mostrarAlerta = contextoAlerta ? contextoAlerta.mostrarAlerta : (tipo, titulo, mensaje) => {
+        console.error("⚠️ EL PROVIDER NO ESTÁ CONECTADO. Cayó en el fallback.");
+        alert(`${titulo}: ${mensaje}`);
+    };
+
     // ================= ESTADOS GENERALES =================
     const [view, setView] = useState('list');
     const [searchQuery, setSearchQuery] = useState('');
@@ -15,7 +25,7 @@ const Citas = () => {
     const [appointments, setAppointments] = useState([]);
     const [patientsList, setPatientsList] = useState([]); 
 
-    // 🌟 NUEVOS ESTADOS PARA CREACIÓN RÁPIDA DE PACIENTES
+    // ESTADOS PARA CREACIÓN RÁPIDA DE PACIENES
     const [isNewPatient, setIsNewPatient] = useState(false);
     const [newPatientData, setNewPatientData] = useState({ nombre: '', telefono: '' });
 
@@ -87,7 +97,7 @@ const Citas = () => {
     // ================= FUNCIONES LÓGICAS =================
     const handleOpenForm = (appointment = null) => {
         setFormErrors({});
-        setIsNewPatient(false); // Por defecto mostramos la lista
+        setIsNewPatient(false);
         setNewPatientData({ nombre: '', telefono: '' });
 
         if (appointment) {
@@ -110,7 +120,6 @@ const Citas = () => {
     const handleSaveAppointment = async (e) => {
         e.preventDefault();
         
-        // 🌟 1. VALIDACIÓN INTELIGENTE (Depende de si es nuevo o no)
         const errors = {};
         if (isNewPatient && !formData.id) {
             if (!newPatientData.nombre.trim()) errors.nuevoNombre = true;
@@ -133,7 +142,6 @@ const Citas = () => {
             const token = localStorage.getItem('token');
             let finalPacienteId = formData.paciente_id;
 
-            // 🌟 2. CREACIÓN EXPRESS DEL PACIENTE (Si eligieron "Paciente Nuevo")
             if (isNewPatient && !formData.id) {
                 console.log("Creando paciente express...");
                 const resNuevoPaciente = await fetch('http://127.0.0.1:8000/pacientes', {
@@ -146,20 +154,19 @@ const Citas = () => {
                         nombre: newPatientData.nombre,
                         telefono: newPatientData.telefono,
                         estado: 'Pendiente',
-                        atencion: 'Presencial'    // Nace comodiente de evaluar
+                        atencion: 'Presencial'
                     })
                 });
 
                 if (resNuevoPaciente.ok) {
                     const pacienteCreado = await resNuevoPaciente.json();
-                    finalPacienteId = pacienteCreado.id; // Agarramos el ID recién salido del horno
+                    finalPacienteId = pacienteCreado.id; 
                 } else {
-                    alert("Error al crear el paciente rápido. Revisa la conexión.");
-                    return; // Abortamos la cita si falló crear al paciente
+                    mostrarAlerta('error', 'Error', 'Error al crear el paciente rápido. Revisa la conexión.');
+                    return; 
                 }
             }
 
-            // 🌟 3. CREAMOS LA CITA (Con el paciente existente o el recién creado)
             const fechaCombinada = `${formData.date}T${formData.time}:00`;
             const datosParaCita = {
                 motivo: formData.reason,
@@ -174,15 +181,12 @@ const Citas = () => {
             if (formData.id) {
                 url = `http://127.0.0.1:8000/citas/${formData.id}`;
                 method = 'PUT';
-                window.dispatchEvent(new Event('actualizarRadarCitas'));
-    
-            alert("¡Cita modificada con éxito!"); // O el aviso que tengás
             } else {
                 url = `http://127.0.0.1:8000/pacientes/${finalPacienteId}/citas`;
                 method = 'POST';
             }
 
-const respuesta = await fetch(url, {
+            const respuesta = await fetch(url, {
                 method: method,
                 headers: {
                     'Content-Type': 'application/json',
@@ -192,20 +196,16 @@ const respuesta = await fetch(url, {
             });
 
             if (respuesta.ok) {
-                
-                // 📢 EL MEGÁFONO VA AQUÍ: 
-                // Solo si el servidor nos dijo "OK", avisamos a la campana
                 window.dispatchEvent(new Event('actualizarRadarCitas'));
-                
                 cargarDatos(); 
                 setView('list');
-                alert("¡Cita guardada o modificada con éxito!");
+                mostrarAlerta('exito', '¡Guardado!', formData.id ? 'Cita modificada con éxito.' : 'Cita creada con éxito.');
             } else {
-                alert("Error al guardar la cita en la base de datos.");
+                mostrarAlerta('error', 'Error', 'Error al guardar la cita en la base de datos.');
             }
         } catch (error) {
             console.error("Error de red:", error);
-            alert("No se pudo conectar con el servidor.");
+            mostrarAlerta('error', 'Sin conexión', 'No se pudo conectar con el servidor.');
         }
     };
 
@@ -219,46 +219,46 @@ const respuesta = await fetch(url, {
             if (respuesta.ok) {
                 cargarDatos(); 
                 setAppointmentToCancel(null);
+                mostrarAlerta('exito', '¡Eliminada!', 'La cita se eliminó correctamente.');
             } else {
-                alert("No se pudo eliminar la cita.");
+                mostrarAlerta('error', 'Error', 'No se pudo eliminar la cita.');
             }
         } catch (error) {
             console.error("Error al eliminar:", error);
+            mostrarAlerta('error', 'Error', 'Ocurrió un error al intentar eliminar la cita.');
         }
     };
+
     const handleCompletarCita = async (citaId) => {
         console.log("¡Hicieron clic en el check! Intentando completar la cita ID:", citaId);
-    const token = localStorage.getItem('token');
-    if (!token) return;
+        const token = localStorage.getItem('token');
+        if (!token) return;
 
-    try {
-        const res = await fetch(`http://${window.location.hostname}:8000/citas/${citaId}/completar`, {
-            method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
+        try {
+            const res = await fetch(`http://${window.location.hostname}:8000/citas/${citaId}/completar`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (res.ok) {
+                setAppointments(prevCitas => prevCitas.filter(cita => cita.id !== citaId));
+                mostrarAlerta('exito', '¡Completada!', 'La cita se ha marcado como completada.');
+            } else {
+                mostrarAlerta('error', 'Error', 'No se pudo completar la cita.');
             }
-        });
-
-        if (res.ok) {
-            // 🌟 MAGIA: Filtramos la cita completada para que desaparezca de la vista inmediatamente
-            setAppointments(prevCitas => prevCitas.filter(cita => cita.id !== citaId));
-        } else {
-            alert("No se pudo completar la cita.");
+        } catch (error) {
+            console.error("Error al completar la cita:", error);
+            mostrarAlerta('error', 'Error de Red', 'No pudimos conectar con el servidor.');
         }
-    } catch (error) {
-        console.error("Error al completar la cita:", error);
-    }
-};
-    // ================= FILTRADO Y HELPERS VISUALES =================
-   // ================= FILTRADO Y HELPERS VISUALES =================
+    };
+
     const filteredAppointments = appointments.filter(appt => {
         const matchesSearch = appt.patientName.toLowerCase().includes(searchQuery.toLowerCase()) || 
                               appt.reason.toLowerCase().includes(searchQuery.toLowerCase());
         
-        // 🌟 LÓGICA DE OCULTAMIENTO INTELIGENTE:
-        // Si el filtro está en 'Todas', mostramos todas MENOS las completadas (para mantener la agenda limpia)
-        // Si eligen un filtro específico (ej: 'Completada', 'Pendiente'), respetamos ese filtro.
         let matchesFilter;
         if (filterStatus === 'Todas') {
             matchesFilter = appt.status.toLowerCase() !== 'completada'; 
@@ -278,7 +278,7 @@ const respuesta = await fetch(url, {
         }
     };
 
-const getAtentionStyles = (atention) => {
+    const getAtentionStyles = (atention) => {
         switch(atention) {
             case 'A domicilio': return 'bg-emerald-50 text-emerald-600 border-emerald-200';
             case 'Presencial': return 'bg-emerald-50 text-emerald-600 border-emerald-200';
@@ -367,16 +367,12 @@ const getAtentionStyles = (atention) => {
                                             </div>
                                             <div>
                                                 <h3 className="text-base font-black text-[#113130] leading-tight truncate max-w-[150px] sm:max-w-[200px]" title={appt.patientName}>{appt.patientName}</h3>
-                                                <div className="text-[10px] font-black uppercase tracking-widest mt-1 flex items-center gap-2">
-                                                </div>
                                             </div>
                                         </div>
                                         <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md border ${getStatusStyles(appt.status)}`}>
                                             {appt.status}
                                         </span>
                                     </div>
-                                    
-                                    
                                     
                                     <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-50 space-y-3">
                                         <div className="flex items-start gap-3">
@@ -403,15 +399,13 @@ const getAtentionStyles = (atention) => {
                                     >
                                         Editar
                                     </button>
-                                    {/* 🌟 NUEVO BOTÓN: Check para Completar */}
-            <button 
-                onClick={() => handleCompletarCita(appt.id)}
-                className="p-3 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-600 rounded-xl transition-colors flex items-center justify-center"
-                title="Marcar como Completada"
-            >
-                {/* Icono de Check */}
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"></path></svg>
-            </button>
+                                    <button 
+                                        onClick={() => handleCompletarCita(appt.id)}
+                                        className="p-3 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-600 rounded-xl transition-colors flex items-center justify-center"
+                                        title="Marcar como Completada"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"></path></svg>
+                                    </button>
                                     <button 
                                         onClick={() => setAppointmentToCancel(appt.id)} 
                                         className="px-4 bg-rose-50 hover:bg-rose-100 text-rose-500 rounded-xl transition-colors" 
@@ -425,7 +419,7 @@ const getAtentionStyles = (atention) => {
                     </div>
                 )}
 
-                {/* MODAL CANCELAR CITA */}
+                {/* MODAL ORIGINAL DE CANCELAR CITA */}
                 {appointmentToCancel && createPortal(
                     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 w-screen h-screen">
                         <div className="absolute inset-0 bg-[#113130]/70 backdrop-blur-md" onClick={() => setAppointmentToCancel(null)} />
@@ -462,7 +456,7 @@ const getAtentionStyles = (atention) => {
                     <form onSubmit={handleSaveAppointment} className="space-y-6" noValidate>
                         
                         {/* 🌟 SWITCH PACIENTE NUEVO / EXISTENTE */}
-                        {!formData.id && ( // Solo mostramos esto si es una cita nueva, no al editar
+                        {!formData.id && ( 
                             <div className="flex bg-slate-100 p-1.5 rounded-2xl mb-6">
                                 <button type="button" onClick={() => { setIsNewPatient(false); setFormErrors({}); }} className={`flex-1 py-3 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all ${!isNewPatient ? 'bg-white text-[#113130] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
                                     Paciente Registrado
@@ -483,7 +477,7 @@ const getAtentionStyles = (atention) => {
                                         value={formData.paciente_id} 
                                         onChange={(e) => setFormData({...formData, paciente_id: e.target.value})} 
                                         required
-                                        disabled={formData.id !== null} // No se puede cambiar en edición
+                                        disabled={formData.id !== null}
                                         className={`w-full rounded-2xl px-4 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.paciente_id ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-white border-slate-200 focus:ring-[#0F766E] border'}`} 
                                     >
                                         <option value="" disabled>Elige del directorio...</option>
@@ -522,7 +516,6 @@ const getAtentionStyles = (atention) => {
                             )}
                         </div>
 
-                        {/* EL RESTO DEL FORMULARIO QUEDA IGUAL */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
@@ -560,7 +553,7 @@ const getAtentionStyles = (atention) => {
                                 type="text" 
                                 value={formData.reason} 
                                 onChange={(e) => setFormData({...formData, reason: e.target.value})} 
-                                placeholder="Ej. Terapia inicial, Seguimiento..." 
+                                placeholder="Ej. Terapia inicial..." 
                                 required
                                 className={`w-full rounded-2xl px-4 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.reason ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-slate-50 border-slate-200 focus:ring-[#0F766E] border'}`} 
                             />
@@ -568,8 +561,6 @@ const getAtentionStyles = (atention) => {
                         </div>
 
                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-                            {/* 🌟 NUEVO SELECTOR: Modalidad de Atención */}
                             <div>
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
                                     Modalidad <span className="text-rose-500">*</span>
@@ -585,7 +576,6 @@ const getAtentionStyles = (atention) => {
                                 </select>
                             </div>
 
-                            {/* SELECTOR ORIGINAL: Estado */}
                             <div>
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
                                     Estado <span className="text-rose-500">*</span>
@@ -612,8 +602,14 @@ const getAtentionStyles = (atention) => {
             </div>
         );
     }
-
+    
     return null;
 };
 
-export default Citas;
+export default function CitasIntegrado() {
+    return (
+        <AlertaProvider>
+            <Citas />
+        </AlertaProvider>
+    );
+}

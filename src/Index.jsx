@@ -1,8 +1,12 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import './App.css';
-import './i18n'; // Importamos la configuración de i18n para que esté disponible en toda la app
+import './i18n'; 
+import { useAlerta } from './AlertaContext.jsx'; // 🌟 1. Importamos el hook correcto
+
 function App() {
+  const { mostrarAlerta } = useAlerta(); // 🌟 2. Extraemos la función de alertas
+
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [mensajeError, setMensajeError] = useState("");
@@ -11,10 +15,9 @@ function App() {
   const [nombreNuevo, setNombreNuevo] = useState("");
   const [telefonoNuevo, setTelefonoNuevo] = useState("");
 
-
   // --- NUEVO: ¿Qué paciente estamos viendo en el consultorio? ---
   const [pacienteSeleccionado, setPacienteSeleccionado] = useState(null);
-    // --- NUEVO: ESTADOS PARA EL EXPEDIENTE Y LA IA ---
+  // --- NUEVO: ESTADOS PARA EL EXPEDIENTE Y LA IA ---
   const [notaActual, setNotaActual] = useState("");
   const [resumenIA, setResumenIA] = useState("");
   const [cargandoIA, setCargandoIA] = useState(false);
@@ -83,8 +86,13 @@ function App() {
         setNombreNuevo("");
         setTelefonoNuevo("");
         obtenerPacientes();
+        // Opcional: Puedes agregar un mostrarAlerta de éxito aquí si quieres
+      } else {
+        mostrarAlerta("error", "Error", "No se pudo registrar el paciente.");
       }
-    } catch (error) { alert("Error al registrar paciente"); }
+    } catch (error) { 
+      mostrarAlerta("error", "Error de red", "Error al registrar paciente"); // 🌟 CAMBIO
+    }
   };
 
   const cerrarSesion = () => {
@@ -97,7 +105,7 @@ function App() {
   // --- NUEVO: FUNCIÓN PARA PEDIRLE EL RESUMEN A LA IA ---
   const analizarNotaConIA = async () => {
     if (!notaActual.trim()) {
-      alert("Por favor, escribe algo en las notas antes de analizar.");
+      mostrarAlerta("error", "Campo Vacío", "Por favor, escribe algo en las notas antes de analizar."); // 🌟 CAMBIO
       return;
     }
 
@@ -126,13 +134,13 @@ function App() {
       if (respuesta.ok) {
         // 3. Tu backend devuelve el objeto reporte, extraemos 'analisis_ia'
         setResumenIA(data.analisis_ia); 
-        alert("Reporte clínico generado y guardado en la base de datos ✨");
+        mostrarAlerta("exito", "¡Análisis Completado!", "Reporte clínico generado y guardado en la base de datos ✨"); // 🌟 CAMBIO
       } else {
-        alert("Error: " + (data.detail || "No se pudo generar el reporte"));
+        mostrarAlerta("error", "Error", data.detail || "No se pudo generar el reporte"); // 🌟 CAMBIO
       }
     } catch (error) {
       console.error("Error conectando al servidor:", error);
-      alert("El servidor no responde. Verificá que Uvicorn esté corriendo.");
+      mostrarAlerta("error", "Sin Conexión", "El servidor no responde. Verificá que Uvicorn esté corriendo."); // 🌟 CAMBIO
     } finally {
       setCargandoIA(false);
     }
@@ -269,5 +277,3 @@ function App() {
 }
 
 export default App;
-
-

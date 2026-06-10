@@ -1,8 +1,14 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import logoEmpresa from './assets/Logo.png';
+// 🌟 1. IMPORTAMOS AMBAS COSAS (EL HOOK Y EL PROVIDER)
+import { useAlerta, AlertaProvider } from './AlertaContext.jsx';
 
-export default function Login({ onLoginSuccess }) {
+// 🌟 2. LE QUITAMOS EL "export default" A ESTA LÍNEA (lo haremos al final)
+function Login({ onLoginSuccess }) {
+  
+  const { mostrarAlerta } = useAlerta(); // <-- Ya podemos usarlo con confianza
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [clinicName, setClinicName] = useState('');
@@ -13,9 +19,8 @@ export default function Login({ onLoginSuccess }) {
   const [activeTab, setActiveTab] = useState('login');
   const [formErrors, setFormErrors] = useState({ email: '', password: '', clinicName: '', terms: '' });
 
-  // ESTADOS NUEVOS PARA LOS MODALES DE TÉRMINOS
   const [showTermsModal, setShowTermsModal] = useState(false);
-  const [termsType, setTermsType] = useState('terms'); // 'terms' o 'privacy'
+  const [termsType, setTermsType] = useState('terms'); 
 
   const cssStyles = `
     @keyframes fadeIn {
@@ -30,7 +35,7 @@ export default function Login({ onLoginSuccess }) {
     button:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.18); }
   `;
 
-const handleSubmit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const errors = {};
 
@@ -79,23 +84,23 @@ const handleSubmit = async (e) => {
           const tokenReal = datosServidor.tu_gafete_digital;
 
           if (!tokenReal) {
-            alert("Error interno: No se recibió la llave de acceso del servidor.");
+            mostrarAlerta('error', 'Error Interno', 'No se recibió la llave de acceso del servidor.'); 
             return;
           }
   
           localStorage.setItem('token', tokenReal);
+          mostrarAlerta('exito', '¡Bienvenido!', 'Has iniciado sesión exitosamente.'); 
           if (onLoginSuccess) onLoginSuccess(); 
         } else {
           const errorData = await respuesta.json();
           const errorMsg = typeof errorData.detail === 'string' ? errorData.detail : 'El correo o la contraseña son incorrectos.';
-          setFormErrors({ ...formErrors, password: errorMsg });
+          mostrarAlerta('error', 'Acceso Denegado', errorMsg); 
         }
       } else {
-        // 🌟 PAQUETE CORREGIDO PARA ALINEARSE CON FASTAPI 🌟
         const datosNuevoUsuario = {
           email: email,
           password: password,
-          nombre_clinica: clinicName, // 🏢 ¡Cambiado de 'consultorio' a 'nombre_clinica'!
+          nombre_clinica: clinicName, 
           rol: role
         };
 
@@ -106,29 +111,29 @@ const handleSubmit = async (e) => {
         });
 
         if (respuesta.ok) {
-          alert('¡Cuenta creada exitosamente en HorizonFlow! Ahora inicia sesión.');
+          mostrarAlerta('exito', '¡Cuenta Creada!', 'Se ha creado tu cuenta en HorizonFlow. Ahora inicia sesión.'); 
           setActiveTab('login'); 
           setPassword(''); 
         } else {
           const errorData = await respuesta.json();
           const errorMsg = typeof errorData.detail === 'string' ? errorData.detail : 'Hubo un error al crear la cuenta.';
-          setFormErrors({ ...formErrors, email: errorMsg });
+          mostrarAlerta('error', 'Error de Registro', errorMsg); 
         }
       }
     } catch (error) {
       console.error("Error de servidor:", error);
-      alert("No se pudo conectar con el servidor. Verifica que FastAPI esté encendido y el CORS configurado.");
+      mostrarAlerta('error', 'Error de Conexión', 'No se pudo conectar con el servidor. Verifica que FastAPI esté encendido.'); 
     } finally {
       setIsLoading(false);
     }
-};
+  };
 
   const handleForgotPassword = (e) => {
     e.preventDefault();
     if (email) {
-      alert(`Se enviará un enlace de recuperación a ${email}.`);
+      mostrarAlerta('exito', 'Correo Enviado', `Se enviará un enlace de recuperación a ${email}.`); 
     } else {
-      alert('Ingresa tu email en el campo anterior para recuperar tu contraseña.');
+      mostrarAlerta('error', 'Falta el Correo', 'Ingresa tu email en el campo anterior para recuperar tu contraseña.'); 
     }
   };
 
@@ -232,7 +237,7 @@ const handleSubmit = async (e) => {
                       )}
                     </div>
 
-                    {/* Selector de Rol (CON ESTUDIANTE) */}
+                    {/* Selector de Rol */}
                     <div className="space-y-3 pt-1">
                       <div className="flex items-center justify-between">
                         <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">
@@ -502,5 +507,14 @@ const handleSubmit = async (e) => {
       )}
 
     </div>
+  );
+}
+
+// 🌟 3. EL HACK MAESTRO: ENVOLVEMOS TU COMPONENTE
+export default function LoginConAlertas(props) {
+  return (
+      <AlertaProvider>
+          <Login {...props} />
+      </AlertaProvider>
   );
 }
