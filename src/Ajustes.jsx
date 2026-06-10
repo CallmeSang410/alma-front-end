@@ -60,7 +60,7 @@ export default function Ajustes() {
     // MOCK DATA: Preferencias Globales
     const [preferenciasData, setPreferenciasData] = useState({
         anticipacion_alerta: parseInt(localStorage.getItem('hf_alerta_horas')) || 24,
-        tamanoFuente: 'normal' 
+        tamanoFuente: localStorage.getItem('hf_tamano_fuente') || 'normal' 
     });
 
     const [reporteBug, setReporteBug] = useState({ asunto: '', descripcion: '' });
@@ -85,6 +85,20 @@ if (activeTab === 'perfil') {
             // Disparamos un evento para que la Campanita se entere y actualice sus citas
             window.dispatchEvent(new Event('configuracionAlertasActualizada'));
         }
+
+        if (activeTab === 'temas') {
+            localStorage.setItem('hf_tamano_fuente', preferenciasData.tamanoFuente);
+            
+            // Cambiamos el tamaño base del documento HTML
+            if (preferenciasData.tamanoFuente === 'small') {
+                document.documentElement.style.fontSize = '14px'; // Más pequeño
+            } else if (preferenciasData.tamanoFuente === 'large') {
+                document.documentElement.style.fontSize = '18px'; // Más grande
+            } else {
+                document.documentElement.style.fontSize = '16px'; // Normal (Por defecto)
+            }
+        }
+
         setTimeout(() => {
             setIsSaving(false);
         }, 800);
