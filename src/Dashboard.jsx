@@ -19,6 +19,11 @@ const Dashboard = ({ onNavigateToReportes }) => {
     const [citasHoy, setCitasHoy] = useState([]);
     const [motivosConsulta, setMotivosConsulta] = useState([]);
     const [modalHistorialAbierto, setModalHistorialAbierto] = useState(false);
+    const [metricasNegocio, setMetricasNegocio] = useState({
+    ingresos: { monto: "$0.00", crecimiento: "0%" },
+    retencion: "0%",
+    horas_ahorradas: 0
+});
     const descartarAviso = (id) => {
         setPacientesInactivos(prev => prev.filter(paciente => paciente.id !== id));
     };
@@ -85,6 +90,13 @@ const Dashboard = ({ onNavigateToReportes }) => {
 
                 setMotivosConsulta(datosFormateados);
             }
+            // Agregalo en tu lista de fetches...
+            const resNegocio = await fetch(`${baseUrl}/dashboard/metricas-negocio`, { headers });
+
+            if (resNegocio.ok) {
+                const dataNegocio = await resNegocio.json();
+                setMetricasNegocio(dataNegocio);
+            }
             if (resAlertas.ok) {
                     const dataAlertas = await resAlertas.json();
                     setPacientesInactivos(dataAlertas);
@@ -98,53 +110,82 @@ const Dashboard = ({ onNavigateToReportes }) => {
         cargarDatosArriba();
     }, []);
 
-        // ================= KPIs CLÍNICOS (Conectados al Estado Mágico) =================
-    const crecimientoStr = datosKpi.pacientes.crecimiento || "0%";
-    let colorCrecimiento = "text-slate-400 font-medium"; // Gris por defecto si es 0%
+     
 
-    if (crecimientoStr.startsWith('+')) {
-        colorCrecimiento = "text-[#0D9488] font-bold"; // Verde si creció
-    } else if (crecimientoStr.startsWith('-')) {
-        colorCrecimiento = "text-rose-500 font-bold";  // Rojo si cayó
+   // ================= 1. KPIs CLÍNICOS (Tarjetas Blancas Superiores) =================
+    const crecimientoPacientes = String(datosKpi.pacientes?.crecimiento || "0%"); 
+    let colorCrecimientoPacientes = "text-slate-400 font-medium"; 
+    
+    if (crecimientoPacientes.startsWith('+')) {
+        colorCrecimientoPacientes = "text-[#0D9488] font-bold"; 
+    } else if (crecimientoPacientes.startsWith('-')) {
+        colorCrecimientoPacientes = "text-rose-500 font-bold";  
     }
 
-        const clinicaStats = [
-            { 
-                title: "Pacientes Activos", 
-                value: datosKpi.pacientes.total,        // 🌟 DATO REAL
-                trend: `${crecimientoStr} vs mes anterior`,  // 🌟 DATO REAL (Ej: "+15% vs mes anterior")
-                trendColor: colorCrecimiento,           // 🎨 COLOR DINÁMICO
-                icon: <UserCheck className="w-6 h-6" strokeWidth={2} />, 
-                color: "text-[#0D9488]", 
-                bg: "bg-teal-50", 
-                hasSparkline: true ,
-                // 🌟 AGREGAMOS EL BOTÓN AQUÍ:
-                actionButton: "VER HISTORIAL MENSUAL",
-                onActionClick: () => setModalHistorialAbierto(true),
-                // 🌟 AGREGAMOS ESTO: Le decimos explícitamente que NO es una alerta 
-        // para que no agarre el color rojo por defecto en tu .map de abajo
-                isAlert: false, 
-                buttonColorOverride: "bg-teal-600 hover:bg-teal-700 shadow-teal-600/20"
-            },
+    const clinicaStats = [
+        { 
+            title: "Pacientes Activos", 
+            value: datosKpi.pacientes?.total || 0,        
+            trend: `${crecimientoPacientes} vs mes anterior`,  
+            trendColor: colorCrecimientoPacientes,           
+            icon: <UserCheck className="w-6 h-6" strokeWidth={2} />, 
+            color: "text-[#0D9488]", 
+            bg: "bg-teal-50", 
+            hasSparkline: true,
+            actionButton: "VER HISTORIAL MENSUAL",
+            onActionClick: () => setModalHistorialAbierto(true),
+            isAlert: false, 
+            buttonColorOverride: "bg-teal-600 hover:bg-teal-700 shadow-teal-600/20" 
+        },
         { 
             title: "Expedientes por Actualizar", 
-            value: datosKpi.expedientes.pendientes, // 🌟 DATO REAL
-            trend: "Más de 24h sin notas clínicas",
-            trendColor: "text-rose-500 font-bold", 
+            value: datosKpi.expedientes?.pendientes || 0,
+            trend: "Más de 24h sin notas clínicas", 
+            trendColor: "text-rose-600 font-bold", 
             icon: <FileWarning className="w-6 h-6" strokeWidth={2} />, 
             color: "text-rose-600", 
-            bg: "bg-rose-50",
-            actionButton: "Redactar Reportes Ahora",
+            bg: "bg-rose-50", 
             isAlert: true,
+            actionButton: "REDACTAR REPORTES AHORA",
             onActionClick: () => setModalReportesAbierto(true)
         }
     ];
 
-    // ================= SALUD DEL CONSULTORIO (Negocio) =================
+    // ================= 2. MÉTRICAS DE NEGOCIO (Tarjetas Oscuras Inferiores) =================
+    const crecimientoIngresos = metricasNegocio.ingresos?.crecimiento || "0%";
+    let colorCrecimientoIngresos = "text-teal-200/60"; // Gris azulado por defecto (0%)
+    
+    if (crecimientoIngresos.startsWith('+')) colorCrecimientoIngresos = "text-emerald-400"; // Verde si ganó más
+    if (crecimientoIngresos.startsWith('-')) colorCrecimientoIngresos = "text-rose-400"; // Rojo si ganó menos
+
     const businessStats = [
-        { title: "Ingresos Estimados (Mes)", value: "$3,450", trend: "+15% vs mes anterior", icon: <DollarSign size={20}/>, color: "text-emerald-600", bg: "bg-emerald-50" },
-        { title: "Tasa de Retención", value: "82%", trend: "Agendaron 2da sesión", icon: <UserCheck size={20}/>, color: "text-blue-600", bg: "bg-blue-50" },
-        { title: "Nuevos Pacientes", value: "12", trend: "Expedientes abiertos este mes", icon: <UserPlus size={20}/>, color: "text-indigo-600", bg: "bg-indigo-50" }
+        {
+            title: "Ingresos Estimados (Mes)",
+            value: metricasNegocio.ingresos?.monto || "$0.00",
+            trend: `${crecimientoIngresos} vs mes anterior`,
+            trendColor: colorCrecimientoIngresos, 
+            icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+            color: "text-emerald-400",
+            bg: "bg-emerald-400/20"
+        },
+        {
+            title: "Tasa de Retención",
+            value: metricasNegocio.retencion || "0%",
+            trend: "Agendaron 2da sesión",
+            trendColor: "text-blue-300/80", 
+            icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>,
+            color: "text-blue-400",
+            bg: "bg-blue-400/20"
+        },
+        {
+            title: "Horas Ahorradas con IA",
+            value: `${metricasNegocio.horas_ahorradas || 0} hrs`,
+            trend: "Tiempo de redacción automatizado",
+            trendColor: "text-purple-300/80", 
+            icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>,
+            color: "text-purple-400",
+            bg: "bg-purple-400/20"
+        }
     ];
     // 🧠 MEMORIA: Calculamos y ordenamos el historial una sola vez, no cada vez que se abre el modal
     const historialOrdenado = useMemo(() => {
@@ -221,29 +262,31 @@ const Dashboard = ({ onNavigateToReportes }) => {
                     ))}
                 </div>
 
-                {/* ================= SALUD DEL CONSULTORIO (Métricas de Negocio) ================= */}
-                <div className="bg-[#113130] rounded-3xl p-6 sm:p-8 shadow-md">
-                    <div className="mb-6">
-                        <h2 className="text-lg font-black text-white">Salud del Consultorio</h2>
-                        <p className="text-xs text-teal-200/70 font-medium mt-1">Métricas financieras y de crecimiento del mes actual.</p>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        {businessStats.map((biz, idx) => (
-                            <div key={idx} className="bg-white/10 backdrop-blur-sm border border-white/10 rounded-2xl p-5 flex flex-col justify-between hover:bg-white/15 transition-colors">
-                                <div className="flex items-center justify-between mb-4">
-                                    <div className={`p-2.5 rounded-xl ${biz.bg} ${biz.color}`}>
-                                        {biz.icon}
+               {/* ================= SALUD DEL CONSULTORIO (Métricas de Negocio) ================= */}
+                    <div className="bg-[#113130] rounded-3xl p-6 sm:p-8 shadow-md">
+                        <div className="mb-6">
+                            <h2 className="text-lg font-black text-white">Salud del Consultorio</h2>
+                            <p className="text-xs text-teal-200/70 font-medium mt-1">Métricas financieras y de crecimiento del mes actual.</p>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            {businessStats.map((biz, idx) => (
+                                <div key={idx} className="bg-white/10 backdrop-blur-sm border border-white/10 rounded-2xl p-5 flex flex-col justify-between hover:bg-white/15 transition-colors">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className={`p-2.5 rounded-xl ${biz.bg} ${biz.color}`}>
+                                            {biz.icon}
+                                        </div>
+                                        <span className="text-white text-2xl font-black">{biz.value}</span>
                                     </div>
-                                    <span className="text-white text-2xl font-black">{biz.value}</span>
+                                    <div>
+                                        <p className="text-[11px] font-bold text-teal-100 uppercase tracking-wider">{biz.title}</p>
+                                        
+                                        {/* 🌟 AQUÍ EL CAMBIO MAGICO: Usamos el biz.trendColor dinámico */}
+                                        <p className={`text-xs mt-1 font-medium ${biz.trendColor}`}>{biz.trend}</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p className="text-[11px] font-bold text-teal-100 uppercase tracking-wider">{biz.title}</p>
-                                    <p className="text-xs text-teal-200/60 mt-1 font-medium">{biz.trend}</p>
-                                </div>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
-                </div>
 
                 {/* ================= LÍNEA DE TIEMPO HORIZONTAL DE CITAS ================= */}
                 <div className="bg-white p-6 rounded-[1.5rem] shadow-sm border border-slate-100 overflow-hidden relative">

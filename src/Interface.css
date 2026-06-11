@@ -90,3 +90,14 @@
   .cabecera-paciente h3 { font-size: 24px; }
   .seccion-expediente, .seccion-registro, .seccion-lista, .tarjeta-paciente { padding: 20px; }
 }
+
+@media print {
+    @page {
+        margin-top: 15mm;
+        margin-bottom: 15mm;
+    }
+    body {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+}

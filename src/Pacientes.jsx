@@ -408,20 +408,7 @@ const confirmDeletePatient = async () => {
                         ))}
                     </div>
                 )}
-            {/* MODAL DE ELIMINAR: PEGAR JUSTO ANTES DEL ÚLTIMO </div> DE LA VISTA */}
-                {patientToDelete && createPortal(
-                    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-                        <div className="absolute inset-0 bg-[#113130]/70 backdrop-blur-md" onClick={() => setPatientToDelete(null)}></div>
-                        <div className="bg-white rounded-[2rem] w-full max-w-sm p-8 relative z-10 text-center">
-                            <h3 className="text-2xl font-black text-[#113130] mb-3">¿Eliminar Expediente?</h3>
-                            <p className="text-sm text-slate-500 mb-8">Esta acción es permanente en HorizonFlow.</p>
-                            <div className="flex gap-3">
-                                <button onClick={() => setPatientToDelete(null)} className="w-full py-3.5 bg-slate-100 text-slate-600 rounded-xl text-[11px] font-black uppercase tracking-widest">Cancelar</button>
-                                <button onClick={confirmDeletePatient} className="w-full py-3.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-[11px] font-black uppercase tracking-widest transition-colors">Sí, Eliminar</button>
-                            </div>
-                        </div>
-                    </div>, document.body
-                )}
+          
             </div>
         );
     }
@@ -656,9 +643,24 @@ const confirmDeletePatient = async () => {
                                         );
                                     })}
                                 </div>
+                                
                             </div>
                         )}
                         </div>
+                          {/* MODAL DE ELIMINAR: PEGAR JUSTO ANTES DEL ÚLTIMO </div> DE LA VISTA */}
+                {patientToDelete && createPortal(
+                    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+                        <div className="absolute inset-0 bg-[#113130]/70 backdrop-blur-md" onClick={() => setPatientToDelete(null)}></div>
+                        <div className="bg-white rounded-[2rem] w-full max-w-sm p-8 relative z-10 text-center">
+                            <h3 className="text-2xl font-black text-[#113130] mb-3">¿Eliminar Expediente?</h3>
+                            <p className="text-sm text-slate-500 mb-8">Esta acción es permanente en HorizonFlow.</p>
+                            <div className="flex gap-3">
+                                <button onClick={() => setPatientToDelete(null)} className="w-full py-3.5 bg-slate-100 text-slate-600 rounded-xl text-[11px] font-black uppercase tracking-widest">Cancelar</button>
+                                <button onClick={confirmDeletePatient} className="w-full py-3.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-[11px] font-black uppercase tracking-widest transition-colors">Sí, Eliminar</button>
+                            </div>
+                        </div>
+                    </div>, document.body
+                )}
                 </div>
 {/* 🌟 MODAL DE NOTAS CLÍNICAS (MUDADO ADENTRO DE VISTA 2 PARA QUE NO SEA FANTASMA) */}
                 {isNoteModalOpen && selectedNote && createPortal(

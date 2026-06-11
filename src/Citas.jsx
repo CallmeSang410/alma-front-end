@@ -28,7 +28,16 @@ const Citas = () => {
     // ESTADOS PARA CREACIÓN RÁPIDA DE PACIENES
     const [isNewPatient, setIsNewPatient] = useState(false);
     const [newPatientData, setNewPatientData] = useState({ nombre: '', telefono: '' });
+    // ================= ESTADOS PARA EL BUSCADOR DE PACIENTES =================
+    const [busquedaPaciente, setBusquedaPaciente] = useState('');
+    const [mostrarListaPacientes, setMostrarListaPacientes] = useState(false);
 
+    // 🌟 Usando 'patientsList' en vez de 'patientsData'
+    const pacientesFiltrados = patientsList.filter(paciente => 
+        paciente.nombre.toLowerCase().includes(busquedaPaciente.toLowerCase()) || 
+        (paciente.telefono && paciente.telefono.includes(busquedaPaciente))
+    );
+    
     const [formData, setFormData] = useState({ 
         id: null, 
         paciente_id: '', 
@@ -36,7 +45,8 @@ const Citas = () => {
         time: '', 
         reason: '', 
         status: 'Pendiente',
-        atention: 'Presencial' 
+        atention: 'Presencial',
+        tarifa: '' // 🌟 NUEVO: Empezamos en blanco para que el doc escriba
     });
 
     // Bloqueo de scroll para el modal
@@ -79,7 +89,8 @@ const Citas = () => {
                         time: hora,
                         reason: cita.motivo,
                         status: cita.estado || "Pendiente",
-                        atention: cita.atencion || "Presencial"
+                        atention: cita.modalidad || "Presencial", // Ojo: tu backend manda "modalidad"
+                        tarifa: cita.tarifa || 0 // 🌟 NUEVO: Atrapamos el billete que viene del backend
                     };
                 });
 
@@ -111,7 +122,8 @@ const Citas = () => {
                 time: '', 
                 reason: '', 
                 status: 'Pendiente',
-                atention: 'Presencial' 
+                atention: 'Presencial', 
+                tarifa: '' // 🌟 NUEVO: Empezamos en blanco para que el doc escriba
             });
         }
         setView('form');
@@ -131,6 +143,8 @@ const Citas = () => {
         if (!formData.time.trim()) errors.time = true;
         if (!formData.reason.trim()) errors.reason = true;
         if (!formData.atention.trim()) errors.atention = true;
+        // 🌟 Validamos que no dejen la tarifa vacía o en negativo
+        if (formData.tarifa === '' || isNaN(formData.tarifa) || Number(formData.tarifa) < 0) errors.tarifa = true;
 
         if (Object.keys(errors).length > 0) {
             setFormErrors(errors);
@@ -172,7 +186,8 @@ const Citas = () => {
                 motivo: formData.reason,
                 fecha_cita: fechaCombinada,
                 modalidad: formData.atention,
-                estado: formData.status
+                estado: formData.status,
+                tarifa: parseFloat(formData.tarifa) // 🌟 NUEVO: Convertimos a decimal y lo mandamos al backend
             };
 
             let url = '';
@@ -255,18 +270,30 @@ const Citas = () => {
         }
     };
 
+    // ================= FILTRADO Y HELPERS VISUALES =================
     const filteredAppointments = appointments.filter(appt => {
+        // 1. Filtro de búsqueda (texto)
         const matchesSearch = appt.patientName.toLowerCase().includes(searchQuery.toLowerCase()) || 
                               appt.reason.toLowerCase().includes(searchQuery.toLowerCase());
         
-        let matchesFilter;
+        // 2. Filtro de Estado
+        let matchesStatus;
         if (filterStatus === 'Todas') {
-            matchesFilter = appt.status.toLowerCase() !== 'completada'; 
+            matchesStatus = appt.status.toLowerCase() !== 'completada'; 
         } else {
-            matchesFilter = appt.status === filterStatus;
+            matchesStatus = appt.status === filterStatus;
         }
 
-        return matchesSearch && matchesFilter;
+        // 3. 🌟 EL FILTRO NUEVO DE MODALIDAD
+        let matchesAtention;
+        if (filterAtention === 'Todas') {
+            matchesAtention = true;
+        } else {
+            matchesAtention = appt.atention === filterAtention;
+        }
+
+        // La cita solo se muestra si pasa los 3 filtros
+        return matchesSearch && matchesStatus && matchesAtention;
     });
 
     const getStatusStyles = (status) => {
@@ -369,9 +396,22 @@ const Citas = () => {
                                                 <h3 className="text-base font-black text-[#113130] leading-tight truncate max-w-[150px] sm:max-w-[200px]" title={appt.patientName}>{appt.patientName}</h3>
                                             </div>
                                         </div>
-                                        <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md border ${getStatusStyles(appt.status)}`}>
-                                            {appt.status}
-                                        </span>
+                                        {/* 🌟 Contenedor para apilar las etiquetas a la derecha */}
+                                            <div className="flex flex-col items-end gap-1.5">
+                                                {/* Etiqueta de Estado */}
+                                                <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md border shadow-sm ${getStatusStyles(appt.status)}`}>
+                                                    {appt.status}
+                                                </span>
+                                                
+                                                {/* 🌟 NUEVA: Etiqueta de Modalidad */}
+                                                <span className={`text-[8px] font-bold uppercase tracking-widest px-2 py-0.5 rounded border flex items-center gap-1 ${getAtentionStyles(appt.atention)}`}>
+                                                    {/* Iconito según la modalidad para darle el toque premium */}
+                                                    {appt.atention === 'Virtual' && <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>}
+                                                    {appt.atention === 'A domicilio' && <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>}
+                                                    {appt.atention === 'Presencial' && <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>}
+                                                    {appt.atention}
+                                                </span>
+                                            </div>
                                     </div>
                                     
                                     <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-50 space-y-3">
@@ -468,28 +508,96 @@ const Citas = () => {
                         )}
 
                         <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100 space-y-4">
+                           {/* ================= SECCIÓN DE SELECCIÓN DE PACIENTE ================= */}
                             {!isNewPatient ? (
-                                <div>
+                                <div className="relative animate-fade-in z-50">
                                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
                                         Seleccionar Paciente <span className="text-rose-500">*</span>
                                     </label>
-                                    <select 
-                                        value={formData.paciente_id} 
-                                        onChange={(e) => setFormData({...formData, paciente_id: e.target.value})} 
-                                        required
-                                        disabled={formData.id !== null}
-                                        className={`w-full rounded-2xl px-4 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.paciente_id ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-white border-slate-200 focus:ring-[#0F766E] border'}`} 
-                                    >
-                                        <option value="" disabled>Elige del directorio...</option>
-                                        {patientsList.map(paciente => (
-                                            <option key={paciente.id} value={paciente.id}>
-                                                {paciente.nombre} {paciente.telefono ? `- Tel: ${paciente.telefono}` : ''}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    
+                                    {/* 🔍 EL INPUT QUE ACTÚA COMO BUSCADOR */}
+                                    <div className="relative">
+                                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                            <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                                        </div>
+                                        <input 
+                                            type="text"
+                                            value={busquedaPaciente}
+                                            onChange={(e) => {
+                                                setBusquedaPaciente(e.target.value);
+                                                setMostrarListaPacientes(true);
+                                                // Si borran todo, limpiamos el ID seleccionado para evitar agendarle a la nada
+                                                if (e.target.value === '') {
+                                                    setFormData({...formData, paciente_id: ''});
+                                                }
+                                            }}
+                                            onClick={() => setMostrarListaPacientes(true)}
+                                            placeholder="Buscar por nombre o teléfono..."
+                                            disabled={formData.id !== null} // Mantenemos tu lógica de deshabilitar al editar
+                                            className={`w-full rounded-2xl pl-11 pr-10 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.paciente_id ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-white border-slate-200 focus:ring-[#0F766E] border'} ${formData.id !== null ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        />
+                                        
+                                        {/* Botón de "X" para limpiar la búsqueda rápidamente */}
+                                        {busquedaPaciente && formData.id === null && (
+                                            <button 
+                                                type="button"
+                                                onClick={() => {
+                                                    setBusquedaPaciente('');
+                                                    setFormData({...formData, paciente_id: ''}); 
+                                                    setMostrarListaPacientes(true);
+                                                }}
+                                                className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-300 hover:text-rose-500 transition-colors"
+                                            >
+                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {/* 📋 LA LISTA DESPLEGABLE ELEGANTE */}
+                                    {mostrarListaPacientes && formData.id === null && (
+                                        <div className="absolute w-full mt-2 bg-white border border-slate-100 rounded-xl shadow-xl max-h-60 overflow-y-auto z-50 animate-fade-in">
+                                            {pacientesFiltrados.length > 0 ? (
+                                                <ul className="py-2">
+                                                    {pacientesFiltrados.map((paciente) => (
+                                                        <li 
+                                                            key={paciente.id}
+                                                            onClick={() => {
+                                                                setFormData({...formData, paciente_id: paciente.id});
+                                                                setBusquedaPaciente(`${paciente.nombre} ${paciente.telefono ? `- Tel: ${paciente.telefono}` : ''}`);
+                                                                setMostrarListaPacientes(false);
+                                                            }}
+                                                            className="px-5 py-3 hover:bg-teal-50 cursor-pointer transition-colors border-b border-slate-50 last:border-0 flex flex-col"
+                                                        >
+                                                            <span className="text-sm font-bold text-[#113130]">{paciente.nombre}</span>
+                                                            {paciente.telefono && (
+                                                                <span className="text-[11px] font-medium text-slate-500 flex items-center gap-1 mt-0.5">
+                                                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                                                                    {paciente.telefono}
+                                                                </span>
+                                                            )}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            ) : (
+                                                <div className="p-5 text-center text-sm text-slate-400 font-medium">
+                                                    No se encontró ningún paciente 🔍
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                    
+                                    {/* Capa invisible para cerrar al hacer clic afuera */}
+                                    {mostrarListaPacientes && (
+                                        <div 
+                                            className="fixed inset-0 z-40" 
+                                            onClick={() => setMostrarListaPacientes(false)}
+                                        ></div>
+                                    )}
+
                                     {formErrors.paciente_id && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Debes seleccionar un paciente</p>}
                                 </div>
                             ) : (
+                                // ... Tu código original del <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in"> se queda intacto aquí abajo ...
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in">
                                     <div>
                                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nombre Completo <span className="text-rose-500">*</span></label>
@@ -560,7 +668,8 @@ const Citas = () => {
                             {formErrors.reason && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Especifica el motivo</p>}
                         </div>
 
-                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                       {/* 🌟 CAMBIO: Pasamos de grid-cols-2 a grid-cols-3 para meter la Tarifa */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div>
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
                                     Modalidad <span className="text-rose-500">*</span>
@@ -589,6 +698,27 @@ const Citas = () => {
                                     <option value="Reservada">Reservada</option>
                                     <option value="Cancelada">Cancelada</option>
                                 </select>
+                            </div>
+
+                            {/* 🌟 NUEVO: Input de Tarifa Premium */}
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                                    Tarifa ($) <span className="text-rose-500">*</span>
+                                </label>
+                                <div className="relative">
+                                    {/* Iconito de Dólar flotante */}
+                                    <span className="absolute left-4 top-4 text-slate-400 font-bold">$</span>
+                                    <input 
+                                        type="number" 
+                                        min="0"
+                                        step="0.50"
+                                        value={formData.tarifa} 
+                                        onChange={(e) => setFormData({...formData, tarifa: e.target.value})} 
+                                        placeholder="0.00" 
+                                        className={`w-full rounded-2xl pl-8 pr-4 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.tarifa ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-slate-50 border-slate-200 focus:ring-[#0F766E] border'}`} 
+                                    />
+                                </div>
+                                {formErrors.tarifa && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Ingresa una tarifa válida</p>}
                             </div>
                         </div>
 

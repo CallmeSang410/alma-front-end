@@ -208,7 +208,16 @@ export default function Interface({ onLogout }) {
         return () => window.removeEventListener('perfilActualizado', actualizarPerfil);
     }, []);
   
-
+    const formatearTextoChat = (texto) => {
+        // Esta magia agarra todo lo que esté entre ** y lo convierte en <strong> (negrita)
+        const partes = texto.split(/(\*\*.*?\*\*)/g);
+        return partes.map((parte, i) => {
+            if (parte.startsWith('**') && parte.endsWith('**')) {
+                return <strong key={i} className="font-black text-[#0F766E]">{parte.slice(2, -2)}</strong>;
+            }
+            return <span key={i}>{parte}</span>;
+        });
+    };
    const handleEnviarMensaje = async (e) => {
         e.preventDefault();
         if (!chatInput.trim()) return;
@@ -252,22 +261,21 @@ export default function Interface({ onLogout }) {
         } finally {
             setCargandoChat(false);
         }
+        // 🌟 FORMATEADOR NINJA PARA EL CHATBOT
+    
     };
 
-    return (
-        <div className="min-h-screen font-sans bg-[#F4F8F8] text-[#113130] flex flex-col lg:flex-row antialiased relative">
+   return (
+        // 🌟 1. FONDO BLANCO AL IMPRIMIR: print:bg-white
+        <div className="min-h-screen font-sans bg-[#F4F8F8] print:bg-white text-[#113130] flex flex-col lg:flex-row antialiased relative">
         
-      {/* ================= CABECERA MÓVIL ================= */}
-        <div className="lg:hidden flex items-center justify-between p-4 bg-[#0F766E] text-white shadow-md relative py-6">
-            {/* Contenedor invisible para empujar el logo al centro exacto */}
+        {/* ================= CABECERA MÓVIL ================= */}
+        {/* 🌟 2. OCULTAMOS EL HEADER MÓVIL: print:hidden */}
+        <div className="lg:hidden flex items-center justify-between p-4 bg-[#0F766E] text-white shadow-md relative py-6 print:hidden">
             <div className="w-10 h-10 invisible" />
-            
-            {/* Logo en versión Móvil: Se usa w-48 (ancho grande) y scale-110 para que destaque mucho más */}
             <div className="flex items-center justify-center flex-1">
                 <img src={logoEmpresa} alt="HorizonFlow logo" className="w-48 h-auto object-contain transform scale-110" />
             </div>
-            
-            {/* Botón Hamburguesa Responsivo */}
             <button 
                 onClick={() => setSidebarOpen(!sidebarOpen)}
                 className="p-2 hover:bg-white/10 rounded-lg transition-colors focus:outline-none z-10"
@@ -279,42 +287,40 @@ export default function Interface({ onLogout }) {
         </div>
 
         {/* ================= 1. BARRA LATERAL (PC Y MÓVIL DESLIZABLE) ================= */}
-     <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#0F766E] text-white flex flex-col justify-between transform lg:transform-none lg:opacity-100 lg:sticky lg:top-0 lg:h-screen transition-all duration-300 ease-out shrink-0 shadow-xl lg:shadow-none ${sidebarOpen ? 'translate-x-0 opacity-100' : '-translate-x-full lg:translate-x-0'}`}>
+        {/* 🌟 3. OCULTAMOS EL SIDEBAR: print:hidden */}
+        <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#0F766E] text-white flex flex-col justify-between transform lg:transform-none lg:opacity-100 lg:sticky lg:top-0 lg:h-screen transition-all duration-300 ease-out shrink-0 shadow-xl lg:shadow-none print:hidden ${sidebarOpen ? 'translate-x-0 opacity-100' : '-translate-x-full lg:translate-x-0'}`}>
             <div className="flex flex-col">
-           {/* CONTENEDOR DEL LOGO (MÁXIMO TAMAÑO) */}
-            <div className="w-full pt-8 pb-4 px-2 flex flex-col items-center relative">
-                <img 
-                    src={logoEmpresa} 
-                    alt="Logo" 
-                    className="w-full h-auto max-w-[250px] object-contain transform scale-110" 
-                />
-                <button 
-                    onClick={() => setSidebarOpen(false)} 
-                    className="lg:hidden absolute right-4 top-4 text-white/70 hover:text-white z-10"
-                >
-                    ✕
-                </button>
+                <div className="w-full pt-8 pb-4 px-2 flex flex-col items-center relative">
+                    <img 
+                        src={logoEmpresa} 
+                        alt="Logo" 
+                        className="w-full h-auto max-w-[250px] object-contain transform scale-110" 
+                    />
+                    <button 
+                        onClick={() => setSidebarOpen(false)} 
+                        className="lg:hidden absolute right-4 top-4 text-white/70 hover:text-white z-10"
+                    >
+                        ✕
+                    </button>
+                </div>
+
+                <nav className="flex-1 pl-4 space-y-1 mt-2">
+                    {menuItems.map((item) => {
+                        const activo = activeTab === item.id;
+                        return (
+                            <button
+                                key={item.id}
+                                onClick={() => { setActiveTab(item.id); setSidebarOpen(false); }}
+                                className={`w-full flex items-center gap-4 px-5 py-3 text-xs font-bold uppercase tracking-wider nav-button transition-transform duration-300 ${activo ? 'active-nav-curve text-[#0F766E] font-black' : 'text-teal-100/75 hover:text-white hover:translate-x-1.5'}`}
+                            >
+                                <span className={`transition-colors duration-200 ${activo ? 'text-[#0F766E]' : 'text-teal-200'}`}>{item.icon}</span>
+                                <span>{item.label}</span>
+                            </button>
+                        );
+                    })}
+                </nav>
             </div>
 
-               {/* NAV COMPACTO (CORREGIDO: Eliminamos el overflow que rompía las curvas) */}
-            <nav className="flex-1 pl-4 space-y-1 mt-2">
-                {menuItems.map((item) => {
-                    const activo = activeTab === item.id;
-                    return (
-                        <button
-                            key={item.id}
-                            onClick={() => { setActiveTab(item.id); setSidebarOpen(false); }}
-                            className={`w-full flex items-center gap-4 px-5 py-3 text-xs font-bold uppercase tracking-wider nav-button transition-transform duration-300 ${activo ? 'active-nav-curve text-[#0F766E] font-black' : 'text-teal-100/75 hover:text-white hover:translate-x-1.5'}`}
-                        >
-                            <span className={`transition-colors duration-200 ${activo ? 'text-[#0F766E]' : 'text-teal-200'}`}>{item.icon}</span>
-                            <span>{item.label}</span>
-                        </button>
-                    );
-                })}
-            </nav>
-            </div>
-
-            {/* Botón de Log Out */}
             <div className="p-6">
                 <button 
                     onClick={() => setShowLogoutModal(true)}
@@ -326,21 +332,24 @@ export default function Interface({ onLogout }) {
             </div>
         </aside>
 
-        {/* Fondo protector oscuro difuminado para interacción móvil */}
         {sidebarOpen && (
             <div 
                 onClick={() => setSidebarOpen(false)}
-                className="fixed inset-0 z-40 bg-[#113130]/40 backdrop-blur-xs lg:hidden"
+                className="fixed inset-0 z-40 bg-[#113130]/40 backdrop-blur-xs lg:hidden print:hidden"
             ></div>
         )}
         
         {/* ================= CONTENEDOR CENTRAL (PANEL DE CONTENIDO) ================= */}
-        <div className="flex-1 flex flex-col min-h-screen overflow-x-hidden bg-[#F4F8F8]">
+        {/* 🌟 4. FONDO BLANCO AL IMPRIMIR: print:bg-white */}
+       <div className="flex-1 flex flex-col min-h-screen overflow-x-hidden bg-[#F4F8F8] print:bg-white print:overflow-visible print:h-auto print:min-h-0 print:block">
             
-            {/* Cabecera Superior (Header) - Mantiene su adaptabilidad móvil impecable */}
-            <header className="px-6 lg:px-8 py-5 bg-transparent flex flex-col md:flex-row items-center justify-between gap-4 border-b border-teal-100/30">
+            {/* Cabecera Superior (Header) */}
+            {/* 🌟 5. OCULTAMOS EL HEADER SUPERIOR: print:hidden */}
+            <header className="px-6 lg:px-8 py-5 bg-transparent flex flex-col md:flex-row items-center justify-between gap-4 border-b border-teal-100/30 print:hidden">
                 
-                {/* Buscador */}
+                {/* ... (Todo el contenido de tu header: Buscador, Perfil, Calendario, Idiomas) ... */}
+                {/* Nota: Dejé este código exacto como lo tenías, solo le agregué el print:hidden a la etiqueta <header> */}
+                
                 <div className="relative w-full md:max-w-md">
                     <input
                         type="text"
@@ -356,12 +365,8 @@ export default function Interface({ onLogout }) {
                     </span>
                 </div>
 
-                {/* Perfil del Usuario e Idiomas Responsivo */}
                 <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 sm:gap-4 w-full md:w-auto mt-2 md:mt-0">
-                    
-                    {/* CONTENEDOR DE ICONOS Y ALARMAS */}
                     <div className="flex items-center gap-2 sm:gap-4 z-50 relative">
-                        {/* Botón de Idioma */}
                         <div className="relative z-50">
                             <div 
                                 onClick={() => setLangMenuOpen(!langMenuOpen)}
@@ -371,32 +376,15 @@ export default function Interface({ onLogout }) {
                                 <span className="text-[8px] text-teal-600">▼</span>
                             </div>
 
-                            {/* Dropdown de opciones */}
                             {langMenuOpen && (
                                 <div className="absolute top-full left-0 mt-2 w-full min-w-[70px] bg-white border border-teal-100/60 rounded-xl shadow-lg overflow-hidden animate-fade-in">
-                                    <button 
-                                        onClick={() => changeLanguage('es')} 
-                                        className="block w-full text-center px-3 py-2 text-xs font-bold text-[#113130] hover:bg-teal-50 hover:text-[#0F766E] transition-colors"
-                                    >
-                                        ES
-                                    </button>
-                                    <button 
-                                        onClick={() => changeLanguage('en')} 
-                                        className="block w-full text-center px-3 py-2 text-xs font-bold text-[#113130] hover:bg-teal-50 hover:text-[#0F766E] transition-colors"
-                                    >
-                                        EN
-                                    </button>
-                                    <button 
-                                        onClick={() => changeLanguage('pt')} 
-                                        className="block w-full text-center px-3 py-2 text-xs font-bold text-[#113130] hover:bg-teal-50 hover:text-[#0F766E] transition-colors"
-                                    >
-                                        POR
-                                    </button>
+                                    <button onClick={() => changeLanguage('es')} className="block w-full text-center px-3 py-2 text-xs font-bold text-[#113130] hover:bg-teal-50 hover:text-[#0F766E] transition-colors">ES</button>
+                                    <button onClick={() => changeLanguage('en')} className="block w-full text-center px-3 py-2 text-xs font-bold text-[#113130] hover:bg-teal-50 hover:text-[#0F766E] transition-colors">EN</button>
+                                    <button onClick={() => changeLanguage('pt')} className="block w-full text-center px-3 py-2 text-xs font-bold text-[#113130] hover:bg-teal-50 hover:text-[#0F766E] transition-colors">POR</button>
                                 </div>
                             )}
                         </div>
                         
-                        {/* Botón de Calendario */}
                         <div className="relative">
                             <button 
                                 onClick={() => setShowCalendar(!showCalendar)}
@@ -408,15 +396,10 @@ export default function Interface({ onLogout }) {
                                 <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#14B8A6] rounded-full"></span>
                             </button>
                             
-                            {/* Popup del Calendario */}
                             {showCalendar && (
                                 <div className="absolute top-full right-0 mt-3 w-72 sm:w-80 bg-white rounded-2xl shadow-2xl border border-teal-100/30 p-5 z-[100] animate-fade-in">
-                                    {/* Encabezado del Calendario */}
                                     <div className="flex items-center justify-between mb-4">
-                                        <button 
-                                            onClick={handlePrevMonth}
-                                            className="p-1.5 hover:bg-teal-50 rounded-lg transition-colors"
-                                        >
+                                        <button onClick={handlePrevMonth} className="p-1.5 hover:bg-teal-50 rounded-lg transition-colors">
                                             <svg className="w-4 h-4 text-[#113130]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
                                             </svg>
@@ -427,97 +410,66 @@ export default function Interface({ onLogout }) {
                                             <p className="text-xs text-slate-500">{currentYear}</p>
                                         </div>
                                         
-                                        <button 
-                                            onClick={handleNextMonth}
-                                            className="p-1.5 hover:bg-teal-50 rounded-lg transition-colors"
-                                        >
+                                        <button onClick={handleNextMonth} className="p-1.5 hover:bg-teal-50 rounded-lg transition-colors">
                                             <svg className="w-4 h-4 text-[#113130]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
                                             </svg>
                                         </button>
                                     </div>
                                     
-                                    {/* Días de la semana */}
                                     <div className="grid grid-cols-7 gap-1.5 mb-3">
                                         {dayNames.map(day => (
-                                            <div key={day} className="h-7 flex items-center justify-center text-xs font-bold text-[#0F766E]">
-                                                {day}
-                                            </div>
+                                            <div key={day} className="h-7 flex items-center justify-center text-xs font-bold text-[#0F766E]">{day}</div>
                                         ))}
                                     </div>
                                     
-                                    {/* Días del mes */}
                                     <div className="grid grid-cols-7 gap-1.5 mb-4">
                                         {renderCalendar()}
                                     </div>
                                     
-                                    {/* Información de la cita */}
                                     {isAppointmentDay(appointmentDate.getDate()) && (
                                         <div className="bg-gradient-to-r from-teal-50 to-cyan-50 rounded-xl p-3 border border-[#14B8A6]/20">
                                             <p className="text-xs font-bold text-[#113130] mb-1">📅 Cita Programada</p>
-                                            <p className="text-xs text-slate-600">
-                                                Paciente: <span className="font-bold text-[#0F766E]">Juan Pérez</span>
-                                            </p>
-                                            <p className="text-xs text-slate-600">
-                                                Hora: <span className="font-bold text-[#0F766E]">10:30 AM</span>
-                                            </p>
+                                            <p className="text-xs text-slate-600">Paciente: <span className="font-bold text-[#0F766E]">Juan Pérez</span></p>
+                                            <p className="text-xs text-slate-600">Hora: <span className="font-bold text-[#0F766E]">10:30 AM</span></p>
                                         </div>
                                     )}
                                     
-                                    {/* Botón cerrar */}
-                                    <button 
-                                        onClick={() => setShowCalendar(false)}
-                                        className="w-full mt-4 py-2 text-xs font-bold bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-lg transition-colors"
-                                    >
-                                        Cerrar
-                                    </button>
+                                    <button onClick={() => setShowCalendar(false)} className="w-full mt-4 py-2 text-xs font-bold bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-lg transition-colors">Cerrar</button>
                                 </div>
                             )}
                         </div>
                         
-                        {/* 🌟 AQUÍ VA TU COMPONENTE ESTRELLA 🌟 */}
                         <CampanaAlertas />
-                        
                     </div>
 
                     <div className="hidden sm:block h-6 w-px bg-teal-200/50"></div>
 
-                    {/* Perfil del Usuario */}
-                   <div className="relative z-40">
-                        {/* Botón Principal del Perfil */}
+                    <div className="relative z-40">
                         <button 
                             onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
                             className={`flex items-center gap-3 px-3.5 py-1.5 rounded-full shadow-xs border transition-all text-left ${isProfileMenuOpen ? 'bg-teal-50 border-[#0F766E]/30' : 'bg-white border-teal-100/40 hover:bg-teal-50/50'}`}
                         >
                             <div className="w-7 h-7 rounded-full bg-[#0D9488] text-white flex items-center justify-center font-black text-xs uppercase shadow-inner">
-                                {perfilNombre.charAt(0)} {/* Toma la primera letra del nombre */}
+                                {perfilNombre.charAt(0)}
                             </div>
                             <div className="overflow-hidden">
-                                <h4 className="text-xs font-extrabold text-[#113130] truncate max-w-[120px] sm:max-w-none">
-                                    {perfilNombre}
-                                </h4>
+                                <h4 className="text-xs font-extrabold text-[#113130] truncate max-w-[120px] sm:max-w-none">{perfilNombre}</h4>
                                 <p className="text-[9px] text-[#0D9488] font-bold uppercase tracking-wider">Administrador</p>
                             </div>
                         </button>
 
-                        {/* Dropdown del Perfil (Correo y Engranaje) */}
                         {isProfileMenuOpen && (
                             <div className="absolute top-full right-0 mt-2 w-56 bg-white border border-teal-100/60 rounded-xl shadow-lg overflow-hidden animate-fade-in p-4 z-50">
-                                
                                 <div className="mb-3">
                                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Correo Registrado</p>
                                     <p className="text-xs font-medium text-[#113130] truncate">
                                         {perfilEmail ? perfilEmail : <span className="text-slate-400 italic">No configurado</span>}
                                     </p>
                                 </div>
-
-                                {/* Botón de engranaje posicionado a la derecha */}
                                 <div className="flex justify-end border-t border-slate-100 pt-3">
                                     <button 
-                                        onClick={() => {
-                                            setIsProfileMenuOpen(false); // Cerramos el menú
-                                            setActiveTab('settings');    // Navegamos a la pantalla de Ajustes
-                                        }}
+                                        onClick={() => { setIsProfileMenuOpen(false); setActiveTab('settings'); }}
                                         className="p-1.5 text-slate-400 hover:text-[#0F766E] hover:bg-teal-50 rounded-lg transition-colors flex items-center gap-1.5"
                                         title="Configurar Perfil"
                                     >
@@ -535,14 +487,15 @@ export default function Interface({ onLogout }) {
             </header>
 
             {/* Área de Contenido Dinámico */}
-            <div className="flex-1 p-6 lg:p-8 animate-fade-in">
+            {/* 🌟 6. ELIMINAMOS EL PADDING AL IMPRIMIR: print:p-0 */}
+            <div className="flex-1 p-6 lg:p-8 animate-fade-in print:p-0">
                 {renderContent()}
             </div>
         </div>
 
         {/* ================= MODAL DE LOGOUT SEGURO ================= */}
         {showLogoutModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 print:hidden">
                 <div 
                     className="absolute inset-0 bg-[#113130]/50 backdrop-blur-xs transition-opacity duration-300"
                     onClick={() => setShowLogoutModal(false)}
@@ -558,50 +511,33 @@ export default function Interface({ onLogout }) {
                         </p>
                     </div>
                     <div className="flex gap-3 pt-2">
-                        <button
-                            onClick={() => setShowLogoutModal(false)}
-                            className="flex-1 py-2.5 px-4 bg-slate-50 hover:bg-slate-100 rounded-xl text-xs font-bold uppercase tracking-wider text-slate-500 transition-colors"
-                        >
-                            Cancelar
-                        </button>
-                        <button
-                            onClick={() => {
-                                setShowLogoutModal(false);
-                                onLogout();
-                            }}
-                            className="flex-1 py-2.5 px-4 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-md shadow-rose-500/20 transition-colors"
-                        >
-                            Cerrar Sesión
-                        </button>
+                        <button onClick={() => setShowLogoutModal(false)} className="flex-1 py-2.5 px-4 bg-slate-50 hover:bg-slate-100 rounded-xl text-xs font-bold uppercase tracking-wider text-slate-500 transition-colors">Cancelar</button>
+                        <button onClick={() => { setShowLogoutModal(false); onLogout(); }} className="flex-1 py-2.5 px-4 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-md shadow-rose-500/20 transition-colors">Cerrar Sesión</button>
                     </div>
                 </div>
             </div>
         )}
         
-        {/* ========================================================= */}
-        {/* CHATBOT GLOBAL (NIVEL INTERFAZ)                             */}
-        {/* ========================================================= */}
-        
-        {/* 1. Botón Flotante */}
+        {/* ================= CHATBOT GLOBAL ================= */}
+        {/* 🌟 7. OCULTAMOS EL BOTÓN DEL CHAT AL IMPRIMIR: print:hidden */}
         <button 
             onClick={() => setIsChatOpen(true)}
-            className="fixed bottom-6 right-6 lg:bottom-10 lg:right-10 w-14 h-14 bg-[#0F766E] text-white rounded-full shadow-2xl flex items-center justify-center hover:bg-[#0D9488] transition-transform hover:scale-105 z-[60] focus:outline-none"
+            className="fixed bottom-6 right-6 lg:bottom-10 lg:right-10 w-14 h-14 bg-[#0F766E] text-white rounded-full shadow-2xl flex items-center justify-center hover:bg-[#0D9488] transition-transform hover:scale-105 z-[60] focus:outline-none print:hidden"
         >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
             <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-rose-500 border-2 border-white rounded-full"></span>
         </button>
 
-        {/* 2. Fondo oscuro */}
+        {/* 🌟 8. OCULTAMOS EL PANEL DEL CHAT AL IMPRIMIR: print:hidden */}
         {isChatOpen && (
             <div 
-                className="fixed inset-0 bg-[#113130]/30 backdrop-blur-sm z-[70] transition-opacity"
+                className="fixed inset-0 bg-[#113130]/30 backdrop-blur-sm z-[70] transition-opacity print:hidden"
                 onClick={() => setIsChatOpen(false)}
             ></div>
         )}
 
-        {/* 3. Barra Lateral del Chatbot */}
-        <div className={`fixed top-0 right-0 h-full w-full sm:w-[400px] bg-white shadow-2xl z-[80] transform transition-transform duration-300 ease-in-out flex flex-col ${isChatOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-            {/* Cabecera */}
+        <div className={`fixed top-0 right-0 h-full w-full sm:w-[400px] bg-white shadow-2xl z-[80] transform transition-transform duration-300 ease-in-out flex flex-col print:hidden ${isChatOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+            {/* ... Todo el interior del chat sigue igualito ... */}
             <div className="bg-slate-50 p-5 border-b border-slate-100 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-[#0F766E]/10 flex items-center justify-center text-[#0F766E] shadow-sm border border-teal-100">
@@ -620,22 +556,17 @@ export default function Interface({ onLogout }) {
                 </button>
             </div>
 
-            {/* Área de Mensajes Dinámica */}
             <div className="flex-1 p-5 bg-white flex flex-col gap-4 overflow-y-auto">
                 {mensajesChat.map((msg, idx) => (
                     <div key={idx} className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        {/* 🌟 AQUÍ ESTÁ EL CAMBIO: agregué whitespace-pre-wrap 🌟 */}
-                        <div className={`p-3.5 text-xs font-medium leading-relaxed max-w-[85%] shadow-sm whitespace-pre-wrap ${
-                            msg.role === 'user' 
-                            ? 'bg-[#0F766E] rounded-2xl rounded-tr-sm text-white shadow-md' 
-                            : 'bg-slate-50 rounded-2xl rounded-tl-sm border border-slate-100 text-slate-600'
-                        }`}>
-                            {msg.parts[0].text}
+                        <div className={`p-3.5 text-xs font-medium leading-relaxed max-w-[85%] shadow-sm whitespace-pre-wrap ${msg.role === 'user' ? 'bg-[#0F766E] rounded-2xl rounded-tr-sm text-white shadow-md' : 'bg-slate-50 rounded-2xl rounded-tl-sm border border-slate-100 text-slate-600'}`}>
+                            
+                            {/* 🌟 AQUÍ USAMOS EL FORMATEADOR */}
+                            {msg.role === 'user' ? msg.parts[0].text : formatearTextoChat(msg.parts[0].text)}
+                            
                         </div>
                     </div>
                 ))}
-                
-                {/* Animación de "Escribiendo..." */}
                 {cargandoChat && (
                     <div className="flex gap-2 justify-start">
                         <div className="bg-slate-50 p-3.5 rounded-2xl rounded-tl-sm border border-slate-100 text-slate-400 flex items-center gap-1">
@@ -647,7 +578,6 @@ export default function Interface({ onLogout }) {
                 )}
             </div>
 
-            {/* Input de Texto Formulario */}
             <div className="p-5 border-t border-slate-100 bg-slate-50">
                 <form onSubmit={handleEnviarMensaje} className="relative">
                     <input 

@@ -59,14 +59,22 @@ const Reportes = () => {
     const [step, setStep] = useState(1);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [formErrors, setFormErrors] = useState({});
+// ================= ESTADOS PARA EL BUSCADOR DE CITAS EN REPORTES =================
+    const [busquedaCita, setBusquedaCita] = useState('');
+    const [mostrarListaCitas, setMostrarListaCitas] = useState(false);
 
+    // Filtramos las citas en tiempo real según lo que escriba el psicólogo
+    const citasFiltradas = availableAppointments.filter(cita => 
+        cita.labelVisual.toLowerCase().includes(busquedaCita.toLowerCase())
+    );
 const initialFormState = {
         cita_id: '', 
         reason: '', 
         interviewNotes: '', 
         testsUsed: [], 
         otherTestDescription: '', 
-        analisis_ia: '', // 🌟 NUEVO: El espacio para que la IA escriba
+        testResults: '', // 🌟 NUEVO: El espacio para los puntajes
+        analisis_ia: '', 
         finalDiagnosis: '', 
         recommendations: '', 
         nextStep: 'Tratamiento Terapéutico',
@@ -155,22 +163,42 @@ const initialFormState = {
     // ================= FUNCIONES DEL WIZARD =================
     
     // 🌟 NUEVA FUNCIÓN: Llama a la IA en el Paso 3
-    const generarAnalisisIA = async () => {
+   const generarAnalisisIA = async () => {
         setIsAnalyzing(true);
         setStep(3); 
         
         try {
             const token = localStorage.getItem('token');
+            
+            // 🔍 1. Buscamos la cita seleccionada en tu lista de citas disponibles
+            const citaSeleccionada = availableAppointments.find(
+                cita => String(cita.id) === String(formData.cita_id)
+            );
+
+            // 🔍 2. Usamos el paciente_id de esa cita para buscar al paciente en tu directorio
+            const pacienteSeleccionado = patientsData.find(
+                paciente => paciente.id === citaSeleccionada?.paciente_id
+            );
+
+            // 🔍 3. Extraemos la edad y el sexo (si no existen, ponemos un respaldo por si acaso)
+            const edadPaciente = pacienteSeleccionado?.edad ? `${pacienteSeleccionado.edad} años` : "Edad no especificada";
+            const sexoPaciente = pacienteSeleccionado?.sexo || pacienteSeleccionado?.genero || "No especificado";
+
+            // Armamos el string de pruebas igual que antes...
             let testsString = formData.testsUsed.filter(t => t !== 'Otros').join(', ');
             if (formData.testsUsed.includes('Otros') && formData.otherTestDescription) testsString += `, ${formData.otherTestDescription}`;
 
+            // 🌟 AHORA SÍ, EL PAYLOAD TIENE DATA 100% REAL Y DINÁMICA
             const payload = {
                 motivo_consulta: formData.reason,
                 notas_psicologo: formData.interviewNotes,
-                pruebas_aplicadas: testsString || "Ninguna"
+                pruebas_aplicadas: testsString || "Ninguna",
+                resultados_pruebas: formData.testResults || "No se registraron resultados cuantitativos.",
+                edad_paciente: edadPaciente, // 👈 Data real del estado de React
+                sexo_paciente: sexoPaciente  // 👈 Data real del estado de React
             };
 
-            // Llamamos al nuevo endpoint de FastAPI que procesará con Gemini
+            // Llamamos al endpoint de FastAPI...
             const respuesta = await fetch(`http://127.0.0.1:8000/reportes/analizar`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -189,7 +217,41 @@ const initialFormState = {
             setIsAnalyzing(false);
         }
     };
+    // ================= MEMORIA LOCALSTORAGE (Para Autocompletado) =================
+    const [memoriaInstrumentos, setMemoriaInstrumentos] = useState([]);
+    const [memoriaAcciones, setMemoriaAcciones] = useState([]);
 
+    useEffect(() => {
+        const instGuardados = JSON.parse(localStorage.getItem('hf_instrumentos')) || [];
+        const accGuardadas = JSON.parse(localStorage.getItem('hf_acciones')) || [];
+        setMemoriaInstrumentos(instGuardados);
+        setMemoriaAcciones(accGuardadas);
+    }, []);
+
+    const guardarEnMemoria = (tipo, valor) => {
+        if (!valor.trim()) return;
+        
+        if (tipo === 'instrumento') {
+            const nuevos = [...new Set([...memoriaInstrumentos, valor])];
+            setMemoriaInstrumentos(nuevos);
+            localStorage.setItem('hf_instrumentos', JSON.stringify(nuevos));
+        } else {
+            const nuevos = [...new Set([...memoriaAcciones, valor])];
+            setMemoriaAcciones(nuevos);
+            localStorage.setItem('hf_acciones', JSON.stringify(nuevos));
+        }
+    };
+    const eliminarDeMemoria = (tipo, valorAEliminar) => {
+        if (tipo === 'instrumento') {
+            const nuevos = memoriaInstrumentos.filter(item => item !== valorAEliminar);
+            setMemoriaInstrumentos(nuevos);
+            localStorage.setItem('hf_instrumentos', JSON.stringify(nuevos));
+        } else {
+            const nuevos = memoriaAcciones.filter(item => item !== valorAEliminar);
+            setMemoriaAcciones(nuevos);
+            localStorage.setItem('hf_acciones', JSON.stringify(nuevos));
+        }
+    };
     const handleNextStep = () => {
         const errors = {};
         
@@ -407,21 +469,86 @@ const initialFormState = {
                         </p>
                     </div>
 
-                    {/* PASO 1: DATOS INICIALES */}
+                 {/* PASO 1: DATOS INICIALES */}
                     {step === 1 && (
                         <div className="space-y-6 animate-fade-in">
-                            <div>
-                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Cita Pendiente <span className="text-rose-500">*</span></label>
-                                <select 
-                                    value={formData.cita_id} 
-                                    onChange={(e) => setFormData({...formData, cita_id: e.target.value})} 
-                                    className={`w-full rounded-2xl px-5 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.cita_id ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-slate-50 border-slate-200 focus:ring-[#0F766E] border'}`}
-                                >
-                                    <option value="" disabled>Selecciona una cita sin evaluar...</option>
-                                    {availableAppointments.map(cita => (
-                                        <option key={cita.id} value={cita.id}>{cita.labelVisual}</option>
-                                    ))}
-                                </select>
+                            {/* ================= BUSCADOR PREMIUM DE CITAS ================= */}
+                            <div className="relative animate-fade-in z-50">
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                                    Cita Pendiente <span className="text-rose-500">*</span>
+                                </label>
+                                
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                        <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                    </div>
+                                    <input 
+                                        type="text"
+                                        value={busquedaCita}
+                                        onChange={(e) => {
+                                            setBusquedaCita(e.target.value);
+                                            setMostrarListaCitas(true);
+                                            if (e.target.value === '') {
+                                                setFormData({...formData, cita_id: ''});
+                                            }
+                                        }}
+                                        onClick={() => setMostrarListaCitas(true)}
+                                        placeholder="Buscar paciente o fecha..."
+                                        className={`w-full rounded-2xl pl-11 pr-10 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.cita_id ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-white border-slate-200 focus:ring-[#0F766E] border'}`}
+                                    />
+                                    
+                                    {busquedaCita && (
+                                        <button 
+                                            type="button"
+                                            onClick={() => {
+                                                setBusquedaCita('');
+                                                setFormData({...formData, cita_id: ''}); 
+                                                setMostrarListaCitas(true);
+                                            }}
+                                            className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-300 hover:text-rose-500 transition-colors"
+                                        >
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                        </button>
+                                    )}
+                                </div>
+
+                                {mostrarListaCitas && (
+                                    <div className="absolute w-full mt-2 bg-white border border-slate-100 rounded-xl shadow-xl max-h-60 overflow-y-auto z-50 animate-fade-in">
+                                        {citasFiltradas.length > 0 ? (
+                                            <ul className="py-2">
+                                                {citasFiltradas.map((cita) => (
+                                                    <li 
+                                                        key={cita.id}
+                                                        onClick={() => {
+                                                            setFormData({...formData, cita_id: cita.id});
+                                                            setBusquedaCita(cita.labelVisual);
+                                                            setMostrarListaCitas(false);
+                                                        }}
+                                                        className="px-5 py-3 hover:bg-teal-50 cursor-pointer transition-colors border-b border-slate-50 last:border-0 flex flex-col"
+                                                    >
+                                                        {/* Separamos el label para que se vea más pro: "Nombre" arriba, "Fecha" abajo */}
+                                                        <span className="text-sm font-bold text-[#113130]">
+                                                            {cita.labelVisual.split(' - ')[0]}
+                                                        </span>
+                                                        <span className="text-[11px] font-medium text-slate-500 flex items-center gap-1 mt-0.5">
+                                                            <svg className="w-3 h-3 text-[#0F766E]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                                            {cita.labelVisual.split(' - ')[1]}
+                                                        </span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        ) : (
+                                            <div className="p-5 text-center text-sm text-slate-400 font-medium">
+                                                No hay citas pendientes que coincidan 🗓️
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                                
+                                {mostrarListaCitas && (
+                                    <div className="fixed inset-0 z-40" onClick={() => setMostrarListaCitas(false)}></div>
+                                )}
+
                                 {formErrors.cita_id && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Selecciona una cita del calendario</p>}
                                 {availableAppointments.length === 0 && <p className="text-[11px] text-amber-600 font-bold mt-2">No hay citas pendientes sin evaluar. Crea una cita primero.</p>}
                             </div>
@@ -458,20 +585,79 @@ const initialFormState = {
                                 {formErrors.testsUsed && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Selecciona al menos un instrumento o técnica</p>}
                             </div>
 
-                            {formData.testsUsed.includes("Otros") && (
+                         {formData.testsUsed.includes("Otros") && (
                                 <div className="animate-fade-in bg-slate-50 p-6 rounded-2xl border border-slate-200 mt-2">
                                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2">
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                                         Especificar Otro Instrumento
                                     </label>
-                                    <textarea 
+                                    
+                                    {/* 1. INPUT COMPLETAMENTE LIMPIO: Le quité el list="lista-instrumentos" */}
+                                    <input 
+                                        type="text" 
                                         value={formData.otherTestDescription} 
                                         onChange={(e) => setFormData({...formData, otherTestDescription: e.target.value})} 
+                                        onBlur={(e) => guardarEnMemoria('instrumento', e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault(); 
+                                                guardarEnMemoria('instrumento', e.target.value);
+                                            }
+                                        }}
                                         placeholder="Ej. Inventario de Ansiedad de Beck (BAI)..." 
-                                        rows="2" 
-                                        className={`w-full rounded-xl px-4 py-3 text-sm font-medium text-[#113130] focus:outline-none focus:ring-2 transition-all resize-none ${formErrors.otherTestDescription ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-white border-slate-200 focus:ring-[#0F766E] border'}`}
-                                    ></textarea>
+                                        className={`w-full rounded-xl px-4 py-3.5 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.otherTestDescription ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-white border-slate-200 focus:ring-[#0F766E] border'}`}
+                                    />
+                                    
+                                    {/* 2. EL DATALIST YA NO EXISTE. EN SU LUGAR, DIBUJAMOS LOS CHIPS DE RECIENTES */}
+                                    {/* 🌟 LA NUEVA MEMORIA CON BOTÓN DE BORRAR */}
+                                    {memoriaInstrumentos.length > 0 && (
+                                        <div className="mt-3 flex flex-wrap items-center gap-2 animate-fade-in">
+                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mr-1">
+                                                Recientes:
+                                            </span>
+                                            {memoriaInstrumentos.map((inst, idx) => (
+                                                <div key={idx} className="flex items-center bg-white border border-slate-200 hover:border-[#0F766E] rounded-lg shadow-sm transition-all overflow-hidden group">
+                                                    <button
+                                                        type="button" 
+                                                        onClick={() => setFormData({...formData, otherTestDescription: inst})}
+                                                        className="px-3 py-1.5 text-slate-500 hover:bg-teal-50 hover:text-[#0F766E] text-xs font-bold transition-colors"
+                                                    >
+                                                        {inst}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => eliminarDeMemoria('instrumento', inst)}
+                                                        className="px-2 py-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-colors border-l border-slate-100"
+                                                        title="Eliminar de recientes"
+                                                    >
+                                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12" /></svg>
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
                                     {formErrors.otherTestDescription && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Debes describir el instrumento utilizado</p>}
+                                </div>
+                            )}
+                            {/* 🌟 NUEVO CAMPO: RESULTADOS DE LAS PRUEBAS (Aparece si hay tests seleccionados) */}
+                            {formData.testsUsed.length > 0 && (
+                                <div className="animate-fade-in pt-6 border-t border-slate-100">
+                                    <label className="block text-[10px] font-black text-[#0F766E] uppercase tracking-widest mb-2 flex items-center gap-2">
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                                        Resultados de las Pruebas (Data para la IA)
+                                    </label>
+                                    <textarea 
+                                        value={formData.testResults} 
+                                        onChange={(e) => setFormData({...formData, testResults: e.target.value})} 
+                                        placeholder="Ej. BDI-II: 28 puntos (Depresión Severa). GAD-7: 12 puntos..." 
+                                        rows="3" 
+                                        className="w-full rounded-xl px-5 py-4 text-sm font-medium text-[#113130] focus:outline-none focus:ring-2 focus:ring-[#0F766E] border border-slate-200 bg-white transition-all resize-none shadow-sm"
+                                    ></textarea>
+                                    <p className="text-[10px] text-slate-400 font-bold mt-2 flex items-center gap-1">
+                                        <svg className="w-3 h-3 text-[#0F766E]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                        La Inteligencia Artificial cruzará estos puntajes con las notas de la entrevista.
+                                    </p>
                                 </div>
                             )}
                         </div>
@@ -522,8 +708,10 @@ const initialFormState = {
                             <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 space-y-6">
                                 <div>
                                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Plan de Acción Directo</label>
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                        {['Tratamiento Terapéutico', 'Seguimiento Mensual', 'Alta Médica'].map((option) => (
+                                    {/* 🌟 Ajusté a grid-cols-2 en sm para que quepan bien las 5 opciones sin amontonarse */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                        {/* 🌟 OPCIONES EXPANDIDAS */}
+                                        {['Tratamiento Terapéutico', 'Seguimiento Semanal', 'Seguimiento Quincenal', 'Seguimiento Mensual', 'Alta Médica'].map((option) => (
                                             <label key={option} className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${formData.nextStep === option ? 'bg-white border-[#0F766E] text-[#0F766E] shadow-sm' : 'bg-white border-transparent text-slate-500 hover:border-slate-300'}`}>
                                                 <input type="radio" name="nextStep" className="hidden" checked={formData.nextStep === option} onChange={() => setFormData({...formData, nextStep: option, otherNextStepDescription: option !== 'Otros' ? '' : formData.otherNextStepDescription})} />
                                                 <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${formData.nextStep === option ? 'border-[#0F766E]' : 'border-slate-300'}`}>
@@ -550,13 +738,52 @@ const initialFormState = {
                                 </div>
                                 {formData.nextStep === 'Otros' && (
                                     <div className="animate-fade-in bg-white p-5 rounded-xl border border-slate-200 mt-2 shadow-sm">
+                                        
+                                        {/* 🌟 INPUT LIMPIO */}
                                         <input 
                                             type="text" 
                                             value={formData.otherNextStepDescription} 
                                             onChange={(e) => setFormData({...formData, otherNextStepDescription: e.target.value})} 
+                                            onBlur={(e) => guardarEnMemoria('accion', e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault(); 
+                                                    guardarEnMemoria('accion', e.target.value);
+                                                }
+                                            }}
                                             placeholder="Ej. Ingreso a programa de rehabilitación..." 
                                             className={`w-full rounded-xl px-4 py-3.5 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.otherNextStepDescription ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-slate-50 border-slate-200 focus:ring-[#0F766E] border'}`}
                                         />
+                                        
+                                        {/* 🌟 LA NUEVA MEMORIA VISUAL (CHIPS PREMIUM) */}
+                                        {/* 🌟 LA NUEVA MEMORIA CON BOTÓN DE BORRAR */}
+                                        {memoriaAcciones.length > 0 && (
+                                            <div className="mt-3 flex flex-wrap items-center gap-2 animate-fade-in">
+                                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mr-1">
+                                                    Recientes:
+                                                </span>
+                                                {memoriaAcciones.map((acc, idx) => (
+                                                    <div key={idx} className="flex items-center bg-white border border-slate-200 hover:border-[#0F766E] rounded-lg shadow-sm transition-all overflow-hidden group">
+                                                        <button
+                                                            type="button" 
+                                                            onClick={() => setFormData({...formData, otherNextStepDescription: acc})}
+                                                            className="px-3 py-1.5 text-slate-500 hover:bg-teal-50 hover:text-[#0F766E] text-xs font-bold transition-colors"
+                                                        >
+                                                            {acc}
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => eliminarDeMemoria('accion', acc)}
+                                                            className="px-2 py-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-colors border-l border-slate-100"
+                                                            title="Eliminar de recientes"
+                                                        >
+                                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12" /></svg>
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
                                         {formErrors.otherNextStepDescription && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Debes describir la acción a seguir</p>}
                                     </div>
                                 )}
@@ -601,110 +828,172 @@ if (view === 'reportDetail' && activeReport) {
     const pInfo = repData.paciente_data || {}; 
 
    return (
-        <div className="max-w-4xl mx-auto space-y-6 relative animate-fade-in pb-10">
-            {/* ... Botonera inicial queda igual ... */}
-
+       <div className="max-w-4xl mx-auto bg-white rounded-[2.5rem] p-8 sm:p-12 shadow-xl border border-slate-100 print:shadow-none print:border-none print:p-0 print:max-w-full">
+                                
+                                {/* 🌟 ENCABEZADO MEMBRETADO (Oculto en web, aparece al imprimir) */}
+                                <div className="hidden print:flex items-center justify-between border-b-2 border-[#0F766E] pb-6 mb-8 w-full">
+                                    <div>
+                                        <h1 className="text-2xl font-black text-[#0F766E] tracking-tight uppercase">HorizonFlow</h1>
+                                        <p className="text-[10px] font-bold text-slate-400 tracking-widest uppercase mt-0.5">Sistema de Gestión Clínica e Inteligencia Artificial</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-xs font-bold text-[#113130]">EXPEDIENTE CLÍNICO AUTOMATIZADO</p>
+                                        <p className="text-[10px] font-medium text-slate-500 mt-0.5">Fecha de Emisión: {new Date().toLocaleDateString()}</p>
+                                    </div>
+                                </div>
             <div className="bg-white rounded-[2rem] p-10 sm:p-16 shadow-2xl border border-slate-200 font-serif text-slate-800 relative">
                 {/* ... Header del documento queda igual ... */}
+            {/* CONTENEDOR DE BOTONES (Se ocultará automáticamente al imprimir) */}
+<div className="max-w-4xl mx-auto mb-6 flex items-center justify-between print:hidden">
+    <button 
+        onClick={() => setView('list')} 
+        className="flex items-center gap-2 text-slate-500 hover:text-[#0F766E] text-xs font-black uppercase tracking-widest transition-all bg-white px-5 py-2.5 rounded-xl shadow-sm border border-slate-100 hover:shadow-md w-fit"
+    >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        </svg> 
+        CERRAR REPORTE
+    </button>
 
-                <div className="space-y-8 leading-relaxed">
-                    
-                    {/* I. DATOS GENERALES */}
-                    <section>
-                        <h2 className="text-sm font-black text-[#113130] uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 font-sans">I. Datos Generales</h2>
-                        <div className="grid grid-cols-2 gap-4 text-sm bg-slate-50 p-6 rounded-2xl font-sans border border-slate-100">
-                            <div><span className="font-bold text-slate-500 block mb-1">Paciente:</span> <span className="font-bold text-[#113130] text-base">{activeReport.patientName}</span></div>
-                            <div><span className="font-bold text-slate-500 block mb-1">Edad:</span> <span className="font-bold text-[#113130] text-base">{pInfo.edad || 'N/E'} años</span></div>
-                            <div><span className="font-bold text-slate-500 block mb-1">Teléfono:</span> <span className="font-bold text-[#113130] text-base">{pInfo.telefono || 'N/E'}</span></div>
-                            <div><span className="font-bold text-slate-500 block mb-1">Evaluador:</span> <span className="font-bold text-[#113130] text-base">Psicólogo Autorizado</span></div>
+    {/* 🌟 NUEVO BOTÓN: DISPARA EL PDF NATIVO */}
+    <button 
+        onClick={() => window.print()} // 🚀 Dispara el diálogo de guardado en PDF del navegador
+        className="flex items-center gap-2 bg-[#0F766E] hover:bg-[#0D9488] text-white text-xs font-black uppercase tracking-widest transition-all px-6 py-2.5 rounded-xl shadow-md hover:shadow-xl w-fit"
+    >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+        EXPORTAR A PDF
+    </button>
+</div>
+                {/* ============================================================== */}
+                                {/* 🌟 AJUSTE 1: Eliminamos 'space-y-8' y usamos margen nativo      */}
+                                {/*     El space-y acumula márgenes y crea los espacios 'malparidos'   */}
+                                {/*     al imprimir. Dejamos que cada section maneje su margen.      */}
+                                {/* ============================================================== */}
+                                <div className="leading-relaxed print:w-full">
+                                    
+                                    {/* ========================================================== */}
+                                    {/* 🌟 AJUSTE 2: print:break-inside-avoid a CADA section       */}
+                                    {/*     Agregué 'mb-8' (equivalente a space-y-8) y 'pb-2'       */}
+                                    {/*     para mantener el diseño web idéntico.                     */}
+                                    {/* ========================================================== */}
+                                    
+                                    {/* I. DATOS GENERALES */}
+                                    <section className="print:break-inside-avoid mb-8 pb-2">
+                                        <h2 className="text-sm font-black text-[#113130] uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 font-sans">I. Datos Generales</h2>
+                                        <div className="grid grid-cols-2 gap-4 text-sm bg-slate-50 p-6 rounded-2xl font-sans border border-slate-100">
+                                            <div><span className="font-bold text-slate-500 block mb-1">Paciente:</span> <span className="font-bold text-[#113130] text-base">{activeReport.patientName}</span></div>
+                                            <div><span className="font-bold text-slate-500 block mb-1">Edad:</span> <span className="font-bold text-[#113130] text-base">{pInfo.edad || 'N/E'} años</span></div>
+                                            <div><span className="font-bold text-slate-500 block mb-1">Teléfono:</span> <span className="font-bold text-[#113130] text-base">{pInfo.telefono || 'N/E'}</span></div>
+                                            <div><span className="font-bold text-slate-500 block mb-1">Evaluador:</span> <span className="font-bold text-[#113130] text-base">Psicólogo Autorizado</span></div>
+                                        </div>
+                                    </section>
+
+                                    {/* II. MOTIVO DE CONSULTA */}
+                                    <section className="print:break-inside-avoid mb-8 pb-2">
+                                        <h2 className="text-sm font-black text-[#113130] uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 font-sans">II. Motivo de Consulta</h2>
+                                        <p className="text-[15px] text-justify text-slate-700 mb-6 whitespace-pre-wrap">
+                                            {repData.motivo_consulta || "No especificado."}
+                                        </p>
+                                    </section>
+
+                                    {/* III. TÉCNICAS E INSTRUMENTOS APLICADOS */}
+                                    <section className="print:break-inside-avoid mb-8 pb-2">
+                                        <h2 className="text-sm font-black text-[#113130] uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 font-sans">III. Técnicas e Instrumentos Aplicados</h2>
+                                        <p className="text-[15px] text-justify text-slate-700 mb-6 whitespace-pre-wrap">
+                                            {repData.pruebas_aplicadas || "Entrevista clínica semiestructurada."}
+                                        </p>
+                                    </section>
+
+                                    {/* IV. ANÁLISIS Y OBSERVACIONES CLÍNICAS */}
+                                    <section className="print:break-inside-avoid mb-8 pb-2">
+                                        <h2 className="text-sm font-black text-[#113130] uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 font-sans">IV. Análisis y Observaciones Clínicas</h2>
+                                        <p className="text-[15px] text-justify text-slate-700 mb-6 whitespace-pre-wrap">
+                                            {repData.notas_psicologo}
+                                        </p>
+                                    </section>
+
+                                    {/* V. ANÁLISIS CLÍNICO (LIMPIADO) */}
+                                    <section className="print:break-inside-avoid mb-8 pb-2">
+                                        <div className="mt-8 bg-slate-50 p-8 rounded-3xl border border-slate-100 font-sans shadow-inner">
+                                            <p className="text-[10px] font-black text-[#0F766E] uppercase tracking-widest mb-5 flex items-center gap-2">
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                                                V. Análisis Clínico y Fundamentación DSM-5 (Generado por ALMA AI)
+                                            </p>
+                                            <TextoFormateadoIA texto={repData.analisis_ia} />
+                                        </div>
+                                    </section>
+
+                                    {/* VI. DIAGNÓSTICO CLÍNICO */}
+                                    <section className="print:break-inside-avoid mb-8 pb-2">
+                                        <h2 className="text-sm font-black text-[#113130] uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 font-sans">VI. Diagnóstico Clínico</h2>
+                                        <p className="text-xl font-bold text-[#113130] bg-slate-50 p-5 rounded-2xl text-center font-sans border border-slate-200 shadow-inner">
+                                            {activeReport.diagnosis || repData.diagnostico_final}
+                                        </p>
+                                    </section>
+
+                                  {/* VII. RECOMENDACIONES Y PLAN A SEGUIR */}
+                                    {/* 🌟 Le regresamos el print:break-inside-avoid */}
+                                    <section className="mb-8 pb-2 print:block print:break-inside-avoid">
+                                        
+                                        {/* 🌟 Le ponemos print:break-after-avoid al H2 para que el título JAMÁS se separe de su párrafo */}
+                                        <h2 className="text-sm font-black text-[#113130] uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 font-sans print:break-after-avoid">
+                                            VII. Recomendaciones y Plan a Seguir
+                                        </h2>
+                                        
+                                        <p className="text-[15px] whitespace-pre-wrap text-slate-700 mb-6">
+                                            {repData.recomendaciones}
+                                        </p>
+                                        
+                                        {repData.plan_accion && (
+                                            <p className="text-[15px] whitespace-pre-wrap text-slate-700 mb-6">
+                                                <span className="font-bold text-[#113130] block mb-1">Plan de Acción:</span>
+                                                {repData.plan_accion}
+                                            </p>
+                                        )}
+
+                                        <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100 font-sans w-fit mt-4">
+                                            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Decisión Clínica:</span>
+                                            <span className={`text-[11px] font-black uppercase tracking-widest px-4 py-2 rounded-lg shadow-sm ${getBadgeStyle(activeReport.nextStep)}`}>
+                                                {activeReport.nextStep}
+                                            </span>
+                                        </div>
+                                    </section>
+
+                                    {/* FIRMAS ORIGINALES (Restauradas para verse en Web y PDF) */}
+                                    <div className="mt-24 pt-10 grid grid-cols-2 gap-10 font-sans print:break-inside-avoid">
+                                        <div className="border-t-2 border-slate-300 pt-4 text-center">
+                                            <p className="text-sm font-black text-[#113130] uppercase tracking-widest">Firma del Profesional</p>
+                                            <p className="text-xs text-slate-500 font-bold mt-1">Reg. Médico: Pendiente</p>
+                                        </div>
+                                        <div className="border-t-2 border-slate-300 pt-4 text-center opacity-50">
+                                            <p className="text-sm font-black text-[#113130] uppercase tracking-widest">Sello de la Clínica</p>
+                                            <p className="text-xs text-slate-500 font-bold mt-1">HorizonFlow Systems</p>
+                                        </div>
+                                    </div>
+
+                                    {/* 🌟 PIE DE PÁGINA EXCLUSIVO PARA EL PDF (Para firmas legales) */}
+                                    <section className="hidden print:block mt-16 w-full print:break-inside-avoid">
+                                        <div className="flex justify-between items-center">
+                                            <div className="w-48 border-t border-slate-300 pt-2 text-center">
+                                                <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Firma del Psicólogo</p>
+                                                <p className="text-[9px] font-medium text-slate-400 mt-0.5">Código Profesional</p>
+                                            </div>
+                                            <div className="text-right text-[9px] font-medium text-slate-400">
+                                                <p>Este documento fue validado mediante el módulo cognitivo de HorizonFlow.</p>
+                                                <p>Información confidencial sujeta a secreto profesional.</p>
+                                            </div>
+                                        </div>
+                                    </section>
+                                </div>
+                            </div>
                         </div>
-                    </section>
 
-                    {/* II. MOTIVO DE CONSULTA (AQUÍ ESTÁ EL QUE FALTABA) */}
-                    <section>
-                        <h2 className="text-sm font-black text-[#113130] uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 font-sans">II. Motivo de Consulta</h2>
-                        <p className="text-[15px] text-justify text-slate-700 mb-6 whitespace-pre-wrap">
-                            {repData.motivo_consulta || "No especificado."}
-                        </p>
-                    </section>
-
-                    {/* III. TÉCNICAS E INSTRUMENTOS (AQUÍ ESTÁ EL OTRO QUE FALTABA) */}
-                    <section>
-                        <h2 className="text-sm font-black text-[#113130] uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 font-sans">III. Técnicas e Instrumentos Aplicados</h2>
-                        <p className="text-[15px] text-justify text-slate-700 mb-6 whitespace-pre-wrap">
-                            {repData.pruebas_aplicadas || "Entrevista clínica semiestructurada."}
-                        </p>
-                    </section>
-
-                    {/* IV. ANÁLISIS Y OBSERVACIONES CLÍNICAS */}
-                    <section>
-                        <h2 className="text-sm font-black text-[#113130] uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 font-sans">IV. Análisis y Observaciones Clínicas</h2>
-                        <p className="text-[15px] text-justify text-slate-700 mb-6 whitespace-pre-wrap">
-                            {repData.notas_psicologo}
-                        </p>
-                    </section>
-
-                    {/* V. ANÁLISIS CLÍNICO Y FUNDAMENTACIÓN DSM-5 (LIMPIADO) */}
-                    <section>
-                        <div className="mt-8 bg-slate-50 p-8 rounded-3xl border border-slate-100 font-sans shadow-inner">
-                            <p className="text-[10px] font-black text-[#0F766E] uppercase tracking-widest mb-5 flex items-center gap-2">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                                V. Análisis Clínico y Fundamentación DSM-5 (Generado por ALMA AI)
-                            </p>
-                            <TextoFormateadoIA texto={repData.analisis_ia} />
-                        </div>
-                    </section>
-
-                    {/* VI. DIAGNÓSTICO CLÍNICO */}
-                    <section>
-                        <h2 className="text-sm font-black text-[#113130] uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 font-sans">VI. Diagnóstico Clínico</h2>
-                        <p className="text-xl font-bold text-[#113130] bg-slate-50 p-5 rounded-2xl text-center font-sans border border-slate-200 shadow-inner">
-                            {activeReport.diagnosis || repData.diagnostico_final}
-                        </p>
-                    </section>
-
-                    {/* VII. RECOMENDACIONES Y PLAN A SEGUIR */}
-                    <section>
-                        <h2 className="text-sm font-black text-[#113130] uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 font-sans">VII. Recomendaciones y Plan a Seguir</h2>
-                        <p className="text-[15px] whitespace-pre-wrap text-slate-700 mb-6">
-                            {repData.recomendaciones}
-                        </p>
-                        
-                        {/* Agregado el Plan de Acción si el psicólogo lo llenó */}
-                        {repData.plan_accion && (
-                            <p className="text-[15px] whitespace-pre-wrap text-slate-700 mb-6">
-                                <span className="font-bold text-[#113130] block mb-1">Plan de Acción:</span>
-                                {repData.plan_accion}
-                            </p>
-                        )}
-
-                        <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100 font-sans w-fit mt-4">
-                            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Decisión Clínica:</span>
-                            <span className={`text-[11px] font-black uppercase tracking-widest px-4 py-2 rounded-lg shadow-sm ${getBadgeStyle(activeReport.nextStep)}`}>
-                                {activeReport.nextStep}
-                            </span>
-                        </div>
-                    </section>
-
-                    {/* FIRMAS */}
-                    <div className="mt-24 pt-10 grid grid-cols-2 gap-10 font-sans">
-                        <div className="border-t-2 border-slate-300 pt-4 text-center">
-                            <p className="text-sm font-black text-[#113130] uppercase tracking-widest">Firma del Profesional</p>
-                            <p className="text-xs text-slate-500 font-bold mt-1">Reg. Médico: Pendiente</p>
-                        </div>
-                        <div className="border-t-2 border-slate-300 pt-4 text-center opacity-50">
-                            <p className="text-sm font-black text-[#113130] uppercase tracking-widest">Sello de la Clínica</p>
-                            <p className="text-xs text-slate-500 font-bold mt-1">HorizonFlow Systems</p>
-                        </div>
-                    </div>
-
-                </div>
-            </div>
-        </div>
-    );
-}
-
-return null;
+        );
+    }
+    
+    return null;
 };
 
 export default Reportes;
