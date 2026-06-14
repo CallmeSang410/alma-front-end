@@ -275,28 +275,73 @@ if (activeTab === 'perfil') {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                    <div className="bg-teal-50/50 p-5 rounded-2xl border border-teal-100">
-                        <h4 className="text-sm font-bold text-[#113130] mb-2 flex items-center gap-2"><IconSupport /> Contacto Directo</h4>
-                        <p className="text-xs text-slate-600 mb-3">Si experimentas problemas con el análisis de IA o la agenda, contáctanos inmediatamente:</p>
-                        <div className="space-y-2">
-                            <div className="flex items-center gap-2 text-xs font-bold text-[#0F766E]"><span className="w-5 text-center">✉</span> soporte@horizonflow.com</div>
-                            <div className="flex items-center gap-2 text-xs font-bold text-[#0F766E]"><span className="w-5 text-center">☎</span> +1 (800) 123-4567</div>
+                
+                {/* TARJETA DE CONTACTO DIRECTO */}
+                <div className="bg-teal-50/50 p-6 rounded-2xl border border-teal-100 h-fit">
+                    <h4 className="text-sm font-bold text-[#113130] flex items-center gap-2 mb-2">
+                        <IconSupport /> Contacto Directo
+                    </h4>
+                    <p className="text-xs text-slate-600 mb-4 leading-relaxed">
+                        Si experimentas problemas con el análisis de IA o la agenda, contáctanos inmediatamente:
+                    </p>
+                    <div className="space-y-3">
+                        <div className="flex items-center gap-3 text-sm">
+                            <span className="text-lg drop-shadow-sm">📧</span>
+                            {/* 🌟 AQUÍ ESTÁ TU CORREO OFICIAL CON ENLACE CLICKEABLE */}
+                            <a href="mailto:horizonflowdesign@gmail.com" className="text-[#0F766E] font-bold hover:underline">
+                                horizonflowdesign@gmail.com
+                            </a>
+                        </div>
+                        <div className="flex items-center gap-3 text-sm">
+                            <span className="text-lg drop-shadow-sm">🇳🇮</span>
+                            <span className="text-slate-600 font-bold">+505 7853-8041</span>
                         </div>
                     </div>
                 </div>
 
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                    <h4 className="text-sm font-bold text-rose-600 mb-1 flex items-center gap-2">
+                {/* FORMULARIO DE REPORTE (AHORA FUNCIONAL) */}
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <h4 className="text-sm font-bold text-rose-600 flex items-center gap-2 mb-1">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                         Reportar un Problema
                     </h4>
-                    <p className="text-[10px] text-slate-500 mb-4">¿Encontraste un error en el sistema? Descríbelo aquí para nuestro equipo técnico.</p>
+                    <p className="text-[10px] text-slate-500 mb-4 uppercase tracking-wider font-bold">
+                        ¿Encontraste un error en el sistema?
+                    </p>
                     
-                    <form onSubmit={(e) => { e.preventDefault(); alert("Reporte enviado a nuestro equipo de TI."); setReporteBug({asunto: '', descripcion: ''}); }} className="space-y-3">
-                        <input type="text" placeholder="Asunto (Ej. Error al guardar reporte de IA)" value={reporteBug.asunto} onChange={(e) => setReporteBug({...reporteBug, asunto: e.target.value})} className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-xs text-[#113130] focus:outline-none focus:border-rose-400 bg-slate-50" required />
-                        <textarea placeholder="Pasos que seguiste antes de que ocurriera el error..." value={reporteBug.descripcion} onChange={(e) => setReporteBug({...reporteBug, descripcion: e.target.value})} className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-xs text-[#113130] focus:outline-none focus:border-rose-400 bg-slate-50 resize-none h-20" required />
-                        <button type="submit" className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-lg transition-all">Enviar Reporte</button>
+                    {/* 🌟 LÓGICA NINJA: Enviar el form directo a tu correo usando tu estado */}
+                    <form 
+                        onSubmit={(e) => { 
+                            e.preventDefault(); 
+                            // Esto abre Gmail/Outlook con los datos listos para enviarte
+                            window.location.href = `mailto:horizonflowdesign@gmail.com?subject=Reporte Técnico: ${reporteBug.asunto}&body=${reporteBug.descripcion}`;
+                            // Limpia los inputs después de enviar
+                            setReporteBug({asunto: '', descripcion: ''}); 
+                        }} 
+                        className="space-y-3"
+                    >
+                        <input 
+                            type="text" 
+                            required
+                            placeholder="Asunto (Ej. Error al guardar reporte de IA)" 
+                            value={reporteBug.asunto} 
+                            onChange={(e) => setReporteBug({...reporteBug, asunto: e.target.value})} 
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-700 focus:outline-none focus:border-[#0F766E] focus:ring-1 focus:ring-[#0F766E] transition-all" 
+                        />
+                        <textarea 
+                            required
+                            rows="4" 
+                            placeholder="Pasos que seguiste antes de que ocurriera el error..." 
+                            value={reporteBug.descripcion} 
+                            onChange={(e) => setReporteBug({...reporteBug, descripcion: e.target.value})} 
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-700 focus:outline-none focus:border-[#0F766E] focus:ring-1 focus:ring-[#0F766E] transition-all resize-none" 
+                        />
+                        <button 
+                            type="submit" 
+                            className="w-full bg-[#113130] hover:bg-[#0F766E] text-white text-xs font-black uppercase tracking-widest py-3 rounded-xl transition-all shadow-md hover:shadow-lg"
+                        >
+                            Enviar Reporte
+                        </button>
                     </form>
                 </div>
             </div>

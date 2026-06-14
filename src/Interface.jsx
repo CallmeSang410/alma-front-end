@@ -60,7 +60,6 @@ const IconLogout = () => (
     </svg>
 );
 
-
 export default function Interface({ onLogout }) {
     const { t, i18n } = useTranslation();
     const [langMenuOpen, setLangMenuOpen] = useState(false);
@@ -69,13 +68,14 @@ export default function Interface({ onLogout }) {
     const irAReportesDesdeAlerta = (citaId) => {
         console.log("Paso 3: ¡Llegó a la Interface! Cambiando de pestaña. Cita:", citaId);
         setCitaParaReporte(citaId); 
-        setActiveTab('reportes'); // 🌟 Usamos el nombre correcto de tu variable
+        setActiveTab('reportes');
     };
-    // Función para cambiar idioma
+
     const changeLanguage = (lng) => {
         i18n.changeLanguage(lng);
-        setLangMenuOpen(false); // Cierra el menú tras seleccionar
+        setLangMenuOpen(false); 
     };
+
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [activeTab, setActiveTab] = useState('dashboard');
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -85,11 +85,88 @@ export default function Interface({ onLogout }) {
     const [perfilNombre, setPerfilNombre] = useState(localStorage.getItem('hf_nombre_clinica') || 'Usuario Activo');
     const [perfilEmail, setPerfilEmail] = useState(localStorage.getItem('hf_email') || '');
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+    
+    // ================= ESTADOS DEL CALENDARIO GLOBAL =================
+    const [diaSeleccionado, setDiaSeleccionado] = useState(new Date().getDate());
     const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
     const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+    const [citasGlobales, setCitasGlobales] = useState([]);
+
+    // ================= EFECTOS (useEffect) =================
     
-    // Fecha pinneada de ejemplo (cita de mañana)
-    const appointmentDate = new Date(new Date().getTime() + 24 * 60 * 60 * 1000);
+    // 1. Efecto para Perfil
+    useEffect(() => {
+        const actualizarPerfil = () => {
+            setPerfilNombre(localStorage.getItem('hf_nombre_clinica') || 'Usuario Activo');
+            setPerfilEmail(localStorage.getItem('hf_email') || '');
+        };
+        window.addEventListener('perfilActualizado', actualizarPerfil);
+        return () => window.removeEventListener('perfilActualizado', actualizarPerfil);
+    }, []);
+
+    // 2. Efecto para Citas del Calendario
+    useEffect(() => {
+        const fetchCitasCalendario = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                const headers = { 'Authorization': `Bearer ${token}` };
+
+                // 🌟 MAGIA: Pedimos las citas Y los pacientes al mismo tiempo
+                // (Asegurate de que la ruta '/pacientes' sea la correcta de tu backend)
+                const [resCitas, resPacientes] = await Promise.all([
+                    fetch('http://127.0.0.1:8000/citas', { headers }),
+                    fetch('http://127.0.0.1:8000/pacientes', { headers })
+                ]);
+                
+                if (resCitas.ok && resPacientes.ok) {
+                    const dataCitas = await resCitas.json();
+                    const dataPacientes = await resPacientes.json();
+                    
+                    const citasFormateadas = dataCitas.map(c => {
+                        const fechaCruda = c.fecha_cita; 
+                        const partesFecha = fechaCruda ? fechaCruda.split('T') : ['', ''];
+                        const fechaLimpia = partesFecha[0]; 
+                        const horaExtraida = partesFecha[1] ? partesFecha[1].substring(0, 5) : 'N/H'; 
+                        
+                        // 🌟 EL CRUCE: Buscamos al paciente cuyo ID coincida con el paciente_id de la cita
+                        const pacienteEncontrado = dataPacientes.find(p => p.id === c.paciente_id);
+                        
+                        // Si lo encuentra, saca el nombre (ajustá p.nombre si tu tabla se llama distinto, ej p.nombres)
+                        // Si no lo encuentra, pone "Paciente Eliminado"
+                        const nombreReal = pacienteEncontrado ? (pacienteEncontrado.nombre || pacienteEncontrado.nombres) : 'Paciente Eliminado';
+                        
+                        return {
+                            fecha: fechaLimpia, 
+                            paciente: nombreReal, // ¡Boom! Ya tenemos el nombre real cruzado
+                            hora: horaExtraida,
+                            modalidad: c.modalidad || 'Presencial'
+                        };
+                    });
+                    
+                    setCitasGlobales(citasFormateadas);
+                }
+            } catch (error) {
+                console.error("Error cargando datos para el calendario global:", error);
+            }
+        };
+
+        fetchCitasCalendario();
+        
+        // El Trucazo Ninja
+        window.addEventListener('citasActualizadas', fetchCitasCalendario);
+        return () => window.removeEventListener('citasActualizadas', fetchCitasCalendario);
+    }, []);
+
+    // ================= FUNCIONES DEL CALENDARIO =================
+    const tieneCitas = (day) => {
+        const fechaStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        return citasGlobales.some(c => c.fecha === fechaStr);
+    };
+
+    const citasDelDiaSeleccionado = citasGlobales.filter(c => {
+        const fechaStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(diaSeleccionado).padStart(2, '0')}`;
+        return c.fecha === fechaStr;
+    });
 
     const menuItems = [
         { id: 'dashboard', label: t('Dashboard'), icon: <IconDashboard /> },
@@ -99,8 +176,8 @@ export default function Interface({ onLogout }) {
         { id: 'experiencia', label: t('Experiencia'), icon: <IconExperience /> },
         { id: 'settings', label: t('Ajustes'), icon: <IconSettings /> },
     ];
-     const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-                        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+    
+    const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
     const dayNames = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sab"];
     
     const handlePrevMonth = () => {
@@ -129,87 +206,62 @@ export default function Interface({ onLogout }) {
         return new Date(year, month, 1).getDay();
     };
     
-    const isAppointmentDay = (day) => {
-        return day === appointmentDate.getDate() && 
-               currentMonth === appointmentDate.getMonth() && 
-               currentYear === appointmentDate.getFullYear();
-    };
-    
     const renderCalendar = () => {
         const daysInMonth = getDaysInMonth(currentMonth, currentYear);
         const firstDay = getFirstDayOfMonth(currentMonth, currentYear);
         const days = [];
         
-        // Días vacíos al inicio
         for (let i = 0; i < firstDay; i++) {
             days.push(<div key={`empty-${i}`} className="h-8"></div>);
         }
         
-        // Días del mes
         for (let day = 1; day <= daysInMonth; day++) {
+            const isSelected = day === diaSeleccionado;
+            const isBusy = tieneCitas(day);
+
             days.push(
                 <div 
                     key={day} 
-                    className={`h-8 flex items-center justify-center text-xs font-semibold rounded-lg cursor-pointer transition-all ${
-                        isAppointmentDay(day) 
-                            ? 'bg-[#14B8A6] text-white ring-2 ring-[#0F766E] ring-offset-1 scale-110' 
+                    onClick={() => setDiaSeleccionado(day)} 
+                    className={`relative h-8 flex flex-col items-center justify-center text-xs font-semibold rounded-lg cursor-pointer transition-all ${
+                        isSelected 
+                            ? 'bg-[#14B8A6] text-white ring-2 ring-[#0F766E] ring-offset-1 scale-110 z-10 shadow-md' 
                             : 'hover:bg-teal-50 text-[#113130]'
                     }`}
                 >
-                    {day}
+                    <span>{day}</span>
+                    {isBusy && !isSelected && (
+                        <span className="absolute bottom-1 w-1 h-1 bg-rose-500 rounded-full"></span>
+                    )}
                 </div>
             );
         }
-        
         return days;
     };
     
     const renderContent = () => {
         switch (activeTab) {
-            case 'dashboard':
-                // 🌟 LE PASAMOS LA PROP AQUÍ
-                return <Dashboard onNavigateToReportes={irAReportesDesdeAlerta} />;
-            case 'pacientes':
-              return <Pacientes searchQuery={searchQuery} onNavigateToReportes={irAReportesDesdeAlerta} />;
-            case 'citas':
-                return <Citas />;
-            case 'reportes':
-                // 🌟 LE PASAMOS LA PROP AQUÍ
-                return <Reportes citaInicial={citaParaReporte} />;
-            case 'experiencia':
-                 return <Experiencia />;
-            case 'settings':
-                return <Ajustes />;
-            default:
-                return <div className="text-center text-slate-500 font-bold mt-10">Pantalla no encontrada.</div>;
+            case 'dashboard': return <Dashboard onNavigateToReportes={irAReportesDesdeAlerta} />;
+            case 'pacientes': return <Pacientes searchQuery={searchQuery} onNavigateToReportes={irAReportesDesdeAlerta} />;
+            case 'citas': return <Citas />;
+            case 'reportes': return <Reportes citaInicial={citaParaReporte} />;
+            case 'experiencia': return <Experiencia />;
+            case 'settings': return <Ajustes />;
+            default: return <div className="text-center text-slate-500 font-bold mt-10">Pantalla no encontrada.</div>;
         }
     };
     
     // =========================================================
-    // LÓGICA DEL CHATBOT CON GEMINI (Directo en React)
+    // LÓGICA DEL CHATBOT CON GEMINI
     // =========================================================
     const [chatInput, setChatInput] = useState('');
     const [cargandoChat, setCargandoChat] = useState(false);
-    
-    // Historial inicial. Nota: Gemini usa "user" (usuario) y "model" (IA)
     const [mensajesChat, setMensajesChat] = useState([
-        { 
-            role: "model", 
-            parts: [{ text: "Hola Dr., soy tu asistente de soporte. ¿En qué te puedo ayudar hoy con la plataforma?" }] 
-        }
+        { role: "model", parts: [{ text: "Hola Dr., soy tu asistente de soporte. ¿En qué te puedo ayudar hoy con la plataforma?" }] }
     ]);
 
-    useEffect(() => {
-        const actualizarPerfil = () => {
-            setPerfilNombre(localStorage.getItem('hf_nombre_clinica') || 'Usuario Activo');
-            setPerfilEmail(localStorage.getItem('hf_email') || '');
-        };
-        window.addEventListener('perfilActualizado', actualizarPerfil);
-        return () => window.removeEventListener('perfilActualizado', actualizarPerfil);
-    }, []);
-  
     const formatearTextoChat = (texto) => {
-        // Esta magia agarra todo lo que esté entre ** y lo convierte en <strong> (negrita)
+        if (!texto) return "";
         const partes = texto.split(/(\*\*.*?\*\*)/g);
         return partes.map((parte, i) => {
             if (parte.startsWith('**') && parte.endsWith('**')) {
@@ -218,11 +270,11 @@ export default function Interface({ onLogout }) {
             return <span key={i}>{parte}</span>;
         });
     };
-   const handleEnviarMensaje = async (e) => {
+
+    const handleEnviarMensaje = async (e) => {
         e.preventDefault();
         if (!chatInput.trim()) return;
 
-        // 1. Agregamos el mensaje del usuario a la pantalla
         const nuevoMensaje = { role: "user", parts: [{ text: chatInput }] };
         const historialActualizado = [...mensajesChat, nuevoMensaje];
         setMensajesChat(historialActualizado);
@@ -230,13 +282,11 @@ export default function Interface({ onLogout }) {
         setCargandoChat(true);
 
         try {
-            // 2. Preparamos el historial para mandarlo al backend (FastAPI)
             const historialParaBackend = historialActualizado.map(msg => ({
                 role: msg.role,
                 texto: msg.parts[0].text
             }));
 
-            // 3. Hacemos el pedido al Chef (FastAPI)
             const token = localStorage.getItem('token');
             const respuesta = await fetch('http://127.0.0.1:8000/soporte/chat', {
                 method: 'POST',
@@ -249,22 +299,19 @@ export default function Interface({ onLogout }) {
 
             if (respuesta.ok) {
                 const data = await respuesta.json();
-                // 4. Agregamos la respuesta de la IA a la pantalla
                 setMensajesChat([...historialActualizado, { role: "model", parts: [{ text: data.respuesta }] }]);
             } else {
                 throw new Error("FastAPI rechazó la conexión.");
             }
-
         } catch (error) {
             console.error("Error de Chatbot:", error);
-            setMensajesChat([...historialActualizado, { role: "model", parts: [{ text: "Hubo un error de conexión con el servidor ALMA." }] }]);
+            setMensajesChat([...historialActualizado, { role: "model", parts: [{ text: "Hubo un error de conexión con el servidor de HorizonFlow." }] }]);
         } finally {
             setCargandoChat(false);
         }
-        // 🌟 FORMATEADOR NINJA PARA EL CHATBOT
-    
     };
 
+   
    return (
         // 🌟 1. FONDO BLANCO AL IMPRIMIR: print:bg-white
         <div className="min-h-screen font-sans bg-[#F4F8F8] print:bg-white text-[#113130] flex flex-col lg:flex-row antialiased relative">
@@ -343,48 +390,32 @@ export default function Interface({ onLogout }) {
         {/* 🌟 4. FONDO BLANCO AL IMPRIMIR: print:bg-white */}
        <div className="flex-1 flex flex-col min-h-screen overflow-x-hidden bg-[#F4F8F8] print:bg-white print:overflow-visible print:h-auto print:min-h-0 print:block">
             
-            {/* Cabecera Superior (Header) */}
-            {/* 🌟 5. OCULTAMOS EL HEADER SUPERIOR: print:hidden */}
-            <header className="px-6 lg:px-8 py-5 bg-transparent flex flex-col md:flex-row items-center justify-between gap-4 border-b border-teal-100/30 print:hidden">
+            {/* ========================================================= */}
+            {/* 🌟 NUEVA CABECERA (HEADER) LIMPIA CON FECHA Y UBICACIÓN 🌟 */}
+            {/* ========================================================= */}
+            <header className="px-6 lg:px-8 py-5 bg-white flex flex-col md:flex-row items-center justify-between gap-4 border-b border-teal-100/30 print:hidden sticky top-0 z-20 shadow-sm">
                 
-                {/* ... (Todo el contenido de tu header: Buscador, Perfil, Calendario, Idiomas) ... */}
-                {/* Nota: Dejé este código exacto como lo tenías, solo le agregué el print:hidden a la etiqueta <header> */}
-                
-                <div className="relative w-full md:max-w-md">
-                    <input
-                        type="text"
-                        placeholder="Buscar paciente, informe, cita..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-11 pr-4 py-2.5 rounded-full text-xs bg-white text-[#113130] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 transition-all shadow-sm border border-teal-100/40"
-                    />
-                    <span className="absolute left-4 top-3.5 text-slate-400">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                    </span>
+                {/* LADO IZQUIERDO: Widget de Fecha (Reemplaza la Búsqueda y los Idiomas) */}
+                <div className="flex items-center gap-3 w-full md:w-auto animate-fade-in-up">
+                    <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center text-[#0F766E] shadow-sm border border-teal-100 shrink-0">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    </div>
+                    <div>
+                        <p className="text-sm font-black text-[#113130] capitalize tracking-tight">
+                            {new Date().toLocaleDateString('es-NI', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                        </p>
+                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                            Managua, Nicaragua
+                        </p>
+                    </div>
                 </div>
 
+                {/* LADO DERECHO: Iconos (Campana, Calendario, Perfil) */}
                 <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 sm:gap-4 w-full md:w-auto mt-2 md:mt-0">
+                    
                     <div className="flex items-center gap-2 sm:gap-4 z-50 relative">
-                        <div className="relative z-50">
-                            <div 
-                                onClick={() => setLangMenuOpen(!langMenuOpen)}
-                                className="text-xs font-bold px-3 py-1.5 bg-white rounded-xl shadow-xs border border-teal-100/40 flex items-center gap-1.5 cursor-pointer hover:bg-teal-50/50 transition-colors"
-                            >
-                                <span>{(i18n.language || 'es').toUpperCase()}</span>
-                                <span className="text-[8px] text-teal-600">▼</span>
-                            </div>
-
-                            {langMenuOpen && (
-                                <div className="absolute top-full left-0 mt-2 w-full min-w-[70px] bg-white border border-teal-100/60 rounded-xl shadow-lg overflow-hidden animate-fade-in">
-                                    <button onClick={() => changeLanguage('es')} className="block w-full text-center px-3 py-2 text-xs font-bold text-[#113130] hover:bg-teal-50 hover:text-[#0F766E] transition-colors">ES</button>
-                                    <button onClick={() => changeLanguage('en')} className="block w-full text-center px-3 py-2 text-xs font-bold text-[#113130] hover:bg-teal-50 hover:text-[#0F766E] transition-colors">EN</button>
-                                    <button onClick={() => changeLanguage('pt')} className="block w-full text-center px-3 py-2 text-xs font-bold text-[#113130] hover:bg-teal-50 hover:text-[#0F766E] transition-colors">POR</button>
-                                </div>
-                            )}
-                        </div>
                         
+                        {/* ================= BOTÓN Y POPUP DEL CALENDARIO ================= */}
                         <div className="relative">
                             <button 
                                 onClick={() => setShowCalendar(!showCalendar)}
@@ -427,14 +458,33 @@ export default function Interface({ onLogout }) {
                                         {renderCalendar()}
                                     </div>
                                     
-                                    {isAppointmentDay(appointmentDate.getDate()) && (
-                                        <div className="bg-gradient-to-r from-teal-50 to-cyan-50 rounded-xl p-3 border border-[#14B8A6]/20">
-                                            <p className="text-xs font-bold text-[#113130] mb-1">📅 Cita Programada</p>
-                                            <p className="text-xs text-slate-600">Paciente: <span className="font-bold text-[#0F766E]">Juan Pérez</span></p>
-                                            <p className="text-xs text-slate-600">Hora: <span className="font-bold text-[#0F766E]">10:30 AM</span></p>
-                                        </div>
-                                    )}
-                                    
+                                    {/* INFORMACIÓN DEL DÍA SELECCIONADO */}
+                                    <div className="mt-2 max-h-32 overflow-y-auto pr-1 space-y-2">
+                                        {citasDelDiaSeleccionado.length > 0 ? (
+                                            citasDelDiaSeleccionado.map((cita, index) => (
+                                                <div key={index} className="bg-gradient-to-r from-teal-50 to-cyan-50 rounded-xl p-3 border border-[#14B8A6]/20">
+                                                    <div className="flex items-center justify-between mb-1">
+                                                        <p className="text-[10px] font-black text-[#0F766E] uppercase tracking-wider flex items-center gap-1">
+                                                            📅 {cita.hora}
+                                                        </p>
+                                                        <span className="text-[8px] font-bold bg-white px-1.5 py-0.5 rounded text-slate-500 border border-slate-100">
+                                                            {cita.modalidad}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-xs font-bold text-[#113130] truncate">
+                                                        {cita.paciente}
+                                                    </p>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 text-center">
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                                    Día Libre
+                                                </p>
+                                                <p className="text-xs text-slate-500 mt-1">No hay citas programadas.</p>
+                                            </div>
+                                        )}
+                                    </div>
                                     <button onClick={() => setShowCalendar(false)} className="w-full mt-4 py-2 text-xs font-bold bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-lg transition-colors">Cerrar</button>
                                 </div>
                             )}
@@ -443,8 +493,9 @@ export default function Interface({ onLogout }) {
                         <CampanaAlertas />
                     </div>
 
-                    <div className="hidden sm:block h-6 w-px bg-teal-200/50"></div>
+                    <div className="hidden sm:block h-6 w-px bg-teal-200/50 mx-1"></div>
 
+                    {/* ================= PERFIL DE USUARIO ================= */}
                     <div className="relative z-40">
                         <button 
                             onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
