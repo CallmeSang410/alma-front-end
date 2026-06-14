@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, createContext, useContext } from 'react';
+import { createPortal } from 'react-dom';
 import './Reportes.css';
+import { useAlerta, AlertaProvider } from './AlertaContext.jsx'; // 🌟 Importación del sistema nativo
 
 // --- COMPONENTE TRADUCTOR DE MARKDOWN ---
 const TextoFormateadoIA = ({ texto }) => {
@@ -15,7 +17,6 @@ const TextoFormateadoIA = ({ texto }) => {
 
                 // Títulos
                 if (textoLimpio.startsWith('##')) {
-                    // Limpiamos los "##"
                     const titulo = textoLimpio.replace('##', '').trim();
                     return (
                         <h4 key={index} className="text-sm font-black text-[#113130] uppercase tracking-widest mt-6 mb-2 border-b border-slate-200 pb-2">
@@ -44,9 +45,17 @@ const TextoFormateadoIA = ({ texto }) => {
         </div>
     );
 };
+
 const Reportes = () => {
+    // 🛡️ ESCUDO ANTI-PANTALLA BLANCA
+    const contextoAlerta = useAlerta();
+    const mostrarAlerta = contextoAlerta ? contextoAlerta.mostrarAlerta : (tipo, titulo, mensaje) => {
+        console.warn("⚠️ ALERTA NATIVA NO DETECTADA: Usando fallback.");
+        alert(`${titulo}: ${mensaje}`);
+    };
+
     // ================= ESTADOS GENERALES =================
-    const [view, setView] = useState('list'); // 'list' | 'wizard' | 'reportDetail'
+    const [view, setView] = useState('list'); 
     const [searchQuery, setSearchQuery] = useState('');
     const [activeReport, setActiveReport] = useState(null);
 
@@ -59,27 +68,29 @@ const Reportes = () => {
     const [step, setStep] = useState(1);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [formErrors, setFormErrors] = useState({});
-// ================= ESTADOS PARA EL BUSCADOR DE CITAS EN REPORTES =================
+
+    // ================= ESTADOS PARA EL BUSCADOR DE CITAS EN REPORTES =================
     const [busquedaCita, setBusquedaCita] = useState('');
     const [mostrarListaCitas, setMostrarListaCitas] = useState(false);
 
-    // Filtramos las citas en tiempo real según lo que escriba el psicólogo
     const citasFiltradas = availableAppointments.filter(cita => 
         cita.labelVisual.toLowerCase().includes(busquedaCita.toLowerCase())
     );
-const initialFormState = {
+
+    const initialFormState = {
         cita_id: '', 
         reason: '', 
         interviewNotes: '', 
         testsUsed: [], 
         otherTestDescription: '', 
-        testResults: '', // 🌟 NUEVO: El espacio para los puntajes
+        testResults: '', 
         analisis_ia: '', 
         finalDiagnosis: '', 
         recommendations: '', 
         nextStep: 'Tratamiento Terapéutico',
         otherNextStepDescription: ''
     };
+    
     const [formData, setFormData] = useState(initialFormState);
     const availableTests = ["BDI-II (Depresión)", "GAD-7 (Ansiedad)", "MMPI-2", "Test de Rorschach", "Test de Bender", "Test de la Figura Humana", "Escala de Estrés Percibido", "Otros"];
 
@@ -89,14 +100,12 @@ const initialFormState = {
         if (!token) return;
 
         try {
-            // 1. Definimos los nombres de las respuestas
             const [resPacientes, resCitas, resReportes] = await Promise.all([
                 fetch('http://127.0.0.1:8000/pacientes', { headers: { 'Authorization': `Bearer ${token}` } }),
                 fetch('http://127.0.0.1:8000/citas', { headers: { 'Authorization': `Bearer ${token}` } }),
                 fetch('http://127.0.0.1:8000/reportes', { headers: { 'Authorization': `Bearer ${token}` } })
             ]);
 
-            // 2. Verificamos que todos respondan OK
             if (resPacientes.ok && resCitas.ok && resReportes.ok) {
                 const pacientesDB = await resPacientes.json();
                 const citasDB = await resCitas.json();
@@ -104,7 +113,6 @@ const initialFormState = {
 
                 setPatientsData(pacientesDB);
 
-                // 3. Procesamos los reportes
                 const reportesFormateados = reportesDB.map(rep => {
                     const citaAsociada = citasDB.find(c => c.id === rep.cita_id);
                     const pacienteAsociado = citaAsociada ? pacientesDB.find(p => p.id === citaAsociada.paciente_id) : null;
@@ -121,7 +129,6 @@ const initialFormState = {
                     };
                 });
 
-                // 4. Procesamos las citas que NO tienen reporte
                 const citasSinReporte = citasDB.filter(c => !reportesDB.some(r => r.cita_id === c.id));
                 const citasConNombre = citasSinReporte.map(c => {
                     const paciente = pacientesDB.find(p => p.id === c.paciente_id);
@@ -143,10 +150,6 @@ const initialFormState = {
         cargarDatos();
     }, []);
 
-
-
-
-
     const toggleTest = (test) => {
         setFormErrors({...formErrors, testsUsed: false}); 
         if (formData.testsUsed.includes(test)) {
@@ -160,45 +163,35 @@ const initialFormState = {
         }
     };
 
-    // ================= FUNCIONES DEL WIZARD =================
-    
-    // 🌟 NUEVA FUNCIÓN: Llama a la IA en el Paso 3
-   const generarAnalisisIA = async () => {
+    const generarAnalisisIA = async () => {
         setIsAnalyzing(true);
         setStep(3); 
         
         try {
             const token = localStorage.getItem('token');
-            
-            // 🔍 1. Buscamos la cita seleccionada en tu lista de citas disponibles
             const citaSeleccionada = availableAppointments.find(
                 cita => String(cita.id) === String(formData.cita_id)
             );
 
-            // 🔍 2. Usamos el paciente_id de esa cita para buscar al paciente en tu directorio
             const pacienteSeleccionado = patientsData.find(
                 paciente => paciente.id === citaSeleccionada?.paciente_id
             );
 
-            // 🔍 3. Extraemos la edad y el sexo (si no existen, ponemos un respaldo por si acaso)
             const edadPaciente = pacienteSeleccionado?.edad ? `${pacienteSeleccionado.edad} años` : "Edad no especificada";
             const sexoPaciente = pacienteSeleccionado?.sexo || pacienteSeleccionado?.genero || "No especificado";
 
-            // Armamos el string de pruebas igual que antes...
             let testsString = formData.testsUsed.filter(t => t !== 'Otros').join(', ');
             if (formData.testsUsed.includes('Otros') && formData.otherTestDescription) testsString += `, ${formData.otherTestDescription}`;
 
-            // 🌟 AHORA SÍ, EL PAYLOAD TIENE DATA 100% REAL Y DINÁMICA
             const payload = {
                 motivo_consulta: formData.reason,
-                notas_psicologo: formData.interviewNotes,
+                notes_psicologo: formData.interviewNotes,
                 pruebas_aplicadas: testsString || "Ninguna",
                 resultados_pruebas: formData.testResults || "No se registraron resultados cuantitativos.",
-                edad_paciente: edadPaciente, // 👈 Data real del estado de React
-                sexo_paciente: sexoPaciente  // 👈 Data real del estado de React
+                edad_paciente: edadPaciente, 
+                sexo_paciente: sexoPaciente  
             };
 
-            // Llamamos al endpoint de FastAPI...
             const respuesta = await fetch(`http://127.0.0.1:8000/reportes/analizar`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -217,7 +210,8 @@ const initialFormState = {
             setIsAnalyzing(false);
         }
     };
-    // ================= MEMORIA LOCALSTORAGE (Para Autocompletado) =================
+
+    // ================= MEMORIA LOCALSTORAGE =================
     const [memoriaInstrumentos, setMemoriaInstrumentos] = useState([]);
     const [memoriaAcciones, setMemoriaAcciones] = useState([]);
 
@@ -241,6 +235,7 @@ const initialFormState = {
             localStorage.setItem('hf_acciones', JSON.stringify(nuevos));
         }
     };
+
     const eliminarDeMemoria = (tipo, valorAEliminar) => {
         if (tipo === 'instrumento') {
             const nuevos = memoriaInstrumentos.filter(item => item !== valorAEliminar);
@@ -252,6 +247,7 @@ const initialFormState = {
             localStorage.setItem('hf_acciones', JSON.stringify(nuevos));
         }
     };
+
     const handleNextStep = () => {
         const errors = {};
         
@@ -262,7 +258,7 @@ const initialFormState = {
             if (!formData.interviewNotes.trim()) errors.interviewNotes = true;
             if (formData.testsUsed.length === 0) errors.testsUsed = true;
             if (formData.testsUsed.includes("Otros") && !formData.otherTestDescription.trim()) errors.otherTestDescription = true;
-        } else if (step === 4) { // Ahora el final es el 4
+        } else if (step === 4) { 
             if (!formData.finalDiagnosis.trim()) errors.finalDiagnosis = true;
             if (!formData.recommendations.trim()) errors.recommendations = true;
             if (formData.nextStep === 'Otros' && !formData.otherNextStepDescription.trim()) errors.otherNextStepDescription = true;
@@ -275,9 +271,9 @@ const initialFormState = {
         setFormErrors({});
         
         if (step === 1) setStep(2);
-        else if (step === 2) generarAnalisisIA(); // 🌟 Del paso 2, pasamos a la IA
-        else if (step === 3) setStep(4); // 🌟 De la IA, pasamos al Veredicto
-        else if (step === 4) submitReportToAI(); // 🌟 Guardado final
+        else if (step === 2) generarAnalisisIA(); 
+        else if (step === 3) setStep(4); 
+        else if (step === 4) submitReportToAI(); 
     };
 
     const handlePrevStep = () => {
@@ -285,9 +281,6 @@ const initialFormState = {
         if (step > 1) setStep(step - 1);
     };
 
-    // ... (Tu toggleTest queda igualito, no lo toques) ...
-
-    // 🌟 ACTUALIZAMOS EL GUARDADO FINAL PARA INCLUIR LA IA
     const submitReportToAI = async () => {
         setIsAnalyzing(true);
         
@@ -302,7 +295,7 @@ const initialFormState = {
             motivo_consulta: formData.reason,
             notas_psicologo: formData.interviewNotes,
             pruebas_aplicadas: testsString || "Ninguna registrada",
-            analisis_ia: formData.analisis_ia, // 🌟 AHORA MANDAMOS EL TEXTO DE LA IA AL BACKEND
+            analisis_ia: formData.analisis_ia, 
             diagnostico_final: formData.finalDiagnosis,
             recomendaciones: formData.recommendations,
             plan_accion: planFinal
@@ -324,29 +317,28 @@ const initialFormState = {
                 setView('list');
                 setStep(1);
                 setFormData(initialFormState);
-                alert("¡Informe guardado con éxito en el expediente!");
+                mostrarAlerta('exito', '¡Guardado!', '¡Informe guardado con éxito en el expediente!'); // 🌟 Alerta nativa
             } else {
                 const errorData = await respuesta.json();
-                alert(`Error al guardar: ${errorData.detail}`);
+                mostrarAlerta('error', 'Error al Guardar', `Error al guardar: ${errorData.detail}`); // 🌟 Alerta nativa
                 setIsAnalyzing(false);
             }
         } catch (error) {
-            alert("No se pudo conectar con el servidor.");
+            mostrarAlerta('error', 'Error de Red', 'No se pudo conectar con el servidor.'); // 🌟 Alerta nativa
             setIsAnalyzing(false);
         }
     };
 
-    // ================= HELPERS VISUALES =================
     const ErrorIcon = () => (
         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
     );
 
- const getStepTitle = (s) => {
+    const getStepTitle = (s) => {
         switch(s) {
             case 1: return "Datos Iniciales";
             case 2: return "Evaluación Clínica";
-            case 3: return "Análisis de HorizonFlow"; // 🌟 Nuevo paso
-            case 4: return "Veredicto y Cierre"; // 🌟 Ahora es el 4
+            case 3: return "Análisis de HorizonFlow"; 
+            case 4: return "Veredicto y Cierre"; 
             default: return "";
         }
     };
@@ -361,13 +353,11 @@ const initialFormState = {
         return 'bg-blue-100 text-blue-800 border border-blue-200';
     };
 
-    // Buscador auxiliar para extraer info en la vista de detalle
     const getPatientInfo = (reporteFullData) => {
         const cita = availableAppointments.find(c => c.id === reporteFullData.cita_id) || { paciente_id: null };
         const paciente = patientsData.find(p => p.id === cita.paciente_id) || {};
         return paciente;
     };
-
 
     // ================= VISTA 1: LISTADO DE REPORTES =================
     if (view === 'list') {
@@ -469,10 +459,8 @@ const initialFormState = {
                         </p>
                     </div>
 
-                 {/* PASO 1: DATOS INICIALES */}
                     {step === 1 && (
                         <div className="space-y-6 animate-fade-in">
-                            {/* ================= BUSCADOR PREMIUM DE CITAS ================= */}
                             <div className="relative animate-fade-in z-50">
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
                                     Cita Pendiente <span className="text-rose-500">*</span>
@@ -526,7 +514,6 @@ const initialFormState = {
                                                         }}
                                                         className="px-5 py-3 hover:bg-teal-50 cursor-pointer transition-colors border-b border-slate-50 last:border-0 flex flex-col"
                                                     >
-                                                        {/* Separamos el label para que se vea más pro: "Nombre" arriba, "Fecha" abajo */}
                                                         <span className="text-sm font-bold text-[#113130]">
                                                             {cita.labelVisual.split(' - ')[0]}
                                                         </span>
@@ -561,7 +548,6 @@ const initialFormState = {
                         </div>
                     )}
 
-                    {/* PASO 2: NOTAS Y PRUEBAS */}
                     {step === 2 && (
                         <div className="space-y-8 animate-fade-in">
                             <div>
@@ -585,14 +571,12 @@ const initialFormState = {
                                 {formErrors.testsUsed && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Selecciona al menos un instrumento o técnica</p>}
                             </div>
 
-                         {formData.testsUsed.includes("Otros") && (
+                            {formData.testsUsed.includes("Otros") && (
                                 <div className="animate-fade-in bg-slate-50 p-6 rounded-2xl border border-slate-200 mt-2">
                                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2">
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                                         Especificar Otro Instrumento
                                     </label>
-                                    
-                                    {/* 1. INPUT COMPLETAMENTE LIMPIO: Le quité el list="lista-instrumentos" */}
                                     <input 
                                         type="text" 
                                         value={formData.otherTestDescription} 
@@ -608,8 +592,6 @@ const initialFormState = {
                                         className={`w-full rounded-xl px-4 py-3.5 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.otherTestDescription ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-white border-slate-200 focus:ring-[#0F766E] border'}`}
                                     />
                                     
-                                    {/* 2. EL DATALIST YA NO EXISTE. EN SU LUGAR, DIBUJAMOS LOS CHIPS DE RECIENTES */}
-                                    {/* 🌟 LA NUEVA MEMORIA CON BOTÓN DE BORRAR */}
                                     {memoriaInstrumentos.length > 0 && (
                                         <div className="mt-3 flex flex-wrap items-center gap-2 animate-fade-in">
                                             <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mr-1">
@@ -640,7 +622,7 @@ const initialFormState = {
                                     {formErrors.otherTestDescription && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Debes describir el instrumento utilizado</p>}
                                 </div>
                             )}
-                            {/* 🌟 NUEVO CAMPO: RESULTADOS DE LAS PRUEBAS (Aparece si hay tests seleccionados) */}
+
                             {formData.testsUsed.length > 0 && (
                                 <div className="animate-fade-in pt-6 border-t border-slate-100">
                                     <label className="block text-[10px] font-black text-[#0F766E] uppercase tracking-widest mb-2 flex items-center gap-2">
@@ -663,7 +645,6 @@ const initialFormState = {
                         </div>
                     )}
 
-                   {/* 🌟 PASO 3: EL CEREBRO DE LA IA 🌟 */}
                     {step === 3 && (
                         <div className="space-y-6 animate-fade-in">
                             {isAnalyzing ? (
@@ -692,7 +673,6 @@ const initialFormState = {
                         </div>
                     )}
 
-                    {/* 🌟 PASO 4: VEREDICTO FINAL Y CIERRE 🌟 */}
                     {step === 4 && !isAnalyzing && (
                         <div className="space-y-6 animate-fade-in">
                             <div>
@@ -708,9 +688,7 @@ const initialFormState = {
                             <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 space-y-6">
                                 <div>
                                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Plan de Acción Directo</label>
-                                    {/* 🌟 Ajusté a grid-cols-2 en sm para que quepan bien las 5 opciones sin amontonarse */}
                                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                                        {/* 🌟 OPCIONES EXPANDIDAS */}
                                         {['Tratamiento Terapéutico', 'Seguimiento Semanal', 'Seguimiento Quincenal', 'Seguimiento Mensual', 'Alta Médica'].map((option) => (
                                             <label key={option} className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${formData.nextStep === option ? 'bg-white border-[#0F766E] text-[#0F766E] shadow-sm' : 'bg-white border-transparent text-slate-500 hover:border-slate-300'}`}>
                                                 <input type="radio" name="nextStep" className="hidden" checked={formData.nextStep === option} onChange={() => setFormData({...formData, nextStep: option, otherNextStepDescription: option !== 'Otros' ? '' : formData.otherNextStepDescription})} />
@@ -738,8 +716,6 @@ const initialFormState = {
                                 </div>
                                 {formData.nextStep === 'Otros' && (
                                     <div className="animate-fade-in bg-white p-5 rounded-xl border border-slate-200 mt-2 shadow-sm">
-                                        
-                                        {/* 🌟 INPUT LIMPIO */}
                                         <input 
                                             type="text" 
                                             value={formData.otherNextStepDescription} 
@@ -755,8 +731,6 @@ const initialFormState = {
                                             className={`w-full rounded-xl px-4 py-3.5 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.otherNextStepDescription ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-slate-50 border-slate-200 focus:ring-[#0F766E] border'}`}
                                         />
                                         
-                                        {/* 🌟 LA NUEVA MEMORIA VISUAL (CHIPS PREMIUM) */}
-                                        {/* 🌟 LA NUEVA MEMORIA CON BOTÓN DE BORRAR */}
                                         {memoriaAcciones.length > 0 && (
                                             <div className="mt-3 flex flex-wrap items-center gap-2 animate-fade-in">
                                                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mr-1">
@@ -791,7 +765,6 @@ const initialFormState = {
                         </div>
                     )}
 
-                    {/* Botonera del Wizard */}
                     {step <= 4 && !isAnalyzing && (
                         <div className="mt-10 pt-6 border-t border-slate-100 flex items-center justify-between gap-4">
                             <button 
@@ -818,182 +791,165 @@ const initialFormState = {
         );
     }
 
-// ================= VISTA 3: INFORME FINAL (DOCUMENTO) =================
-if (view === 'reportDetail' && activeReport) {
-    // 🌟 EL CAMBIO CLAVE: Agarramos los datos que ya vienen unidos del backend
-    const repData = activeReport.fullData;
-    
-    // Si la ventanilla GET /reportes funcionó, paciente_data estará ahí.
-    // Si acabamos de crear el reporte, paciente_data también estará ahí gracias al backend actualizado.
-    const pInfo = repData.paciente_data || {}; 
+    // ================= VISTA 3: INFORME FINAL (DOCUMENTO) =================
+    if (view === 'reportDetail' && activeReport) {
+        const repData = activeReport.fullData;
+        const pInfo = repData.paciente_data || {}; 
 
-   return (
-       <div className="max-w-4xl mx-auto bg-white rounded-[2.5rem] p-8 sm:p-12 shadow-xl border border-slate-100 print:shadow-none print:border-none print:p-0 print:max-w-full">
-                                
-                                {/* 🌟 ENCABEZADO MEMBRETADO (Oculto en web, aparece al imprimir) */}
-                                <div className="hidden print:flex items-center justify-between border-b-2 border-[#0F766E] pb-6 mb-8 w-full">
-                                    <div>
-                                        <h1 className="text-2xl font-black text-[#0F766E] tracking-tight uppercase">HorizonFlow</h1>
-                                        <p className="text-[10px] font-bold text-slate-400 tracking-widest uppercase mt-0.5">Sistema de Gestión Clínica e Inteligencia Artificial</p>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-xs font-bold text-[#113130]">EXPEDIENTE CLÍNICO AUTOMATIZADO</p>
-                                        <p className="text-[10px] font-medium text-slate-500 mt-0.5">Fecha de Emisión: {new Date().toLocaleDateString()}</p>
-                                    </div>
-                                </div>
-            <div className="bg-white rounded-[2rem] p-10 sm:p-16 shadow-2xl border border-slate-200 font-serif text-slate-800 relative">
-                {/* ... Header del documento queda igual ... */}
-            {/* CONTENEDOR DE BOTONES (Se ocultará automáticamente al imprimir) */}
-<div className="max-w-4xl mx-auto mb-6 flex items-center justify-between print:hidden">
-    <button 
-        onClick={() => setView('list')} 
-        className="flex items-center gap-2 text-slate-500 hover:text-[#0F766E] text-xs font-black uppercase tracking-widest transition-all bg-white px-5 py-2.5 rounded-xl shadow-sm border border-slate-100 hover:shadow-md w-fit"
-    >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-        </svg> 
-        CERRAR REPORTE
-    </button>
+        return (
+            <>
+                <div className="max-w-4xl mx-auto bg-white rounded-[2.5rem] p-8 sm:p-12 shadow-xl border border-slate-100 print:shadow-none print:border-none print:p-0 print:max-w-full">
+                    <div className="hidden print:flex items-center justify-between border-b-2 border-[#0F766E] pb-6 mb-8 w-full">
+                        <div>
+                            <h1 className="text-2xl font-black text-[#0F766E] tracking-tight uppercase">HorizonFlow</h1>
+                            <p className="text-[10px] font-bold text-slate-400 tracking-widest uppercase mt-0.5">Sistema de Gestión Clínica e Inteligencia Artificial</p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-xs font-bold text-[#113130]">EXPEDIENTE CLÍNICO AUTOMATIZADO</p>
+                            <p className="text-[10px] font-medium text-slate-500 mt-0.5">Fecha de Emisión: {new Date().toLocaleDateString()}</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div className="max-w-4xl mx-auto mb-6 flex items-center justify-between print:hidden">
+                    <button 
+                        onClick={() => setView('list')} 
+                        className="flex items-center gap-2 text-slate-500 hover:text-[#0F766E] text-xs font-black uppercase tracking-widest transition-all bg-white px-5 py-2.5 rounded-xl shadow-sm border border-slate-100 hover:shadow-md w-fit"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                        </svg> 
+                        CERRAR REPORTE
+                    </button>
 
-    {/* 🌟 NUEVO BOTÓN: DISPARA EL PDF NATIVO */}
-    <button 
-        onClick={() => window.print()} // 🚀 Dispara el diálogo de guardado en PDF del navegador
-        className="flex items-center gap-2 bg-[#0F766E] hover:bg-[#0D9488] text-white text-xs font-black uppercase tracking-widest transition-all px-6 py-2.5 rounded-xl shadow-md hover:shadow-xl w-fit"
-    >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
-        EXPORTAR A PDF
-    </button>
-</div>
-                {/* ============================================================== */}
-                                {/* 🌟 AJUSTE 1: Eliminamos 'space-y-8' y usamos margen nativo      */}
-                                {/*     El space-y acumula márgenes y crea los espacios 'malparidos'   */}
-                                {/*     al imprimir. Dejamos que cada section maneje su margen.      */}
-                                {/* ============================================================== */}
-                                <div className="leading-relaxed print:w-full">
-                                    
-                                    {/* ========================================================== */}
-                                    {/* 🌟 AJUSTE 2: print:break-inside-avoid a CADA section       */}
-                                    {/*     Agregué 'mb-8' (equivalente a space-y-8) y 'pb-2'       */}
-                                    {/*     para mantener el diseño web idéntico.                     */}
-                                    {/* ========================================================== */}
-                                    
-                                    {/* I. DATOS GENERALES */}
-                                    <section className="print:break-inside-avoid mb-8 pb-2">
-                                        <h2 className="text-sm font-black text-[#113130] uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 font-sans">I. Datos Generales</h2>
-                                        <div className="grid grid-cols-2 gap-4 text-sm bg-slate-50 p-6 rounded-2xl font-sans border border-slate-100">
-                                            <div><span className="font-bold text-slate-500 block mb-1">Paciente:</span> <span className="font-bold text-[#113130] text-base">{activeReport.patientName}</span></div>
-                                            <div><span className="font-bold text-slate-500 block mb-1">Edad:</span> <span className="font-bold text-[#113130] text-base">{pInfo.edad || 'N/E'} años</span></div>
-                                            <div><span className="font-bold text-slate-500 block mb-1">Teléfono:</span> <span className="font-bold text-[#113130] text-base">{pInfo.telefono || 'N/E'}</span></div>
-                                            <div><span className="font-bold text-slate-500 block mb-1">Evaluador:</span> <span className="font-bold text-[#113130] text-base">Psicólogo Autorizado</span></div>
-                                        </div>
-                                    </section>
+                    <button 
+                        onClick={() => window.print()} 
+                        className="flex items-center gap-2 bg-[#0F766E] hover:bg-[#0D9488] text-white text-xs font-black uppercase tracking-widest transition-all px-6 py-2.5 rounded-xl shadow-md hover:shadow-xl w-fit"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        EXPORTAR A PDF
+                    </button>
+                </div>
 
-                                    {/* II. MOTIVO DE CONSULTA */}
-                                    <section className="print:break-inside-avoid mb-8 pb-2">
-                                        <h2 className="text-sm font-black text-[#113130] uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 font-sans">II. Motivo de Consulta</h2>
-                                        <p className="text-[15px] text-justify text-slate-700 mb-6 whitespace-pre-wrap">
-                                            {repData.motivo_consulta || "No especificado."}
-                                        </p>
-                                    </section>
+                <div className="bg-white rounded-[2rem] p-10 sm:p-16 shadow-2xl border border-slate-200 font-serif text-slate-800 relative max-w-4xl mx-auto">
+                    <div className="leading-relaxed print:w-full">
+                        {/* I. DATOS GENERALES */}
+                        <section className="print:break-inside-avoid mb-8 pb-2">
+                            <h2 className="text-sm font-black text-[#113130] uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 font-sans">I. Datos Generales</h2>
+                            <div className="grid grid-cols-2 gap-4 text-sm bg-slate-50 p-6 rounded-2xl font-sans border border-slate-100">
+                                <div><span className="font-bold text-slate-500 block mb-1">Paciente:</span> <span className="font-bold text-[#113130] text-base">{activeReport.patientName}</span></div>
+                                <div><span className="font-bold text-slate-500 block mb-1">Edad:</span> <span className="font-bold text-[#113130] text-base">{pInfo.edad || 'N/E'} años</span></div>
+                                <div><span className="font-bold text-slate-500 block mb-1">Teléfono:</span> <span className="font-bold text-[#113130] text-base">{pInfo.telefono || 'N/E'}</span></div>
+                                <div><span className="font-bold text-slate-500 block mb-1">Evaluador:</span> <span className="font-bold text-[#113130] text-base">Psicólogo Autorizado</span></div>
+                            </div>
+                        </section>
 
-                                    {/* III. TÉCNICAS E INSTRUMENTOS APLICADOS */}
-                                    <section className="print:break-inside-avoid mb-8 pb-2">
-                                        <h2 className="text-sm font-black text-[#113130] uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 font-sans">III. Técnicas e Instrumentos Aplicados</h2>
-                                        <p className="text-[15px] text-justify text-slate-700 mb-6 whitespace-pre-wrap">
-                                            {repData.pruebas_aplicadas || "Entrevista clínica semiestructurada."}
-                                        </p>
-                                    </section>
+                        {/* II. MOTIVO DE CONSULTA */}
+                        <section className="print:break-inside-avoid mb-8 pb-2">
+                            <h2 className="text-sm font-black text-[#113130] uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 font-sans">II. Motivo de Consulta</h2>
+                            <p className="text-[15px] text-justify text-slate-700 mb-6 whitespace-pre-wrap">
+                                {repData.motivo_consulta || "No especificado."}
+                            </p>
+                        </section>
 
-                                    {/* IV. ANÁLISIS Y OBSERVACIONES CLÍNICAS */}
-                                    <section className="print:break-inside-avoid mb-8 pb-2">
-                                        <h2 className="text-sm font-black text-[#113130] uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 font-sans">IV. Análisis y Observaciones Clínicas</h2>
-                                        <p className="text-[15px] text-justify text-slate-700 mb-6 whitespace-pre-wrap">
-                                            {repData.notas_psicologo}
-                                        </p>
-                                    </section>
+                        {/* III. TÉCNICAS E INSTRUMENTOS APLICADOS */}
+                        <section className="print:break-inside-avoid mb-8 pb-2">
+                            <h2 className="text-sm font-black text-[#113130] uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 font-sans">III. Técnicas e Instrumentos Aplicados</h2>
+                            <p className="text-[15px] text-justify text-slate-700 mb-6 whitespace-pre-wrap">
+                                {repData.pruebas_aplicadas || "Entrevista clínica semiestructurada."}
+                            </p>
+                        </section>
 
-                                    {/* V. ANÁLISIS CLÍNICO (LIMPIADO) */}
-                                    <section className="print:break-inside-avoid mb-8 pb-2">
-                                        <div className="mt-8 bg-slate-50 p-8 rounded-3xl border border-slate-100 font-sans shadow-inner">
-                                            <p className="text-[10px] font-black text-[#0F766E] uppercase tracking-widest mb-5 flex items-center gap-2">
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                                                V. Análisis Clínico y Fundamentación DSM-5 (Generado por ALMA AI)
-                                            </p>
-                                            <TextoFormateadoIA texto={repData.analisis_ia} />
-                                        </div>
-                                    </section>
+                        {/* IV. ANÁLISIS Y OBSERVACIONES CLÍNICAS */}
+                        <section className="print:break-inside-avoid mb-8 pb-2">
+                            <h2 className="text-sm font-black text-[#113130] uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 font-sans">IV. Análisis y Observaciones Clínicas</h2>
+                            <p className="text-[15px] text-justify text-slate-700 mb-6 whitespace-pre-wrap">
+                                {repData.notas_psicologo}
+                            </p>
+                        </section>
 
-                                    {/* VI. DIAGNÓSTICO CLÍNICO */}
-                                    <section className="print:break-inside-avoid mb-8 pb-2">
-                                        <h2 className="text-sm font-black text-[#113130] uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 font-sans">VI. Diagnóstico Clínico</h2>
-                                        <p className="text-xl font-bold text-[#113130] bg-slate-50 p-5 rounded-2xl text-center font-sans border border-slate-200 shadow-inner">
-                                            {activeReport.diagnosis || repData.diagnostico_final}
-                                        </p>
-                                    </section>
+                        {/* V. ANÁLISIS CLÍNICO */}
+                        <section className="print:break-inside-avoid mb-8 pb-2">
+                            <div className="mt-8 bg-slate-50 p-8 rounded-3xl border border-slate-100 font-sans shadow-inner">
+                                <p className="text-[10px] font-black text-[#0F766E] uppercase tracking-widest mb-5 flex items-center gap-2">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                                    V. Análisis Clínico y Fundamentación DSM-5 (Generado por ALMA AI)
+                                </p>
+                                <TextoFormateadoIA texto={repData.analisis_ia} />
+                            </div>
+                        </section>
 
-                                  {/* VII. RECOMENDACIONES Y PLAN A SEGUIR */}
-                                    {/* 🌟 Le regresamos el print:break-inside-avoid */}
-                                    <section className="mb-8 pb-2 print:block print:break-inside-avoid">
-                                        
-                                        {/* 🌟 Le ponemos print:break-after-avoid al H2 para que el título JAMÁS se separe de su párrafo */}
-                                        <h2 className="text-sm font-black text-[#113130] uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 font-sans print:break-after-avoid">
-                                            VII. Recomendaciones y Plan a Seguir
-                                        </h2>
-                                        
-                                        <p className="text-[15px] whitespace-pre-wrap text-slate-700 mb-6">
-                                            {repData.recomendaciones}
-                                        </p>
-                                        
-                                        {repData.plan_accion && (
-                                            <p className="text-[15px] whitespace-pre-wrap text-slate-700 mb-6">
-                                                <span className="font-bold text-[#113130] block mb-1">Plan de Acción:</span>
-                                                {repData.plan_accion}
-                                            </p>
-                                        )}
+                        {/* VI. DIAGNÓSTICO CLÍNICO */}
+                        <section className="print:break-inside-avoid mb-8 pb-2">
+                            <h2 className="text-sm font-black text-[#113130] uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 font-sans">VI. Diagnóstico Clínico</h2>
+                            <p className="text-xl font-bold text-[#113130] bg-slate-50 p-5 rounded-2xl text-center font-sans border border-slate-200 shadow-inner">
+                                {activeReport.diagnosis || repData.diagnostico_final}
+                            </p>
+                        </section>
 
-                                        <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100 font-sans w-fit mt-4">
-                                            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Decisión Clínica:</span>
-                                            <span className={`text-[11px] font-black uppercase tracking-widest px-4 py-2 rounded-lg shadow-sm ${getBadgeStyle(activeReport.nextStep)}`}>
-                                                {activeReport.nextStep}
-                                            </span>
-                                        </div>
-                                    </section>
+                        {/* VII. RECOMENDACIONES Y PLAN A SEGUIR */}
+                        <section className="mb-8 pb-2 print:block print:break-inside-avoid">
+                            <h2 className="text-sm font-black text-[#113130] uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 font-sans print:break-after-avoid">
+                                VII. Recomendaciones y Plan a Seguir
+                            </h2>
+                            <p className="text-[15px] whitespace-pre-wrap text-slate-700 mb-6">
+                                {repData.recomendaciones}
+                            </p>
+                            {repData.plan_accion && (
+                                <p className="text-[15px] whitespace-pre-wrap text-slate-700 mb-6">
+                                    <span className="font-bold text-[#113130] block mb-1">Plan de Acción:</span>
+                                    {repData.plan_accion}
+                                </p>
+                            )}
+                            <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100 font-sans w-fit mt-4">
+                                <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Decisión Clínica:</span>
+                                <span className={`text-[11px] font-black uppercase tracking-widest px-4 py-2 rounded-lg shadow-sm ${getBadgeStyle(activeReport.nextStep)}`}>
+                                    {activeReport.nextStep}
+                                </span>
+                            </div>
+                        </section>
 
-                                    {/* FIRMAS ORIGINALES (Restauradas para verse en Web y PDF) */}
-                                    <div className="mt-24 pt-10 grid grid-cols-2 gap-10 font-sans print:break-inside-avoid">
-                                        <div className="border-t-2 border-slate-300 pt-4 text-center">
-                                            <p className="text-sm font-black text-[#113130] uppercase tracking-widest">Firma del Profesional</p>
-                                            <p className="text-xs text-slate-500 font-bold mt-1">Reg. Médico: Pendiente</p>
-                                        </div>
-                                        <div className="border-t-2 border-slate-300 pt-4 text-center opacity-50">
-                                            <p className="text-sm font-black text-[#113130] uppercase tracking-widest">Sello de la Clínica</p>
-                                            <p className="text-xs text-slate-500 font-bold mt-1">HorizonFlow Systems</p>
-                                        </div>
-                                    </div>
-
-                                    {/* 🌟 PIE DE PÁGINA EXCLUSIVO PARA EL PDF (Para firmas legales) */}
-                                    <section className="hidden print:block mt-16 w-full print:break-inside-avoid">
-                                        <div className="flex justify-between items-center">
-                                            <div className="w-48 border-t border-slate-300 pt-2 text-center">
-                                                <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Firma del Psicólogo</p>
-                                                <p className="text-[9px] font-medium text-slate-400 mt-0.5">Código Profesional</p>
-                                            </div>
-                                            <div className="text-right text-[9px] font-medium text-slate-400">
-                                                <p>Este documento fue validado mediante el módulo cognitivo de HorizonFlow.</p>
-                                                <p>Información confidencial sujeta a secreto profesional.</p>
-                                            </div>
-                                        </div>
-                                    </section>
-                                </div>
+                        {/* FIRMAS */}
+                        <div className="mt-24 pt-10 grid grid-cols-2 gap-10 font-sans print:break-inside-avoid">
+                            <div className="border-t-2 border-slate-300 pt-4 text-center">
+                                <p className="text-sm font-black text-[#113130] uppercase tracking-widest">Firma del Profesional</p>
+                                <p className="text-xs text-slate-500 font-bold mt-1">Reg. Médico: Pendiente</p>
+                            </div>
+                            <div className="border-t-2 border-slate-300 pt-4 text-center opacity-50">
+                                <p className="text-sm font-black text-[#113130] uppercase tracking-widest">Sello de la Clínica</p>
+                                <p className="text-xs text-slate-500 font-bold mt-1">HorizonFlow Systems</p>
                             </div>
                         </div>
 
+                        {/* PIE DE PÁGINA EXCLUSIVO PARA EL PDF */}
+                        <section className="hidden print:block mt-16 w-full print:break-inside-avoid">
+                            <div className="flex justify-between items-center">
+                                <div className="w-48 border-t border-slate-300 pt-2 text-center">
+                                    <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Firma del Psicólogo</p>
+                                    <p className="text-[9px] font-medium text-slate-400 mt-0.5">Código Profesional</p>
+                                </div>
+                                <div className="text-right text-[9px] font-medium text-slate-400">
+                                    <p>Este documento fue validado mediante el módulo cognitivo de HorizonFlow.</p>
+                                    <p>Información confidencial sujeta a secreto profesional.</p>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            </>
         );
     }
     
     return null;
 };
 
-export default Reportes;
+// 🌟 Exportación envuelta en el Proveedor para blindar el componente contra fallas
+export default function ReportesIntegrado(props) {
+    return (
+        <AlertaProvider>
+            <Reportes {...props} />
+        </AlertaProvider>
+    );
+}

@@ -1,43 +1,292 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import './Citas.css';
-import { useAlerta, AlertaProvider } from './AlertaContext.jsx';
+import { useAlerta, AlertaProvider } from './AlertaContext.jsx'; 
 
-const Citas = () => {
-    // 🛡️ ESCUDO ANTI-PANTALLA BLANCA:
-    // Revisamos si el contexto existe antes de extraerlo. Si no existe, no explotamos.
-    const contextoAlerta = useAlerta();
+// ================= COMPONENTES VISUALES PREMIUM =================
+
+// 1. Selector Simple (Para Estado y Modalidad)
+const SelectorPremium = ({ valor, opciones, alCambiar, placeholder, conError }) => {
+    const [abierto, setAbierto] = useState(false);
+    return (
+        <div className="relative">
+            <div 
+                onClick={() => setAbierto(!abierto)}
+                className={`w-full rounded-2xl px-5 py-4 text-sm font-bold cursor-pointer flex justify-between items-center transition-all ${conError ? 'bg-rose-50 border-rose-400 text-rose-700 border' : 'bg-slate-50 border-slate-200 text-[#113130] hover:border-[#0F766E]/40 border'} ${abierto ? 'ring-2 ring-[#0F766E]/30 border-[#0F766E] bg-white' : ''}`}
+            >
+                <span className={!valor ? 'text-slate-400' : ''}>
+                    {valor ? opciones.find(o => o.valor === valor)?.etiqueta : placeholder}
+                </span>
+                <svg className={`w-5 h-5 text-slate-400 shrink-0 transition-transform duration-300 ${abierto ? 'rotate-180 text-[#0F766E]' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" /></svg>
+            </div>
+            {abierto && (
+                <>
+                    <div className="fixed inset-0 z-40" onClick={() => setAbierto(false)}></div>
+                    <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-2xl shadow-xl overflow-hidden animate-fade-in">
+                        {opciones.map((opt) => (
+                            <div 
+                                key={opt.valor}
+                                onClick={() => { alCambiar(opt.valor); setAbierto(false); }}
+                                className={`px-5 py-3.5 cursor-pointer text-sm font-bold transition-colors flex justify-between items-center ${valor === opt.valor ? 'bg-teal-50 text-[#0F766E]' : 'text-slate-500 hover:bg-slate-50 hover:text-[#113130]'}`}
+                            >
+                                {opt.etiqueta}
+                                {valor === opt.valor && <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>}
+                            </div>
+                        ))}
+                    </div>
+                </>
+            )}
+        </div>
+    );
+};
+
+// 2. Buscador de Pacientes con Lupa
+const BuscadorPacientesPremium = ({ valor, pacientes, alCambiar, conError }) => {
+    const [abierto, setAbierto] = useState(false);
+    const [busqueda, setBusqueda] = useState('');
     
-    const mostrarAlerta = contextoAlerta ? contextoAlerta.mostrarAlerta : (tipo, titulo, mensaje) => {
-        console.error("⚠️ EL PROVIDER NO ESTÁ CONECTADO. Cayó en el fallback.");
-        alert(`${titulo}: ${mensaje}`);
+    const pacienteSeleccionado = pacientes.find(p => String(p.id) === String(valor));
+
+    return (
+        <div className="relative">
+            <div 
+                onClick={() => setAbierto(!abierto)}
+                className={`w-full rounded-2xl px-5 py-4 text-sm font-bold cursor-pointer flex justify-between items-center transition-all ${conError ? 'bg-rose-50 border-rose-400 text-rose-700 border' : 'bg-slate-50 border-slate-200 text-[#113130] hover:border-[#0F766E]/40 border'} ${abierto ? 'ring-2 ring-[#0F766E]/30 border-[#0F766E] bg-white' : ''}`}
+            >
+                <span className={!pacienteSeleccionado ? 'text-slate-400' : 'truncate max-w-[85%]'}>
+                    {pacienteSeleccionado ? `${pacienteSeleccionado.nombre} ${pacienteSeleccionado.telefono ? `- ${pacienteSeleccionado.telefono}` : ''}` : 'Seleccione o busque un paciente...'}
+                </span>
+                <svg className={`w-5 h-5 text-slate-400 shrink-0 transition-transform duration-300 ${abierto ? 'rotate-180 text-[#0F766E]' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" /></svg>
+            </div>
+
+            {abierto && (
+                <>
+                    <div className="fixed inset-0 z-40" onClick={() => setAbierto(false)}></div>
+                    <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-2xl shadow-2xl overflow-hidden animate-fade-in flex flex-col max-h-[320px]">
+                        <div className="p-3 border-b border-slate-100 relative shrink-0">
+                            <svg className="absolute left-6 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                            <input 
+                                type="text" 
+                                placeholder="Buscar por nombre o teléfono..." 
+                                value={busqueda}
+                                onChange={(e) => setBusqueda(e.target.value)}
+                                autoFocus
+                                className="w-full pl-9 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 focus:ring-[#0F766E]/30"
+                            />
+                        </div>
+                        <div className="overflow-y-auto hide-scrollbar flex-1">
+                            {pacientes.filter(p => p.nombre.toLowerCase().includes(busqueda.toLowerCase()) || (p.telefono && p.telefono.includes(busqueda))).map(p => (
+                                <div 
+                                    key={p.id}
+                                    onClick={() => { alCambiar(p.id); setAbierto(false); setBusqueda(''); }}
+                                    className={`px-5 py-3 cursor-pointer text-sm transition-colors flex flex-col border-l-4 ${String(valor) === String(p.id) ? 'bg-teal-50 border-[#0F766E]' : 'hover:bg-slate-50 border-transparent'}`}
+                                >
+                                    <span className={`font-bold ${String(valor) === String(p.id) ? 'text-[#0F766E]' : 'text-[#113130]'}`}>{p.nombre}</span>
+                                    {p.telefono && <span className="text-[11px] font-black tracking-widest text-slate-400 mt-0.5">{p.telefono}</span>}
+                                </div>
+                            ))}
+                            {pacientes.filter(p => p.nombre.toLowerCase().includes(busqueda.toLowerCase()) || (p.telefono && p.telefono.includes(busqueda))).length === 0 && (
+                                <div className="p-6 text-center text-sm font-bold text-slate-400 flex flex-col items-center gap-2">
+                                    No se encontró ningún paciente 🔍
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </>
+            )}
+        </div>
+    );
+};
+
+// 3. 🌟 NUEVO: Calendario Premium Custom
+const DatePickerPremium = ({ valor, alCambiar, conError }) => {
+    const [abierto, setAbierto] = useState(false);
+    const [fechaVista, setFechaVista] = useState(new Date());
+
+    useEffect(() => {
+        if (abierto && valor) {
+            const [y, m, d] = valor.split('-');
+            setFechaVista(new Date(y, m - 1, d));
+        } else if (abierto && !valor) {
+            setFechaVista(new Date());
+        }
+    }, [abierto, valor]);
+
+    const formatearFechaDisplay = (fechaStr) => {
+        if (!fechaStr) return 'Seleccionar fecha...';
+        const [y, m, d] = fechaStr.split('-');
+        const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+        return `${d} de ${meses[parseInt(m)-1]}, ${y}`;
     };
 
-    // ================= ESTADOS GENERALES =================
+    const diasMes = new Date(fechaVista.getFullYear(), fechaVista.getMonth() + 1, 0).getDate();
+    const diaInicio = new Date(fechaVista.getFullYear(), fechaVista.getMonth(), 1).getDay();
+
+    const diasArray = Array.from({ length: diasMes }, (_, i) => i + 1);
+    const blancosArray = Array.from({ length: diaInicio }, (_, i) => i);
+    const mesesNombres = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+    return (
+        <div className="relative">
+            <div onClick={() => setAbierto(!abierto)} className={`w-full rounded-2xl px-5 py-4 text-sm font-bold cursor-pointer flex justify-between items-center transition-all ${conError ? 'bg-rose-50 border-rose-400 text-rose-700 border' : 'bg-slate-50 border-slate-200 text-[#113130] hover:border-[#0F766E]/40 border'} ${abierto ? 'ring-2 ring-[#0F766E]/30 border-[#0F766E] bg-white' : ''}`}>
+                <span className={!valor ? 'text-slate-400' : ''}>
+                    {formatearFechaDisplay(valor)}
+                </span>
+                <svg className={`w-5 h-5 text-slate-400 transition-transform duration-300 ${abierto ? 'rotate-180 text-[#0F766E]' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+            </div>
+
+            {abierto && (
+                <>
+                    <div className="fixed inset-0 z-40" onClick={() => setAbierto(false)}></div>
+                    <div className="absolute z-50 w-full sm:w-80 mt-2 bg-white border border-slate-100 rounded-[2rem] shadow-2xl p-6 animate-fade-in left-0">
+                        {/* Header Mes/Año */}
+                        <div className="flex justify-between items-center mb-6">
+                            <button type="button" onClick={() => setFechaVista(new Date(fechaVista.getFullYear(), fechaVista.getMonth() - 1, 1))} className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15 19l-7-7 7-7" /></svg>
+                            </button>
+                            <span className="text-[13px] font-black uppercase tracking-widest text-[#113130]">
+                                {mesesNombres[fechaVista.getMonth()]} {fechaVista.getFullYear()}
+                            </span>
+                            <button type="button" onClick={() => setFechaVista(new Date(fechaVista.getFullYear(), fechaVista.getMonth() + 1, 1))} className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 5l7 7-7 7" /></svg>
+                            </button>
+                        </div>
+                        
+                        {/* Días de la semana */}
+                        <div className="grid grid-cols-7 gap-1 mb-3">
+                            {['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa'].map(d => (
+                                <div key={d} className="text-center text-[10px] font-black text-slate-400 uppercase tracking-wider">{d}</div>
+                            ))}
+                        </div>
+                        
+                        {/* Cuadrícula de días */}
+                        <div className="grid grid-cols-7 gap-1">
+                            {blancosArray.map(b => <div key={`blank-${b}`}></div>)}
+                            {diasArray.map(d => {
+                                const fechaStr = `${fechaVista.getFullYear()}-${String(fechaVista.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                                const seleccionado = valor === fechaStr;
+                                const hoy = new Date().toISOString().split('T')[0] === fechaStr;
+                                
+                                return (
+                                    <button
+                                        key={d}
+                                        type="button"
+                                        onClick={() => { alCambiar(fechaStr); setAbierto(false); }}
+                                        className={`aspect-square flex items-center justify-center text-xs font-bold rounded-xl transition-all 
+                                            ${seleccionado ? 'bg-[#0F766E] text-white shadow-md shadow-teal-900/20' : 
+                                            hoy ? 'border-2 border-[#0F766E] text-[#0F766E] bg-teal-50/50' : 'hover:bg-slate-100 text-slate-600'}`}
+                                    >
+                                        {d}
+                                    </button>
+                                )
+                            })}
+                        </div>
+                    </div>
+                </>
+            )}
+        </div>
+    );
+};
+
+// 4. 🌟 NUEVO: Reloj Premium Custom (Dos columnas)
+const TimePickerPremium = ({ valor, alCambiar, conError }) => {
+    const [abierto, setAbierto] = useState(false);
+    const horas = Array.from({length: 24}, (_, i) => String(i).padStart(2, '0'));
+    const minutos = Array.from({length: 60}, (_, i) => String(i).padStart(2, '0'));
+
+    const [hSelect, mSelect] = valor ? valor.split(':') : ['--', '--'];
+
+    return (
+        <div className="relative">
+            <div onClick={() => setAbierto(!abierto)} className={`w-full rounded-2xl px-5 py-4 text-sm font-bold cursor-pointer flex justify-between items-center transition-all ${conError ? 'bg-rose-50 border-rose-400 text-rose-700 border' : 'bg-slate-50 border-slate-200 text-[#113130] hover:border-[#0F766E]/40 border'} ${abierto ? 'ring-2 ring-[#0F766E]/30 border-[#0F766E] bg-white' : ''}`}>
+                <span className={!valor ? 'text-slate-400' : ''}>
+                    {valor ? `${valor} hrs` : '-- : --'}
+                </span>
+                <svg className={`w-5 h-5 text-slate-400 transition-transform duration-300 ${abierto ? 'rotate-180 text-[#0F766E]' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            </div>
+
+            {abierto && (
+                <>
+                    <div className="fixed inset-0 z-40" onClick={() => setAbierto(false)}></div>
+                    <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-3xl shadow-2xl p-5 animate-fade-in flex gap-6 h-[300px]">
+                        {/* Columna Horas */}
+                        <div className="flex-1 flex flex-col h-full">
+                            <span className="text-[10px] font-black text-center text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-100 pb-2">Hora</span>
+                            <div className="flex-1 overflow-y-auto hide-scrollbar flex flex-col gap-1 pr-2">
+                                {horas.map(h => (
+                                    <button 
+                                        key={h}
+                                        type="button"
+                                        onClick={() => {
+                                            const newTime = `${h}:${mSelect !== '--' ? mSelect : '00'}`;
+                                            alCambiar(newTime);
+                                        }}
+                                        className={`py-3 text-sm font-bold rounded-xl transition-colors ${hSelect === h ? 'bg-[#0F766E] text-white shadow-md' : 'hover:bg-slate-50 text-slate-600'}`}
+                                    >
+                                        {h}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        
+                        <div className="w-px bg-slate-100 h-full rounded-full"></div>
+
+                        {/* Columna Minutos */}
+                        <div className="flex-1 flex flex-col h-full">
+                            <span className="text-[10px] font-black text-center text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-100 pb-2">Minuto</span>
+                            <div className="flex-1 overflow-y-auto hide-scrollbar flex flex-col gap-1 pl-2">
+                                {minutos.map(m => (
+                                    <button 
+                                        key={m}
+                                        type="button"
+                                        onClick={() => {
+                                            const newTime = `${hSelect !== '--' ? hSelect : '08'}:${m}`;
+                                            alCambiar(newTime);
+                                            setAbierto(false); // Cerramos el selector al elegir el minuto
+                                        }}
+                                        className={`py-3 text-sm font-bold rounded-xl transition-colors ${mSelect === m ? 'bg-teal-50 text-[#0F766E]' : 'hover:bg-slate-50 text-slate-600'}`}
+                                    >
+                                        {m}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </>
+            )}
+        </div>
+    );
+};
+
+
+// ================= COMPONENTE PRINCIPAL =================
+const Citas = () => {
+    const contextoAlerta = useAlerta();
+    const mostrarAlerta = contextoAlerta ? contextoAlerta.mostrarAlerta : (t, tit, msj) => alert(`${tit}: ${msj}`);
+
+    const cssOcultarNativos = `
+        .input-sin-flechas::-webkit-inner-spin-button,
+        .input-sin-flechas::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        .input-sin-flechas {
+            -moz-appearance: textfield;
+        }
+    `;
+
     const [view, setView] = useState('list');
     const [searchQuery, setSearchQuery] = useState('');
     const [filterStatus, setFilterStatus] = useState('Todas');
-    const [filterAtention, setFilterAtention] = useState('Todas');
     const [appointmentToCancel, setAppointmentToCancel] = useState(null);
     const [formErrors, setFormErrors] = useState({});
 
-    // ESTADOS DE BASE DE DATOS
     const [appointments, setAppointments] = useState([]);
     const [patientsList, setPatientsList] = useState([]); 
 
-    // ESTADOS PARA CREACIÓN RÁPIDA DE PACIENES
     const [isNewPatient, setIsNewPatient] = useState(false);
     const [newPatientData, setNewPatientData] = useState({ nombre: '', telefono: '' });
-    // ================= ESTADOS PARA EL BUSCADOR DE PACIENTES =================
-    const [busquedaPaciente, setBusquedaPaciente] = useState('');
-    const [mostrarListaPacientes, setMostrarListaPacientes] = useState(false);
 
-    // 🌟 Usando 'patientsList' en vez de 'patientsData'
-    const pacientesFiltrados = patientsList.filter(paciente => 
-        paciente.nombre.toLowerCase().includes(busquedaPaciente.toLowerCase()) || 
-        (paciente.telefono && paciente.telefono.includes(busquedaPaciente))
-    );
-    
     const [formData, setFormData] = useState({ 
         id: null, 
         paciente_id: '', 
@@ -46,17 +295,15 @@ const Citas = () => {
         reason: '', 
         status: 'Pendiente',
         atention: 'Presencial',
-        tarifa: '' // 🌟 NUEVO: Empezamos en blanco para que el doc escriba
+        tarifa: ''
     });
 
-    // Bloqueo de scroll para el modal
     useEffect(() => {
         if (appointmentToCancel) document.body.style.overflow = 'hidden';
         else document.body.style.overflow = 'unset';
         return () => { document.body.style.overflow = 'unset'; };
     }, [appointmentToCancel]);
 
-    // ================= 🔌 CONEXIÓN CON FASTAPI =================
     const cargarDatos = async () => {
         const token = localStorage.getItem('token');
         if (!token) return;
@@ -89,8 +336,8 @@ const Citas = () => {
                         time: hora,
                         reason: cita.motivo,
                         status: cita.estado || "Pendiente",
-                        atention: cita.modalidad || "Presencial", // Ojo: tu backend manda "modalidad"
-                        tarifa: cita.tarifa || 0 // 🌟 NUEVO: Atrapamos el billete que viene del backend
+                        atention: cita.modalidad || "Presencial",
+                        tarifa: cita.tarifa || '' 
                     };
                 });
 
@@ -105,7 +352,6 @@ const Citas = () => {
         cargarDatos();
     }, []);
 
-    // ================= FUNCIONES LÓGICAS =================
     const handleOpenForm = (appointment = null) => {
         setFormErrors({});
         setIsNewPatient(false);
@@ -114,16 +360,15 @@ const Citas = () => {
         if (appointment) {
             setFormData(appointment);
         } else {
-            const primerPacienteId = patientsList.length > 0 ? patientsList[0].id : '';
             setFormData({ 
                 id: null, 
-                paciente_id: primerPacienteId, 
+                paciente_id: '', 
                 date: '', 
                 time: '', 
                 reason: '', 
                 status: 'Pendiente',
-                atention: 'Presencial', 
-                tarifa: '' // 🌟 NUEVO: Empezamos en blanco para que el doc escriba
+                atention: 'Presencial',
+                tarifa: ''
             });
         }
         setView('form');
@@ -143,8 +388,8 @@ const Citas = () => {
         if (!formData.time.trim()) errors.time = true;
         if (!formData.reason.trim()) errors.reason = true;
         if (!formData.atention.trim()) errors.atention = true;
-        // 🌟 Validamos que no dejen la tarifa vacía o en negativo
-        if (formData.tarifa === '' || isNaN(formData.tarifa) || Number(formData.tarifa) < 0) errors.tarifa = true;
+        if (!formData.status.trim()) errors.status = true;
+        if (formData.tarifa === '' || formData.tarifa === null) errors.tarifa = true;
 
         if (Object.keys(errors).length > 0) {
             setFormErrors(errors);
@@ -157,18 +402,16 @@ const Citas = () => {
             let finalPacienteId = formData.paciente_id;
 
             if (isNewPatient && !formData.id) {
-                console.log("Creando paciente express...");
                 const resNuevoPaciente = await fetch('http://127.0.0.1:8000/pacientes', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                     body: JSON.stringify({
                         nombre: newPatientData.nombre,
                         telefono: newPatientData.telefono,
+                        email: null,
+                        edad: null,
+                        sexo: null,
                         estado: 'Pendiente',
-                        atencion: 'Presencial'
                     })
                 });
 
@@ -176,7 +419,7 @@ const Citas = () => {
                     const pacienteCreado = await resNuevoPaciente.json();
                     finalPacienteId = pacienteCreado.id; 
                 } else {
-                    mostrarAlerta('error', 'Error', 'Error al crear el paciente rápido. Revisa la conexión.');
+                    mostrarAlerta('error', 'Error', 'Error al crear el paciente rápido.');
                     return; 
                 }
             }
@@ -187,26 +430,15 @@ const Citas = () => {
                 fecha_cita: fechaCombinada,
                 modalidad: formData.atention,
                 estado: formData.status,
-                tarifa: parseFloat(formData.tarifa) // 🌟 NUEVO: Convertimos a decimal y lo mandamos al backend
+                tarifa: formData.tarifa ? parseFloat(formData.tarifa) : 0
             };
 
-            let url = '';
-            let method = '';
-
-            if (formData.id) {
-                url = `http://127.0.0.1:8000/citas/${formData.id}`;
-                method = 'PUT';
-            } else {
-                url = `http://127.0.0.1:8000/pacientes/${finalPacienteId}/citas`;
-                method = 'POST';
-            }
+            let url = formData.id ? `http://127.0.0.1:8000/citas/${formData.id}` : `http://127.0.0.1:8000/pacientes/${finalPacienteId}/citas`;
+            let method = formData.id ? 'PUT' : 'POST';
 
             const respuesta = await fetch(url, {
                 method: method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify(datosParaCita)
             });
 
@@ -216,11 +448,10 @@ const Citas = () => {
                 setView('list');
                 mostrarAlerta('exito', '¡Guardado!', formData.id ? 'Cita modificada con éxito.' : 'Cita creada con éxito.');
             } else {
-                mostrarAlerta('error', 'Error', 'Error al guardar la cita en la base de datos.');
+                mostrarAlerta('error', 'Error', 'No se pudo guardar la cita en la base de datos.');
             }
         } catch (error) {
-            console.error("Error de red:", error);
-            mostrarAlerta('error', 'Sin conexión', 'No se pudo conectar con el servidor.');
+            mostrarAlerta('error', 'Sin conexión', 'No pudimos conectar con el servidor.');
         }
     };
 
@@ -239,23 +470,18 @@ const Citas = () => {
                 mostrarAlerta('error', 'Error', 'No se pudo eliminar la cita.');
             }
         } catch (error) {
-            console.error("Error al eliminar:", error);
             mostrarAlerta('error', 'Error', 'Ocurrió un error al intentar eliminar la cita.');
         }
     };
 
     const handleCompletarCita = async (citaId) => {
-        console.log("¡Hicieron clic en el check! Intentando completar la cita ID:", citaId);
         const token = localStorage.getItem('token');
         if (!token) return;
 
         try {
-            const res = await fetch(`http://${window.location.hostname}:8000/citas/${citaId}/completar`, {
+            const res = await fetch(`http://127.0.0.1:8000/citas/${citaId}/completar`, {
                 method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
             });
 
             if (res.ok) {
@@ -265,35 +491,22 @@ const Citas = () => {
                 mostrarAlerta('error', 'Error', 'No se pudo completar la cita.');
             }
         } catch (error) {
-            console.error("Error al completar la cita:", error);
             mostrarAlerta('error', 'Error de Red', 'No pudimos conectar con el servidor.');
         }
     };
 
-    // ================= FILTRADO Y HELPERS VISUALES =================
     const filteredAppointments = appointments.filter(appt => {
-        // 1. Filtro de búsqueda (texto)
         const matchesSearch = appt.patientName.toLowerCase().includes(searchQuery.toLowerCase()) || 
                               appt.reason.toLowerCase().includes(searchQuery.toLowerCase());
         
-        // 2. Filtro de Estado
-        let matchesStatus;
+        let matchesFilter;
         if (filterStatus === 'Todas') {
-            matchesStatus = appt.status.toLowerCase() !== 'completada'; 
+            matchesFilter = appt.status.toLowerCase() !== 'completada'; 
         } else {
-            matchesStatus = appt.status === filterStatus;
+            matchesFilter = appt.status === filterStatus;
         }
 
-        // 3. 🌟 EL FILTRO NUEVO DE MODALIDAD
-        let matchesAtention;
-        if (filterAtention === 'Todas') {
-            matchesAtention = true;
-        } else {
-            matchesAtention = appt.atention === filterAtention;
-        }
-
-        // La cita solo se muestra si pasa los 3 filtros
-        return matchesSearch && matchesStatus && matchesAtention;
+        return matchesSearch && matchesFilter;
     });
 
     const getStatusStyles = (status) => {
@@ -305,23 +518,15 @@ const Citas = () => {
         }
     };
 
-    const getAtentionStyles = (atention) => {
-        switch(atention) {
-            case 'A domicilio': return 'bg-emerald-50 text-emerald-600 border-emerald-200';
-            case 'Presencial': return 'bg-emerald-50 text-emerald-600 border-emerald-200';
-            case 'Virtual': return 'bg-amber-50 text-amber-600 border-amber-200';
-            default: return 'bg-slate-50 text-slate-500 border-slate-200';
-        }
-    };
-
     const ErrorIcon = () => (
         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
     );
 
-    // ================= VISTA 1: LISTA Y FILTROS =================
+    // ================= VISTA 1: LISTA DE CITAS =================
     if (view === 'list') {
         return (
             <div className="space-y-6 relative animate-fade-in pb-10">
+                <style>{cssOcultarNativos}</style>
                 <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 flex flex-col space-y-4">
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                         <div>
@@ -357,18 +562,6 @@ const Citas = () => {
                                 </button>
                             ))}
                         </div>
-
-                        <div className="flex overflow-x-auto hide-scrollbar gap-2 pb-1 lg:pb-0 shrink-0">
-                            {['Todas', 'A domicilio', 'Presencial', 'Virtual'].map(atention => (
-                                <button 
-                                    key={atention}
-                                    onClick={() => setFilterAtention(atention)}
-                                    className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest whitespace-nowrap transition-all ${filterAtention === atention ? 'bg-[#113130] text-white shadow-md' : 'bg-slate-50 text-slate-500 hover:bg-slate-100 border border-slate-200'}`}
-                                >
-                                    {atention}
-                                </button>
-                            ))}
-                        </div>
                     </div>
                 </div>
 
@@ -396,37 +589,15 @@ const Citas = () => {
                                                 <h3 className="text-base font-black text-[#113130] leading-tight truncate max-w-[150px] sm:max-w-[200px]" title={appt.patientName}>{appt.patientName}</h3>
                                             </div>
                                         </div>
-                                        {/* 🌟 Contenedor para apilar las etiquetas a la derecha */}
-                                            <div className="flex flex-col items-end gap-1.5">
-                                                {/* Etiqueta de Estado */}
-                                                <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md border shadow-sm ${getStatusStyles(appt.status)}`}>
-                                                    {appt.status}
-                                                </span>
-                                                
-                                                {/* 🌟 NUEVA: Etiqueta de Modalidad */}
-                                                <span className={`text-[8px] font-bold uppercase tracking-widest px-2 py-0.5 rounded border flex items-center gap-1 ${getAtentionStyles(appt.atention)}`}>
-                                                    {/* Iconito según la modalidad para darle el toque premium */}
-                                                    {appt.atention === 'Virtual' && <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>}
-                                                    {appt.atention === 'A domicilio' && <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>}
-                                                    {appt.atention === 'Presencial' && <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>}
-                                                    {appt.atention}
-                                                </span>
-                                            </div>
+                                        <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md border ${getStatusStyles(appt.status)}`}>
+                                            {appt.status}
+                                        </span>
                                     </div>
                                     
                                     <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-50 space-y-3">
                                         <div className="flex items-start gap-3">
                                             <svg className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                             <p className="text-xs text-slate-600 font-medium leading-relaxed">{appt.reason}</p>
-                                        </div>
-                                        {/* 🌟 NUEVO: BLOQUE DE TARIFA (Agregalo justo aquí) */}
-                                        <div className="flex items-center gap-2 mb-4">
-                                            <div className="w-5 h-5 rounded-full bg-teal-50 flex items-center justify-center shrink-0">
-                                                <svg className="w-3.5 h-3.5 text-[#0F766E]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                            </div>
-                                            <span className="text-xs font-black text-[#0F766E]">
-                                                Tarifa: ${appt.tarifa ? parseFloat(appt.tarifa).toFixed(2) : '0.00'}
-                                            </span>
                                         </div>
                                         <div className="flex items-center justify-between pt-2 border-t border-slate-200/50">
                                             <div className="flex items-center gap-1.5 text-slate-500 font-bold text-[11px] uppercase tracking-wider">
@@ -468,7 +639,6 @@ const Citas = () => {
                     </div>
                 )}
 
-                {/* MODAL ORIGINAL DE CANCELAR CITA */}
                 {appointmentToCancel && createPortal(
                     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 w-screen h-screen">
                         <div className="absolute inset-0 bg-[#113130]/70 backdrop-blur-md" onClick={() => setAppointmentToCancel(null)} />
@@ -489,10 +659,11 @@ const Citas = () => {
         );
     }
 
-    // ================= VISTA 2: FORMULARIO =================
+    // ================= VISTA 2: FORMULARIO PREMIUM =================
     if (view === 'form') {
         return (
-            <div className="max-w-2xl mx-auto space-y-6 relative animate-fade-in pb-10">
+            <div className="max-w-3xl mx-auto space-y-6 relative animate-fade-in pb-10">
+                <style>{cssOcultarNativos}</style>
                 <button onClick={() => setView('list')} className="flex items-center gap-2 text-slate-500 hover:text-[#0F766E] text-xs font-black uppercase tracking-widest transition-colors mb-2 bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100 hover:shadow-md w-fit">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg> Cancelar
                 </button>
@@ -504,7 +675,6 @@ const Citas = () => {
 
                     <form onSubmit={handleSaveAppointment} className="space-y-6" noValidate>
                         
-                        {/* 🌟 SWITCH PACIENTE NUEVO / EXISTENTE */}
                         {!formData.id && ( 
                             <div className="flex bg-slate-100 p-1.5 rounded-2xl mb-6">
                                 <button type="button" onClick={() => { setIsNewPatient(false); setFormErrors({}); }} className={`flex-1 py-3 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all ${!isNewPatient ? 'bg-white text-[#113130] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
@@ -517,96 +687,20 @@ const Citas = () => {
                         )}
 
                         <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100 space-y-4">
-                           {/* ================= SECCIÓN DE SELECCIÓN DE PACIENTE ================= */}
                             {!isNewPatient ? (
-                                <div className="relative animate-fade-in z-50">
+                                <div>
                                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
                                         Seleccionar Paciente <span className="text-rose-500">*</span>
                                     </label>
-                                    
-                                    {/* 🔍 EL INPUT QUE ACTÚA COMO BUSCADOR */}
-                                    <div className="relative">
-                                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                            <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                                        </div>
-                                        <input 
-                                            type="text"
-                                            value={busquedaPaciente}
-                                            onChange={(e) => {
-                                                setBusquedaPaciente(e.target.value);
-                                                setMostrarListaPacientes(true);
-                                                // Si borran todo, limpiamos el ID seleccionado para evitar agendarle a la nada
-                                                if (e.target.value === '') {
-                                                    setFormData({...formData, paciente_id: ''});
-                                                }
-                                            }}
-                                            onClick={() => setMostrarListaPacientes(true)}
-                                            placeholder="Buscar por nombre o teléfono..."
-                                            disabled={formData.id !== null} // Mantenemos tu lógica de deshabilitar al editar
-                                            className={`w-full rounded-2xl pl-11 pr-10 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.paciente_id ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-white border-slate-200 focus:ring-[#0F766E] border'} ${formData.id !== null ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                        />
-                                        
-                                        {/* Botón de "X" para limpiar la búsqueda rápidamente */}
-                                        {busquedaPaciente && formData.id === null && (
-                                            <button 
-                                                type="button"
-                                                onClick={() => {
-                                                    setBusquedaPaciente('');
-                                                    setFormData({...formData, paciente_id: ''}); 
-                                                    setMostrarListaPacientes(true);
-                                                }}
-                                                className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-300 hover:text-rose-500 transition-colors"
-                                            >
-                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                                            </button>
-                                        )}
-                                    </div>
-
-                                    {/* 📋 LA LISTA DESPLEGABLE ELEGANTE */}
-                                    {mostrarListaPacientes && formData.id === null && (
-                                        <div className="absolute w-full mt-2 bg-white border border-slate-100 rounded-xl shadow-xl max-h-60 overflow-y-auto z-50 animate-fade-in">
-                                            {pacientesFiltrados.length > 0 ? (
-                                                <ul className="py-2">
-                                                    {pacientesFiltrados.map((paciente) => (
-                                                        <li 
-                                                            key={paciente.id}
-                                                            onClick={() => {
-                                                                setFormData({...formData, paciente_id: paciente.id});
-                                                                setBusquedaPaciente(`${paciente.nombre} ${paciente.telefono ? `- Tel: ${paciente.telefono}` : ''}`);
-                                                                setMostrarListaPacientes(false);
-                                                            }}
-                                                            className="px-5 py-3 hover:bg-teal-50 cursor-pointer transition-colors border-b border-slate-50 last:border-0 flex flex-col"
-                                                        >
-                                                            <span className="text-sm font-bold text-[#113130]">{paciente.nombre}</span>
-                                                            {paciente.telefono && (
-                                                                <span className="text-[11px] font-medium text-slate-500 flex items-center gap-1 mt-0.5">
-                                                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
-                                                                    {paciente.telefono}
-                                                                </span>
-                                                            )}
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            ) : (
-                                                <div className="p-5 text-center text-sm text-slate-400 font-medium">
-                                                    No se encontró ningún paciente 🔍
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                    
-                                    {/* Capa invisible para cerrar al hacer clic afuera */}
-                                    {mostrarListaPacientes && (
-                                        <div 
-                                            className="fixed inset-0 z-40" 
-                                            onClick={() => setMostrarListaPacientes(false)}
-                                        ></div>
-                                    )}
-
+                                    <BuscadorPacientesPremium 
+                                        valor={formData.paciente_id}
+                                        pacientes={patientsList}
+                                        alCambiar={(val) => setFormData({...formData, paciente_id: val})}
+                                        conError={formErrors.paciente_id}
+                                    />
                                     {formErrors.paciente_id && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Debes seleccionar un paciente</p>}
                                 </div>
                             ) : (
-                                // ... Tu código original del <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in"> se queda intacto aquí abajo ...
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in">
                                     <div>
                                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nombre Completo <span className="text-rose-500">*</span></label>
@@ -615,7 +709,7 @@ const Citas = () => {
                                             value={newPatientData.nombre} 
                                             onChange={(e) => setNewPatientData({...newPatientData, nombre: e.target.value})} 
                                             placeholder="Ej. Juan Pérez" 
-                                            className={`w-full rounded-2xl px-4 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.nuevoNombre ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-white border-slate-200 focus:ring-[#0F766E] border'}`} 
+                                            className={`w-full rounded-2xl px-5 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.nuevoNombre ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-white border-slate-200 focus:ring-[#0F766E] border'}`} 
                                         />
                                         {formErrors.nuevoNombre && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Nombre requerido</p>}
                                     </div>
@@ -626,24 +720,23 @@ const Citas = () => {
                                             value={newPatientData.telefono} 
                                             onChange={(e) => setNewPatientData({...newPatientData, telefono: e.target.value})} 
                                             placeholder="Ej. 8888 8888" 
-                                            className="w-full rounded-2xl px-4 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 focus:ring-[#0F766E] border border-slate-200 transition-all bg-white" 
+                                            className="w-full rounded-2xl px-5 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 focus:ring-[#0F766E] border border-slate-200 transition-all bg-white hover:border-[#0F766E]/40" 
                                         />
                                     </div>
                                 </div>
                             )}
                         </div>
 
+                        {/* 🌟 AQUÍ REEMPLAZAMOS FECHA Y HORA POR LOS COMPONENTES PREMIUM */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
-                                Fecha <span className="text-rose-500">*</span>
-                            </label>
-                                <input 
-                                    type="date" 
-                                    value={formData.date} 
-                                    onChange={(e) => setFormData({...formData, date: e.target.value})} 
-                                    required
-                                    className={`w-full rounded-2xl px-4 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.date ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-slate-50 border-slate-200 focus:ring-[#0F766E] border'}`} 
+                                    Fecha <span className="text-rose-500">*</span>
+                                </label>
+                                <DatePickerPremium 
+                                    valor={formData.date}
+                                    alCambiar={(val) => setFormData({...formData, date: val})}
+                                    conError={formErrors.date}
                                 />
                                 {formErrors.date && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Ingresa una fecha</p>}
                             </div>
@@ -651,12 +744,10 @@ const Citas = () => {
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
                                     Hora <span className="text-rose-500">*</span>
                                 </label>
-                                <input 
-                                    type="time" 
-                                    value={formData.time} 
-                                    onChange={(e) => setFormData({...formData, time: e.target.value})} 
-                                    required
-                                    className={`w-full rounded-2xl px-4 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.time ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-slate-50 border-slate-200 focus:ring-[#0F766E] border'}`} 
+                                <TimePickerPremium 
+                                    valor={formData.time}
+                                    alCambiar={(val) => setFormData({...formData, time: val})}
+                                    conError={formErrors.time}
                                 />
                                 {formErrors.time && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Ingresa una hora</p>}
                             </div>
@@ -672,62 +763,60 @@ const Citas = () => {
                                 onChange={(e) => setFormData({...formData, reason: e.target.value})} 
                                 placeholder="Ej. Terapia inicial..." 
                                 required
-                                className={`w-full rounded-2xl px-4 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.reason ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-slate-50 border-slate-200 focus:ring-[#0F766E] border'}`} 
+                                className={`w-full rounded-2xl px-5 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.reason ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-slate-50 border-slate-200 focus:ring-[#0F766E] border hover:border-[#0F766E]/40'}`} 
                             />
                             {formErrors.reason && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Especifica el motivo</p>}
                         </div>
 
-                       {/* 🌟 CAMBIO: Pasamos de grid-cols-2 a grid-cols-3 para meter la Tarifa */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div>
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
                                     Modalidad <span className="text-rose-500">*</span>
                                 </label>
-                                <select 
-                                    value={formData.atention} 
-                                    onChange={(e) => setFormData({...formData, atention: e.target.value})} 
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 focus:ring-[#0F766E] transition-all"
-                                >
-                                    <option value="Presencial">Presencial</option>
-                                    <option value="Virtual">Virtual</option>
-                                    <option value="A domicilio">A domicilio</option>
-                                </select>
+                                <SelectorPremium 
+                                    valor={formData.atention}
+                                    opciones={[
+                                        { valor: 'Presencial', etiqueta: 'Presencial' },
+                                        { valor: 'Virtual', etiqueta: 'Virtual' },
+                                        { valor: 'A domicilio', etiqueta: 'A domicilio' }
+                                    ]}
+                                    alCambiar={(val) => setFormData({...formData, atention: val})}
+                                    placeholder="Seleccione..."
+                                />
                             </div>
 
                             <div>
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
                                     Estado <span className="text-rose-500">*</span>
                                 </label>
-                                <select 
-                                    value={formData.status} 
-                                    onChange={(e) => setFormData({...formData, status: e.target.value})} 
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 focus:ring-[#0F766E] transition-all"
-                                >
-                                    <option value="Pendiente">Pendiente (Por Confirmar)</option>
-                                    <option value="Reservada">Reservada</option>
-                                    <option value="Cancelada">Cancelada</option>
-                                </select>
+                                <SelectorPremium 
+                                    valor={formData.status}
+                                    opciones={[
+                                        { valor: 'Pendiente', etiqueta: 'Pendiente (Por Confirmar)' },
+                                        { valor: 'Reservada', etiqueta: 'Reservada' },
+                                        { valor: 'Cancelada', etiqueta: 'Cancelada' }
+                                    ]}
+                                    alCambiar={(val) => setFormData({...formData, status: val})}
+                                    placeholder="Seleccione..."
+                                />
                             </div>
 
-                            {/* 🌟 NUEVO: Input de Tarifa Premium */}
                             <div>
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
                                     Tarifa ($) <span className="text-rose-500">*</span>
                                 </label>
                                 <div className="relative">
-                                    {/* Iconito de Dólar flotante */}
-                                    <span className="absolute left-4 top-4 text-slate-400 font-bold">$</span>
+                                    <div className="absolute left-5 top-1/2 transform -translate-y-1/2 text-slate-400 font-black text-sm pointer-events-none">$</div>
                                     <input 
                                         type="number" 
-                                        min="0"
-                                        step="0.50"
+                                        step="0.01"
                                         value={formData.tarifa} 
                                         onChange={(e) => setFormData({...formData, tarifa: e.target.value})} 
-                                        placeholder="0.00" 
-                                        className={`w-full rounded-2xl pl-8 pr-4 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.tarifa ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-slate-50 border-slate-200 focus:ring-[#0F766E] border'}`} 
+                                        placeholder="0.00"
+                                        className={`w-full rounded-2xl pl-10 pr-5 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all input-sin-flechas ${formErrors.tarifa ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-slate-50 border-slate-200 focus:ring-[#0F766E] border hover:border-[#0F766E]/40'}`} 
                                     />
                                 </div>
-                                {formErrors.tarifa && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Ingresa una tarifa válida</p>}
+                                {formErrors.tarifa && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Ingresa la tarifa</p>}
                             </div>
                         </div>
 
@@ -741,14 +830,14 @@ const Citas = () => {
             </div>
         );
     }
-    
+
     return null;
 };
 
-export default function CitasIntegrado() {
+export default function CitasIntegradas(props) {
     return (
         <AlertaProvider>
-            <Citas />
+            <Citas {...props} />
         </AlertaProvider>
     );
 }

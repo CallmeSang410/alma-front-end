@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './Ajustes.css';
+import { useAlerta, AlertaProvider } from './AlertaContext.jsx'; // 🌟 Importamos las alertas
 
 const IconProfile = () => (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
@@ -17,8 +18,11 @@ const IconShield = () => (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
 );
 
-export default function Ajustes() {
-    
+const Ajustes = () => {
+    // 🛡️ ESCUDO ANTI-CHOQUES PARA ALERTAS
+    const contextoAlerta = useAlerta();
+    const mostrarAlerta = contextoAlerta ? contextoAlerta.mostrarAlerta : (t, tit, msj) => alert(`${tit}: ${msj}`);
+
     // --- LÓGICA DEL TEMA GLOBAL ---
     const [temaActual, setTemaActual] = useState(() => {
         const temaGuardado = localStorage.getItem('temaHorizon');
@@ -69,34 +73,32 @@ export default function Ajustes() {
         e.preventDefault();
         setIsSaving(true);
 
-if (activeTab === 'perfil') {
-            // Guardamos usando "Usuario Activo" como respaldo por si borran todo
+        if (activeTab === 'perfil') {
             localStorage.setItem('hf_nombre_clinica', perfilData.nombreClinica || 'Usuario Activo');
             localStorage.setItem('hf_email', perfilData.email);
-            
-            // Disparamos el evento global
             window.dispatchEvent(new Event('perfilActualizado'));
+            // 🌟 ALERTA DE PERFIL
+            mostrarAlerta('exito', 'Perfil Actualizado', 'Tus credenciales y datos clínicos se han guardado.');
         }
 
-        // Si estamos guardando la pestaña de alertas, actualizamos el sistema
         if (activeTab === 'alertas') {
             localStorage.setItem('hf_alerta_horas', preferenciasData.anticipacion_alerta);
-            
-            // Disparamos un evento para que la Campanita se entere y actualice sus citas
             window.dispatchEvent(new Event('configuracionAlertasActualizada'));
+            // 🌟 ALERTA DE NOTIFICACIONES
+            mostrarAlerta('exito', 'Alertas Configuradas', `Te avisaremos ${preferenciasData.anticipacion_alerta} horas antes de cada cita.`);
         }
 
         if (activeTab === 'temas') {
             localStorage.setItem('hf_tamano_fuente', preferenciasData.tamanoFuente);
-            
-            // Cambiamos el tamaño base del documento HTML
             if (preferenciasData.tamanoFuente === 'small') {
-                document.documentElement.style.fontSize = '14px'; // Más pequeño
+                document.documentElement.style.fontSize = '14px'; 
             } else if (preferenciasData.tamanoFuente === 'large') {
-                document.documentElement.style.fontSize = '18px'; // Más grande
+                document.documentElement.style.fontSize = '18px'; 
             } else {
-                document.documentElement.style.fontSize = '16px'; // Normal (Por defecto)
+                document.documentElement.style.fontSize = '16px'; 
             }
+            // 🌟 ALERTA DE APARIENCIA
+            mostrarAlerta('exito', 'Apariencia Guardada', 'Se ha actualizado el tamaño del texto general.');
         }
 
         setTimeout(() => {
@@ -209,7 +211,6 @@ if (activeTab === 'perfil') {
                     </p>
                 </div>
 
-                {/* --- CONTROLES DE TAMAÑO DE TEXTO --- */}
                 <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Tamaño de Texto</label>
                     <div className="grid grid-cols-3 gap-3">
@@ -230,7 +231,6 @@ if (activeTab === 'perfil') {
                     </div>
                 </div>
 
-                {/* --- NUEVO SWITCH RESPONSIVE DE TEMA --- */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-slate-50 p-5 rounded-2xl border border-slate-200 shadow-sm transition-colors gap-4">
                     <div>
                         <h4 className="text-sm font-bold text-[#113130] flex items-center gap-2">
@@ -241,7 +241,11 @@ if (activeTab === 'perfil') {
                     
                     <button
                         type="button"
-                        onClick={() => setTemaActual(temaActual === 'light' ? 'dark' : 'light')}
+                        onClick={() => {
+                            setTemaActual(temaActual === 'light' ? 'dark' : 'light');
+                            // 🌟 ALERTA TEMA (Opcional, puede ser mucho si cambias seguido)
+                            mostrarAlerta('exito', 'Apariencia Actualizada', temaActual === 'light' ? 'Modo Oscuro activado' : 'Modo Claro activado');
+                        }}
                         className={`relative inline-flex h-7 w-14 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:ring-offset-2 ${
                             temaActual === 'dark' ? 'bg-[#0F766E]' : 'bg-slate-300'
                         }`}
@@ -287,7 +291,6 @@ if (activeTab === 'perfil') {
                     <div className="space-y-3">
                         <div className="flex items-center gap-3 text-sm">
                             <span className="text-lg drop-shadow-sm">📧</span>
-                            {/* 🌟 AQUÍ ESTÁ TU CORREO OFICIAL CON ENLACE CLICKEABLE */}
                             <a href="mailto:horizonflowdesign@gmail.com" className="text-[#0F766E] font-bold hover:underline">
                                 horizonflowdesign@gmail.com
                             </a>
@@ -299,7 +302,7 @@ if (activeTab === 'perfil') {
                     </div>
                 </div>
 
-                {/* FORMULARIO DE REPORTE (AHORA FUNCIONAL) */}
+                {/* FORMULARIO DE REPORTE (CON ALERTA AHORA) */}
                 <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                     <h4 className="text-sm font-bold text-rose-600 flex items-center gap-2 mb-1">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
@@ -309,14 +312,13 @@ if (activeTab === 'perfil') {
                         ¿Encontraste un error en el sistema?
                     </p>
                     
-                    {/* 🌟 LÓGICA NINJA: Enviar el form directo a tu correo usando tu estado */}
                     <form 
                         onSubmit={(e) => { 
                             e.preventDefault(); 
-                            // Esto abre Gmail/Outlook con los datos listos para enviarte
                             window.location.href = `mailto:horizonflowdesign@gmail.com?subject=Reporte Técnico: ${reporteBug.asunto}&body=${reporteBug.descripcion}`;
-                            // Limpia los inputs después de enviar
                             setReporteBug({asunto: '', descripcion: ''}); 
+                            // 🌟 ALERTA DE REPORTE ENVIADO
+                            mostrarAlerta('exito', 'Redirigiendo a tu correo', 'Se abrirá tu cliente de correo para enviar el reporte. ¡Gracias por avisarnos!');
                         }} 
                         className="space-y-3"
                     >
@@ -424,5 +426,14 @@ if (activeTab === 'perfil') {
                 .scrollbar-thin::-webkit-scrollbar-thumb { background-color: #e2e8f0; border-radius: 20px; }
             `}</style>
         </div>
+    );
+};
+
+// 🌟 HACK ANTI-CHOQUES PARA AJUSTES
+export default function AjustesIntegrados(props) {
+    return (
+        <AlertaProvider>
+            <Ajustes {...props} />
+        </AlertaProvider>
     );
 }
