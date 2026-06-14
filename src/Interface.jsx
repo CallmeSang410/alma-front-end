@@ -64,6 +64,8 @@ export default function Interface({ onLogout }) {
     const { t, i18n } = useTranslation();
     const [langMenuOpen, setLangMenuOpen] = useState(false);
     const [citaParaReporte, setCitaParaReporte] = useState(null);
+    // Pegá esto al inicio de tu componente Interface
+    const correoActivo = localStorage.getItem('userEmail') || 'usuario@gmail.com';
 
     const irAReportesDesdeAlerta = (citaId) => {
         console.log("Paso 3: ¡Llegó a la Interface! Cambiando de pestaña. Cita:", citaId);
@@ -94,12 +96,17 @@ export default function Interface({ onLogout }) {
 
     // ================= EFECTOS (useEffect) =================
     
-    // 1. Efecto para Perfil
+   // 1. Efecto para Perfil (CORREGIDO)
     useEffect(() => {
         const actualizarPerfil = () => {
-            setPerfilNombre(localStorage.getItem('hf_nombre_clinica') || 'Usuario Activo');
-            setPerfilEmail(localStorage.getItem('hf_email') || '');
+            // 🌟 Usamos las llaves exactas que guardamos en el Login
+            setPerfilNombre(localStorage.getItem('userName') || 'Usuario Activo');
+            setPerfilEmail(localStorage.getItem('userEmail') || '');
         };
+        
+        // 🌟 Forzamos a que lea los datos apenas carga la pantalla
+        actualizarPerfil();
+
         window.addEventListener('perfilActualizado', actualizarPerfil);
         return () => window.removeEventListener('perfilActualizado', actualizarPerfil);
     }, []);
@@ -557,9 +564,10 @@ export default function Interface({ onLogout }) {
                     </div>
                     <div className="space-y-1">
                         <h3 className="font-extrabold text-sm text-[#113130]">¿Cerrar sesión de forma segura?</h3>
-                        <p className="text-xs text-slate-500 leading-relaxed">
-                            Confirmarás el término de la sesión clínica activa para la cuenta <span className="font-bold text-[#0D9488]">@ALMASystem@gmail.com</span>.
-                        </p>
+                    <p className="text-sm text-slate-500 font-medium">
+                        Confirmarás el término de la sesión clínica activa para la cuenta 
+                        <span className="font-bold text-[#0F766E]"> {correoActivo}</span>.
+                    </p>
                     </div>
                     <div className="flex gap-3 pt-2">
                         <button onClick={() => setShowLogoutModal(false)} className="flex-1 py-2.5 px-4 bg-slate-50 hover:bg-slate-100 rounded-xl text-xs font-bold uppercase tracking-wider text-slate-500 transition-colors">Cancelar</button>

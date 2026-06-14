@@ -52,11 +52,16 @@ const Ajustes = () => {
     const [activeTab, setActiveTab] = useState('perfil'); 
     const [isSaving, setIsSaving] = useState(false);
 
-    // MOCK DATA: Perfil
+    // MOCK DATA: Perfil (AHORA SÍ CONECTADO A LA MEMORIA REAL)
     const [perfilData, setPerfilData] = useState({
-        email: localStorage.getItem('hf_email') || 'admin@horizonflow.com',
+        // 🌟 Usamos la misma llave exacta que guardamos en el Login: 'userEmail'
+        email: localStorage.getItem('userEmail') || 'usuario@gmail.com', 
+        
         rol: 'Administrador Clínico',
-        nombreClinica: localStorage.getItem('hf_nombre_clinica') || 'HorizonFlow Central',
+        
+        // 🌟 Usamos la misma llave exacta del nombre/rol: 'userName'
+        nombreClinica: localStorage.getItem('userName') || 'HorizonFlow Central', 
+        
         passwordActual: '',
         passwordNueva: ''
     });
@@ -105,7 +110,48 @@ const Ajustes = () => {
             setIsSaving(false);
         }, 800);
     };
+    // 🌟 ESTA ES LA FUNCIÓN QUE HACE QUE EL BOTÓN VERDE FUNCIONE
+    const handleGuardarCambios = async (e) => {
+        e.preventDefault();
 
+        // 1. Guardamos el nuevo nombre en el navegador para que no se borre al recargar
+        localStorage.setItem('userName', perfilData.nombreClinica);
+        
+        // Disparamos el evento para que el Header (arriba a la derecha) cambie el nombre al instante
+        window.dispatchEvent(new Event('perfilActualizado'));
+
+        // 2. Avisarle al Backend (Python) si hay un cambio de contraseña
+        if (perfilData.passwordNueva) {
+            try {
+                const token = localStorage.getItem('token');
+                
+                // ⚠️ OJO: Dervin tiene que tener un endpoint en FastAPI para actualizar esto
+                const respuesta = await fetch('http://127.0.0.1:8000/usuarios/actualizar', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        nombre_clinica: perfilData.nombreClinica,
+                        password: perfilData.passwordNueva // Mandamos la nueva clave a la Base de Datos
+                    })
+                });
+
+                if (respuesta.ok) {
+                    mostrarAlerta('exito', 'Perfil Actualizado', 'Tu nombre y contraseña han sido guardados.');
+                    setPerfilData({...perfilData, passwordActual: '', passwordNueva: ''}); // Limpiamos los campos
+                } else {
+                    mostrarAlerta('error', 'Error', 'No se pudo guardar la contraseña en la base de datos.');
+                }
+            } catch (error) {
+                mostrarAlerta('error', 'Error de conexión', 'No hay respuesta del servidor.');
+            }
+        } else {
+            // Si solo cambió el nombre y NO la contraseña, solo mostramos éxito
+            mostrarAlerta('exito', 'Perfil Actualizado', 'Nombre del consultorio actualizado con éxito.');
+        }
+    };
     const renderPerfil = () => (
         <form onSubmit={handleSave} className="space-y-6 animate-fade-in-up">
             <div>
@@ -146,7 +192,13 @@ const Ajustes = () => {
             </div>
 
             <div className="pt-4 border-t border-slate-100 flex justify-end">
-                <button type="submit" disabled={isSaving} className="px-6 py-2.5 bg-[#0F766E] hover:bg-[#0D9488] text-white text-xs font-bold uppercase tracking-wider rounded-xl shadow-md transition-all">{isSaving ? 'Guardando...' : 'Guardar Cambios'}</button>
+                <button 
+    type="button" 
+    onClick={handleGuardarCambios}
+    className="px-8 py-3.5 bg-[#0F766E] text-white rounded-xl text-[11px] font-black uppercase tracking-widest shadow-lg shadow-teal-900/20 hover:bg-[#0D9488] transition-colors"
+>
+    Guardar Cambios
+</button>
             </div>
         </form>
     );

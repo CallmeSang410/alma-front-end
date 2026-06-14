@@ -185,7 +185,7 @@ const Reportes = () => {
 
             const payload = {
                 motivo_consulta: formData.reason,
-                notes_psicologo: formData.interviewNotes,
+                notas_psicologo: formData.interviewNotes, // ✅ CORREGIDO A "notas"
                 pruebas_aplicadas: testsString || "Ninguna",
                 resultados_pruebas: formData.testResults || "No se registraron resultados cuantitativos.",
                 edad_paciente: edadPaciente, 
@@ -796,10 +796,143 @@ const Reportes = () => {
         const repData = activeReport.fullData;
         const pInfo = repData.paciente_data || {}; 
 
+       // 🌟 NUEVO: Función para exportar a MS Word (Versión Clínica Premium)
+        const exportarAWord = () => {
+            const repData = activeReport.fullData;
+            const pInfo = repData.paciente_data || {};
+            const fechaEmision = new Date().toLocaleDateString('es-NI', { year: 'numeric', month: 'long', day: 'numeric' });
+
+            // 🧹 ASPIRADORA DE MARKDOWN: Limpiamos la basura de la IA para que Word lo lea perfecto
+            let analisisIA = repData.analisis_ia || "";
+            
+            // 1. Convierte los "## Titulo" en subtítulos reales y elegantes de Word
+            analisisIA = analisisIA.replace(/##\s*(.*?)(?=\n|$)/g, '<h3 style="color: #0F766E; font-size: 12pt; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin-top: 18px; margin-bottom: 6px;">$1</h3>');
+            
+            // 2. Convierte los asteriscos **negrita** a tags <b> reales
+            analisisIA = analisisIA.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+            
+            // 3. Arregla los saltos de línea y quita los asteriscos sueltos de las listas (*)
+            analisisIA = analisisIA.replace(/\n\*/g, '<br>•').replace(/\n/g, '<br>');
+
+            // 🎨 PLANTILLA HTML/CSS ADAPTADA PARA EL MOTOR DE MICROSOFT WORD
+            const htmlWord = `
+            <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+            <head>
+                <meta charset='utf-8'>
+                <title>Expediente HorizonFlow</title>
+                <style>
+                    /* Word prefiere fuentes estándar y medidas en puntos (pt) */
+                    body { font-family: 'Calibri', 'Arial', sans-serif; color: #1e293b; font-size: 11pt; line-height: 1.5; }
+                    
+                    /* Cabecera del Documento */
+                    .header-table { width: 100%; border-bottom: 2px solid #0F766E; margin-bottom: 20px; }
+                    .header-title { color: #0F766E; font-size: 24pt; font-weight: bold; margin: 0; font-family: 'Arial Black', sans-serif; letter-spacing: -1px; }
+                    .header-sub { color: #64748b; font-size: 9pt; text-transform: uppercase; margin: 0; }
+                    .header-right { text-align: right; color: #475569; font-size: 9pt; }
+                    
+                    /* Títulos de Sección */
+                    h2 { color: #0f172a; font-size: 12pt; border-bottom: 2px solid #cbd5e1; padding-bottom: 4px; margin-top: 24px; margin-bottom: 12px; text-transform: uppercase; }
+                    
+                    /* Párrafos normales */
+                    p { margin-top: 0; margin-bottom: 10px; text-align: justify; }
+                    
+                    /* Tabla de Datos Generales (Estilo limpio) */
+                    .data-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+                    .data-table td { border: 1px solid #cbd5e1; padding: 10px; width: 50%; vertical-align: top; background-color: #f8fafc; }
+                    .lbl { font-weight: bold; color: #64748b; font-size: 9pt; display: block; text-transform: uppercase; margin-bottom: 4px; }
+                    .val { font-weight: bold; color: #0f172a; font-size: 11pt; }
+                    
+                    /* Caja de Diagnóstico (Estilo Receta Médica) */
+                    .diag-box { border: 2px solid #0F766E; background-color: #f0fdfa; padding: 15px; text-align: center; font-weight: bold; font-size: 13pt; color: #0f172a; margin: 20px 0; }
+                    
+                    /* Bloque de Firmas */
+                    .signatures { width: 100%; margin-top: 70px; border-collapse: collapse; }
+                    .sig-td { width: 50%; text-align: center; padding: 10px; vertical-align: bottom; }
+                    .sig-line { border-top: 1px solid #333; margin: 0 20px; padding-top: 8px; font-weight: bold; font-size: 10pt; text-transform: uppercase; }
+                    .sig-sub { color: #64748b; font-size: 9pt; font-weight: normal; }
+                </style>
+            </head>
+            <body>
+                <table class="header-table">
+                    <tr>
+                        <td style="vertical-align: bottom;">
+                            <p class="header-title">HorizonFlow</p>
+                            <p class="header-sub">Sistema de Gestión Clínica e IA</p>
+                        </td>
+                        <td class="header-right" style="vertical-align: bottom;">
+                            <b>EXPEDIENTE CLÍNICO AUTOMATIZADO</b><br>
+                            Fecha de Emisión: ${fechaEmision}
+                        </td>
+                    </tr>
+                </table>
+
+                <h2>I. Datos Generales</h2>
+                <table class="data-table">
+                    <tr>
+                        <td><span class="lbl">Paciente:</span><span class="val">${activeReport.patientName}</span></td>
+                        <td><span class="lbl">Edad:</span><span class="val">${pInfo.edad || 'N/E'} años</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="lbl">Teléfono:</span><span class="val">${pInfo.telefono || 'N/E'}</span></td>
+                        <td><span class="lbl">Evaluador:</span><span class="val">Psicólogo Autorizado</span></td>
+                    </tr>
+                </table>
+
+                <h2>II. Motivo de Consulta</h2>
+                <p>${(repData.motivo_consulta || "No especificado.").replace(/\n/g, '<br>')}</p>
+
+                <h2>III. Técnicas e Instrumentos Aplicados</h2>
+                <p>${(repData.pruebas_aplicadas || "Entrevista clínica semiestructurada.").replace(/\n/g, '<br>')}</p>
+
+                <h2>IV. Análisis y Observaciones Clínicas</h2>
+                <p>${(repData.notas_psicologo || "").replace(/\n/g, '<br>')}</p>
+
+                <h2>V. Análisis Clínico y Fundamentación DSM-5</h2>
+                <p style="font-size: 9pt; color: #64748b;"><i>* Sección procesada mediante ALMA AI (HorizonFlow Cognitive Module)</i></p>
+                <div>${analisisIA}</div>
+
+                <h2>VI. Diagnóstico Clínico</h2>
+                <div class="diag-box">
+                    ${activeReport.diagnosis || repData.diagnostico_final}
+                </div>
+
+                <h2>VII. Recomendaciones y Plan a Seguir</h2>
+                <p>${(repData.recomendaciones || "").replace(/\n/g, '<br>')}</p>
+                ${repData.plan_accion ? `<p><b>Plan de Acción Directo:</b><br>${repData.plan_accion}</p>` : ''}
+
+                <table class="signatures">
+                    <tr>
+                        <td class="sig-td">
+                            <div class="sig-line">Firma del Profesional</div>
+                            <div class="sig-sub">Reg. Médico: Pendiente</div>
+                        </td>
+                        <td class="sig-td">
+                            <div class="sig-line">Sello de la Clínica</div>
+                            <div class="sig-sub">HorizonFlow Systems</div>
+                        </td>
+                    </tr>
+                </table>
+            </body>
+            </html>
+            `;
+
+            // Creamos un archivo en memoria
+            const blob = new Blob(['\ufeff', htmlWord], { type: 'application/msword' });
+            
+            // Forzamos la descarga automática
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `Expediente_${activeReport.patientName.replace(/\s+/g, '_')}.doc`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+
         return (
             <>
-                <div className="max-w-4xl mx-auto bg-white rounded-[2.5rem] p-8 sm:p-12 shadow-xl border border-slate-100 print:shadow-none print:border-none print:p-0 print:max-w-full">
-                    <div className="hidden print:flex items-center justify-between border-b-2 border-[#0F766E] pb-6 mb-8 w-full">
+                <div className="hidden print:block max-w-4xl mx-auto mb-8 w-full">
+                    <div className="flex items-center justify-between border-b-2 border-[#0F766E] pb-6">
                         <div>
                             <h1 className="text-2xl font-black text-[#0F766E] tracking-tight uppercase">HorizonFlow</h1>
                             <p className="text-[10px] font-bold text-slate-400 tracking-widest uppercase mt-0.5">Sistema de Gestión Clínica e Inteligencia Artificial</p>
@@ -811,7 +944,7 @@ const Reportes = () => {
                     </div>
                 </div>
                 
-                <div className="max-w-4xl mx-auto mb-6 flex items-center justify-between print:hidden">
+                <div className="max-w-4xl mx-auto mb-6 flex flex-wrap items-center justify-between gap-4 print:hidden">
                     <button 
                         onClick={() => setView('list')} 
                         className="flex items-center gap-2 text-slate-500 hover:text-[#0F766E] text-xs font-black uppercase tracking-widest transition-all bg-white px-5 py-2.5 rounded-xl shadow-sm border border-slate-100 hover:shadow-md w-fit"
@@ -822,19 +955,34 @@ const Reportes = () => {
                         CERRAR REPORTE
                     </button>
 
-                    <button 
-                        onClick={() => window.print()} 
-                        className="flex items-center gap-2 bg-[#0F766E] hover:bg-[#0D9488] text-white text-xs font-black uppercase tracking-widest transition-all px-6 py-2.5 rounded-xl shadow-md hover:shadow-xl w-fit"
-                    >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        EXPORTAR A PDF
-                    </button>
+                    <div className="flex items-center gap-3">
+                        {/* 🌟 NUEVO BOTÓN DE WORD */}
+                        <button 
+                            onClick={exportarAWord} 
+                            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-widest transition-all px-6 py-2.5 rounded-xl shadow-md hover:shadow-xl"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            WORD
+                        </button>
+
+                        {/* BOTÓN ORIGINAL DE PDF */}
+                        <button 
+                            onClick={() => window.print()} 
+                            className="flex items-center gap-2 bg-[#0F766E] hover:bg-[#0D9488] text-white text-xs font-black uppercase tracking-widest transition-all px-6 py-2.5 rounded-xl shadow-md hover:shadow-xl"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                            </svg>
+                            PDF
+                        </button>
+                    </div>
                 </div>
 
-                <div className="bg-white rounded-[2rem] p-10 sm:p-16 shadow-2xl border border-slate-200 font-serif text-slate-800 relative max-w-4xl mx-auto">
+                <div id="reporte-imprimible" className="bg-white rounded-[2rem] p-10 sm:p-16 shadow-2xl border border-slate-200 font-serif text-slate-800 relative max-w-4xl mx-auto">
                     <div className="leading-relaxed print:w-full">
+                        
                         {/* I. DATOS GENERALES */}
                         <section className="print:break-inside-avoid mb-8 pb-2">
                             <h2 className="text-sm font-black text-[#113130] uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 font-sans">I. Datos Generales</h2>
@@ -870,13 +1018,12 @@ const Reportes = () => {
                             </p>
                         </section>
 
-                        {/* V. ANÁLISIS CLÍNICO */}
+                        {/* V. ANÁLISIS CLÍNICO (LIMPIO, SIN CAJAS BLANCAS RARAS) */}
                         <section className="print:break-inside-avoid mb-8 pb-2">
-                            <div className="mt-8 bg-slate-50 p-8 rounded-3xl border border-slate-100 font-sans shadow-inner">
-                                <p className="text-[10px] font-black text-[#0F766E] uppercase tracking-widest mb-5 flex items-center gap-2">
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                                    V. Análisis Clínico y Fundamentación DSM-5 (Generado por ALMA AI)
-                                </p>
+                            <h2 className="text-sm font-black text-[#113130] uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 font-sans">
+                                V. Análisis Clínico y Fundamentación DSM-5 (ALMA AI)
+                            </h2>
+                            <div className="text-[15px] text-justify text-slate-700 mb-6">
                                 <TextoFormateadoIA texto={repData.analisis_ia} />
                             </div>
                         </section>
@@ -903,16 +1050,10 @@ const Reportes = () => {
                                     {repData.plan_accion}
                                 </p>
                             )}
-                            <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100 font-sans w-fit mt-4">
-                                <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Decisión Clínica:</span>
-                                <span className={`text-[11px] font-black uppercase tracking-widest px-4 py-2 rounded-lg shadow-sm ${getBadgeStyle(activeReport.nextStep)}`}>
-                                    {activeReport.nextStep}
-                                </span>
-                            </div>
                         </section>
 
-                        {/* FIRMAS */}
-                        <div className="mt-24 pt-10 grid grid-cols-2 gap-10 font-sans print:break-inside-avoid">
+                        {/* FIRMAS (ÚNICAS Y ORIGINALES) */}
+                        <div className="mt-20 pt-10 grid grid-cols-2 gap-10 font-sans print:break-inside-avoid">
                             <div className="border-t-2 border-slate-300 pt-4 text-center">
                                 <p className="text-sm font-black text-[#113130] uppercase tracking-widest">Firma del Profesional</p>
                                 <p className="text-xs text-slate-500 font-bold mt-1">Reg. Médico: Pendiente</p>
@@ -923,19 +1064,6 @@ const Reportes = () => {
                             </div>
                         </div>
 
-                        {/* PIE DE PÁGINA EXCLUSIVO PARA EL PDF */}
-                        <section className="hidden print:block mt-16 w-full print:break-inside-avoid">
-                            <div className="flex justify-between items-center">
-                                <div className="w-48 border-t border-slate-300 pt-2 text-center">
-                                    <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Firma del Psicólogo</p>
-                                    <p className="text-[9px] font-medium text-slate-400 mt-0.5">Código Profesional</p>
-                                </div>
-                                <div className="text-right text-[9px] font-medium text-slate-400">
-                                    <p>Este documento fue validado mediante el módulo cognitivo de HorizonFlow.</p>
-                                    <p>Información confidencial sujeta a secreto profesional.</p>
-                                </div>
-                            </div>
-                        </section>
                     </div>
                 </div>
             </>

@@ -79,7 +79,7 @@ function Login({ onLoginSuccess }) {
           body: JSON.stringify(datosLogin),
         });
 
-        if (respuesta.ok) {
+       if (respuesta.ok) {
           const datosServidor = await respuesta.json();
           const tokenReal = datosServidor.tu_gafete_digital;
 
@@ -89,6 +89,14 @@ function Login({ onLoginSuccess }) {
           }
   
           localStorage.setItem('token', tokenReal);
+          
+          // 🌟 AQUÍ ESTÁ EL CAMBIO: Guardamos el correo real del usuario (la variable "email")
+          localStorage.setItem('userEmail', email); 
+          // Le decimos que intente agarrar el nombre real que manda el backend, 
+          // y si el backend no lo manda, que deje el que ya estaba en la memoria, o "Psicólogo" por defecto.
+          const nombreReal = datosServidor.nombre_clinica || localStorage.getItem('userName') || 'Psicólogo';
+          localStorage.setItem('userName', nombreReal);
+          
           mostrarAlerta('exito', '¡Bienvenido!', 'Has iniciado sesión exitosamente.'); 
           if (onLoginSuccess) onLoginSuccess(); 
         } else {
@@ -127,7 +135,7 @@ function Login({ onLoginSuccess }) {
       setIsLoading(false);
     }
   };
-
+  
   const handleForgotPassword = (e) => {
     e.preventDefault();
     if (email) {

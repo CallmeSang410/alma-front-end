@@ -303,7 +303,17 @@ const Citas = () => {
         else document.body.style.overflow = 'unset';
         return () => { document.body.style.overflow = 'unset'; };
     }, [appointmentToCancel]);
+    const [filterAtention, setFilterAtention] = useState('Todas');
 
+    // Agregá esta función (podés ponerla cerca de getStatusStyles)
+    const getAtentionStyles = (atention) => {
+        switch(atention) {
+            case 'A domicilio': return 'bg-emerald-50 text-emerald-600 border-emerald-200';
+            case 'Presencial': return 'bg-teal-50 text-[#0F766E] border-teal-200';
+            case 'Virtual': return 'bg-indigo-50 text-indigo-600 border-indigo-200';
+            default: return 'bg-slate-50 text-slate-500 border-slate-200';
+        }
+    };
     const cargarDatos = async () => {
         const token = localStorage.getItem('token');
         if (!token) return;
@@ -496,17 +506,18 @@ const Citas = () => {
     };
 
     const filteredAppointments = appointments.filter(appt => {
+        // 1. Filtro de búsqueda (texto)
         const matchesSearch = appt.patientName.toLowerCase().includes(searchQuery.toLowerCase()) || 
                               appt.reason.toLowerCase().includes(searchQuery.toLowerCase());
         
-        let matchesFilter;
-        if (filterStatus === 'Todas') {
-            matchesFilter = appt.status.toLowerCase() !== 'completada'; 
-        } else {
-            matchesFilter = appt.status === filterStatus;
-        }
+        // 2. Filtro de Estado
+        let matchesStatus = filterStatus === 'Todas' ? appt.status.toLowerCase() !== 'completada' : appt.status === filterStatus;
 
-        return matchesSearch && matchesFilter;
+        // 3. 🌟 EL FILTRO RECUPERADO DE MODALIDAD
+        let matchesAtention = filterAtention === 'Todas' ? true : appt.atention === filterAtention;
+
+        // La cita solo se muestra si pasa los 3 filtros
+        return matchesSearch && matchesStatus && matchesAtention;
     });
 
     const getStatusStyles = (status) => {
@@ -539,30 +550,44 @@ const Citas = () => {
                         </button>
                     </div>
 
-                    <div className="flex flex-col lg:flex-row gap-4 pt-4 border-t border-slate-50">
-                        <div className="relative flex-1">
-                            <input 
-                                type="text" 
-                                placeholder="Buscar por paciente o motivo..." 
-                                value={searchQuery} 
-                                onChange={(e) => setSearchQuery(e.target.value)} 
-                                className="w-full pl-11 pr-4 py-3 rounded-xl text-sm bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E] transition-all font-medium" 
-                            />
-                            <svg className="w-5 h-5 text-slate-400 absolute left-4 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                        </div>
+                                <div className="flex flex-col lg:flex-row gap-4 pt-4 border-t border-slate-50">
+                <div className="relative flex-1">
+                    <input 
+                        type="text" 
+                        placeholder="Buscar por paciente o motivo..." 
+                        value={searchQuery} 
+                        onChange={(e) => setSearchQuery(e.target.value)} 
+                        className="w-full pl-11 pr-4 py-3 rounded-xl text-sm bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E] transition-all font-medium" 
+                    />
+                    <svg className="w-5 h-5 text-slate-400 absolute left-4 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                </div>
 
-                        <div className="flex overflow-x-auto hide-scrollbar gap-2 pb-1 lg:pb-0 shrink-0">
-                            {['Todas', 'Pendiente', 'Reservada', 'Cancelada'].map(status => (
-                                <button 
-                                    key={status}
-                                    onClick={() => setFilterStatus(status)}
-                                    className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest whitespace-nowrap transition-all ${filterStatus === status ? 'bg-[#113130] text-white shadow-md' : 'bg-slate-50 text-slate-500 hover:bg-slate-100 border border-slate-200'}`}
-                                >
-                                    {status}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
+                {/* FILTRO 1: ESTADO (El que sobrevivió) */}
+                <div className="flex overflow-x-auto hide-scrollbar gap-2 pb-1 lg:pb-0 shrink-0">
+                    {['Todas', 'Pendiente', 'Reservada', 'Cancelada'].map(status => (
+                        <button 
+                            key={status}
+                            onClick={() => setFilterStatus(status)}
+                            className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest whitespace-nowrap transition-all ${filterStatus === status ? 'bg-[#113130] text-white shadow-md' : 'bg-slate-50 text-slate-500 hover:bg-slate-100 border border-slate-200'}`}
+                        >
+                            {status}
+                        </button>
+                    ))}
+                </div>
+
+                {/* 🌟 FILTRO 2: MODALIDAD (El que Dervin te borró y estamos resucitando) */}
+                <div className="flex overflow-x-auto hide-scrollbar gap-2 pb-1 lg:pb-0 shrink-0">
+                    {['Todas', 'A domicilio', 'Presencial', 'Virtual'].map(atention => (
+                        <button 
+                            key={atention}
+                            onClick={() => setFilterAtention(atention)}
+                            className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest whitespace-nowrap transition-all ${filterAtention === atention ? 'bg-[#113130] text-white shadow-md' : 'bg-slate-50 text-slate-500 hover:bg-slate-100 border border-slate-200'}`}
+                        >
+                            {atention}
+                        </button>
+                    ))}
+                </div>
+            </div>
                 </div>
 
                 {filteredAppointments.length === 0 ? (
@@ -580,7 +605,7 @@ const Citas = () => {
                                 <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${appt.status === 'Reservada' ? 'bg-emerald-400' : appt.status === 'Cancelada' ? 'bg-rose-400' : 'bg-amber-400'}`}></div>
                                 
                                 <div className="pl-2">
-                                    <div className="flex justify-between items-start mb-4">
+                                   <div className="flex justify-between items-start mb-4">
                                         <div className="flex items-center gap-3">
                                             <div className="w-12 h-12 rounded-xl bg-teal-50 text-[#0F766E] flex items-center justify-center font-black text-lg shadow-sm border border-teal-100">
                                                 {appt.patientName.charAt(0)}
@@ -589,9 +614,21 @@ const Citas = () => {
                                                 <h3 className="text-base font-black text-[#113130] leading-tight truncate max-w-[150px] sm:max-w-[200px]" title={appt.patientName}>{appt.patientName}</h3>
                                             </div>
                                         </div>
-                                        <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md border ${getStatusStyles(appt.status)}`}>
-                                            {appt.status}
-                                        </span>
+                                        
+                                        {/* 🌟 CONTENEDOR NUEVO: Apila el Estado y la Modalidad a la derecha */}
+                                        <div className="flex flex-col items-end gap-1.5 shrink-0">
+                                            <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md border shadow-sm ${getStatusStyles(appt.status)}`}>
+                                                {appt.status}
+                                            </span>
+                                            
+                                            {/* 🌟 LA ETIQUETA DE MODALIDAD RECUPERADA CON SUS ICONOS */}
+                                            <span className={`text-[8px] font-bold uppercase tracking-widest px-2 py-0.5 rounded border flex items-center gap-1 shadow-sm ${getAtentionStyles(appt.atention)}`}>
+                                                {appt.atention === 'Virtual' && <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>}
+                                                {appt.atention === 'A domicilio' && <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>}
+                                                {appt.atention === 'Presencial' && <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>}
+                                                {appt.atention}
+                                            </span>
+                                        </div>
                                     </div>
                                     
                                     <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-50 space-y-3">
