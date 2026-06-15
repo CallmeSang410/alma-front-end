@@ -54,29 +54,23 @@ const Reportes = () => {
         alert(`${titulo}: ${mensaje}`);
     };
 
-    // ================= ESTADOS GENERALES =================
+    // ================= 1. ESTADOS GENERALES =================
     const [view, setView] = useState('list'); 
     const [searchQuery, setSearchQuery] = useState('');
     const [activeReport, setActiveReport] = useState(null);
 
-    // ================= ESTADOS DE BASE DE DATOS =================
+    // ================= 2. ESTADOS DE BASE DE DATOS =================
     const [pastReports, setPastReports] = useState([]);
     const [availableAppointments, setAvailableAppointments] = useState([]); 
     const [patientsData, setPatientsData] = useState([]); 
 
-    // ================= ESTADOS DEL WIZARD =================
+    // ================= 3. ESTADOS DEL WIZARD =================
     const [step, setStep] = useState(1);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [formErrors, setFormErrors] = useState({});
+    const [modoManual, setModoManual] = useState(false); // 🌟 Declarado UNA SOLA VEZ
 
-    // ================= ESTADOS PARA EL BUSCADOR DE CITAS EN REPORTES =================
-    const [busquedaCita, setBusquedaCita] = useState('');
-    const [mostrarListaCitas, setMostrarListaCitas] = useState(false);
-
-    const citasFiltradas = availableAppointments.filter(cita => 
-        cita.labelVisual.toLowerCase().includes(busquedaCita.toLowerCase())
-    );
-
+    // ================= 4. ESTADOS DEL FORMULARIO =================
     const initialFormState = {
         cita_id: '', 
         reason: '', 
@@ -88,13 +82,33 @@ const Reportes = () => {
         finalDiagnosis: '', 
         recommendations: '', 
         nextStep: 'Tratamiento Terapéutico',
-        otherNextStepDescription: ''
+        otherNextStepDescription: '',
+        
+        // 🌟 NUEVOS ESTADOS PARA EL SWITCH
+        revaluacionActiva: false,
+        nuevoDiagnostico: ''
     };
-    
-    const [formData, setFormData] = useState(initialFormState);
+    const [formData, setFormData] = useState(initialFormState); // 🌟 Nace formData
+
+    // ================= 5. ESTADOS PARA EL BUSCADOR DE CITAS =================
+    const [busquedaCita, setBusquedaCita] = useState('');
+    const [mostrarListaCitas, setMostrarListaCitas] = useState(false);
+
+    const citasFiltradas = availableAppointments.filter(cita => 
+        cita.labelVisual.toLowerCase().includes(busquedaCita.toLowerCase())
+    );
+
+    // ================= 6. LÓGICA DE SEGUIMIENTO E INSTRUMENTOS =================
     const availableTests = ["BDI-II (Depresión)", "GAD-7 (Ansiedad)", "MMPI-2", "Test de Rorschach", "Test de Bender", "Test de la Figura Humana", "Escala de Estrés Percibido", "Otros"];
 
-    // ================= CARGA DE DATOS (FASTAPI) =================
+    // 🌟 El detector lee formData solo DESPUÉS de que fue creado arriba
+    const citaSeleccionada = availableAppointments.find(c => String(c.id) === String(formData.cita_id));
+    const pacienteSeleccionado = patientsData.find(p => p.id === citaSeleccionada?.paciente_id);
+    
+    // 🌟 AHORA SÍ: Busca si este paciente_id ya tiene reportes guardados
+    const esSeguimiento = pastReports.some(rep => rep.paciente_id === pacienteSeleccionado?.id);
+
+    // ================= 7. CARGA DE DATOS (FASTAPI) =================
     const cargarDatos = async () => {
         const token = localStorage.getItem('token');
         if (!token) return;
@@ -117,12 +131,24 @@ const Reportes = () => {
                     const citaAsociada = citasDB.find(c => c.id === rep.cita_id);
                     const pacienteAsociado = citaAsociada ? pacientesDB.find(p => p.id === citaAsociada.paciente_id) : null;
                     
-                    return {
+                    // 🌟 MAGIA PARA LAS TARJETAS: Embellecemos el texto si no hay diagnóstico
+                    let textoDiagnostico = rep.diagnostico_final || "";
+                    if (!textoDiagnostico || textoDiagnostico.toLowerCase().includes('sin diagnóstico')) {
+                        textoDiagnostico = "🔄 Sesión de Seguimiento Terapéutico";
+                    } else if (textoDiagnostico.toLowerCase().includes('seguimiento')) {
+                        textoDiagnostico = "🔄 Sesión de Seguimiento Terapéutico";
+                    }
+                    
+                   return {
                         id: rep.id,
-                        serialNumber: `CD-${String(rep.id).padStart(4, '0')}`,
+                        
+                        // 🌟 ESTA ES LA LÍNEA NUEVA QUE FALTA:
+                        paciente_id: pacienteAsociado ? pacienteAsociado.id : null, 
+                        
+                        serialNumber: pacienteAsociado ? `CD-${String(pacienteAsociado.id).padStart(4, '0')}` : `CD-0000`,
                         patientName: pacienteAsociado ? pacienteAsociado.nombre : "Paciente Desconocido",
                         date: new Date(rep.fecha_generacion).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }),
-                        diagnosis: rep.diagnostico_final || 'Sin diagnóstico registrado',
+                        diagnosis: textoDiagnostico, 
                         nextStep: rep.plan_accion || 'No especificado',
                         status: "Cerrado",
                         fullData: rep 
@@ -256,11 +282,20 @@ const Reportes = () => {
             if (!formData.reason.trim()) errors.reason = true;
         } else if (step === 2) {
             if (!formData.interviewNotes.trim()) errors.interviewNotes = true;
-            if (formData.testsUsed.length === 0) errors.testsUsed = true;
+           // if (formData.testsUsed.length === 0) errors.testsUsed = true;
             if (formData.testsUsed.includes("Otros") && !formData.otherTestDescription.trim()) errors.otherTestDescription = true;
         } else if (step === 4) { 
-            if (!formData.finalDiagnosis.trim()) errors.finalDiagnosis = true;
-            if (!formData.recommendations.trim()) errors.recommendations = true;
+            if (!formData.analisis_ia || !formData.analisis_ia.trim()) errors.analisis_ia = true;
+
+            if (!esSeguimiento) {
+                if (!formData.finalDiagnosis.trim()) errors.finalDiagnosis = true;
+                if (!formData.recommendations.trim()) errors.recommendations = true;
+            } else if (esSeguimiento && formData.revaluacionActiva) {
+                // 🌟 NUEVO: Exigir ambas cosas si prendió el Switch
+                if (!formData.nuevoDiagnostico.trim()) errors.nuevoDiagnostico = true;
+                if (!formData.recommendations.trim()) errors.recommendations = true;
+            }
+            
             if (formData.nextStep === 'Otros' && !formData.otherNextStepDescription.trim()) errors.otherNextStepDescription = true;
         }
 
@@ -278,10 +313,16 @@ const Reportes = () => {
 
     const handlePrevStep = () => {
         setFormErrors({});
-        if (step > 1) setStep(step - 1);
+        // 🌟 CORRECCIÓN: Si estamos en el paso 4 y nos saltamos la IA, regresamos directo al paso 2
+        if (step === 4 && (modoManual || esSeguimiento)) {
+            setStep(2);
+        } else if (step > 1) {
+            setStep(step - 1);
+        }
     };
 
     const submitReportToAI = async () => {
+       
         setIsAnalyzing(true);
         
         let testsString = formData.testsUsed.filter(t => t !== 'Otros').join(', ');
@@ -296,9 +337,21 @@ const Reportes = () => {
             notas_psicologo: formData.interviewNotes,
             pruebas_aplicadas: testsString || "Ninguna registrada",
             analisis_ia: formData.analisis_ia, 
-            diagnostico_final: formData.finalDiagnosis,
-            recomendaciones: formData.recommendations,
-            plan_accion: planFinal
+            
+            // 🌟 EL REPORTE DICE QUÉ PASÓ ESE DÍA:
+            diagnostico_final: (esSeguimiento && formData.revaluacionActiva) 
+                                ? `Revaluación Diagnóstica: ${formData.nuevoDiagnostico}` 
+                                : (esSeguimiento ? "Sesión de Seguimiento Terapéutico" : formData.finalDiagnosis),
+            
+            // 🌟 NUEVO: Toma las nuevas recomendaciones si es revaluación
+            recomendaciones: (esSeguimiento && formData.revaluacionActiva)
+                                ? formData.recommendations 
+                                : (esSeguimiento ? "Continuar con el proceso terapéutico." : formData.recommendations),
+            
+            // 🌟 LA ORDEN DIRECTA PARA LA TABLA PACIENTES EN LA BASE DE DATOS:
+            actualizar_diagnostico_paciente: (esSeguimiento && formData.revaluacionActiva) 
+                                            ? formData.nuevoDiagnostico 
+                                            : (!esSeguimiento ? formData.finalDiagnosis : null)
         };
 
         try {
@@ -328,12 +381,41 @@ const Reportes = () => {
             setIsAnalyzing(false);
         }
     };
+     // 🌟 FUNCIÓN BYPASS: Manda al psicólogo a redactar manualmente
+    const handleGuardarSinIA = () => {
+        const errors = {};
+        if (!formData.interviewNotes.trim()) errors.interviewNotes = true;
+        //if (formData.testsUsed.length === 0) errors.testsUsed = true;
+        if (formData.testsUsed.includes("Otros") && !formData.otherTestDescription.trim()) errors.otherTestDescription = true;
 
+        if (Object.keys(errors).length > 0) {
+            setFormErrors(errors);
+            mostrarAlerta('error', 'Faltan datos', 'Completá las notas y pruebas antes de avanzar.');
+            return;
+        }
+        
+        setFormErrors({});
+        
+        // Activamos el modo manual, limpiamos cualquier rastro de IA y lo mandamos al Paso 4
+        setModoManual(true);
+        setFormData(prev => ({...prev, analisis_ia: ''}));
+        setStep(4); 
+    };
     const ErrorIcon = () => (
         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
     );
 
     const getStepTitle = (s) => {
+        // 🌟 TÍTULOS ESPECIALES PARA SEGUIMIENTO
+        if (esSeguimiento) {
+            switch(s) {
+                case 1: return "Cita de Seguimiento";
+                case 2: return "Evolución y Avances";
+                case 4: return "Reporte de Sesión Terapéutica"; 
+                default: return "";
+            }
+        }
+        // Títulos normales para primera vez
         switch(s) {
             case 1: return "Datos Iniciales";
             case 2: return "Evaluación Clínica";
@@ -375,7 +457,7 @@ const Reportes = () => {
                         <h1 className="text-3xl font-black text-[#113130] tracking-tight">Evaluaciones y Reportes</h1>
                         <p className="text-slate-500 text-sm font-medium mt-1">Sistematiza tus diagnósticos con el procesamiento de HorizonFlow.</p>
                     </div>
-                    <button onClick={() => { setView('wizard'); setStep(1); setFormData(initialFormState); }} className="relative z-10 bg-gradient-to-r from-[#0F766E] to-[#0D9488] hover:to-teal-500 text-white px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-3 transition-all shadow-xl shadow-teal-900/20 w-full md:w-auto">
+                    <button onClick={() => { setView('wizard'); setStep(1); setFormData(initialFormState); setModoManual(false); }} className="relative z-10 bg-gradient-to-r from-[#0F766E] to-[#0D9488] hover:to-teal-500 text-white px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-3 transition-all shadow-xl shadow-teal-900/20 w-full md:w-auto">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg> 
                         Iniciar Evaluación
                     </button>
@@ -453,9 +535,16 @@ const Reportes = () => {
                     <div className="mb-8">
                         <h2 className="text-3xl font-black text-[#113130] tracking-tight">{getStepTitle(step)}</h2>
                         <p className="text-sm text-slate-500 font-medium mt-2">
-                            {step === 1 && "Selecciona la cita pendiente y el motivo por el cual el paciente asiste a consulta."}
-                            {step === 2 && "Documenta la entrevista, observaciones y las herramientas psicométricas aplicadas."}
-                            {step === 3 && "Confirma tu diagnóstico final clínico y define el plan de acción terapéutico."}
+                            {/* Textos si es primera vez */}
+                            {!esSeguimiento && step === 1 && "Selecciona la cita pendiente y el motivo por el cual el paciente asiste a consulta."}
+                            {!esSeguimiento && step === 2 && "Documenta la entrevista, observaciones y las herramientas psicométricas aplicadas."}
+                            {!esSeguimiento && step === 3 && "Confirma tu diagnóstico final clínico y define el plan de acción terapéutico."}
+                            {!esSeguimiento && step === 4 && "Establece el diagnóstico final y el plan de tratamiento."}
+                            
+                            {/* 🌟 TEXTOS NUEVOS PARA SEGUIMIENTO */}
+                            {esSeguimiento && step === 1 && "Selecciona la cita para agregar un nuevo reporte al expediente de este paciente."}
+                            {esSeguimiento && step === 2 && "Anota los temas tratados hoy, el estado emocional del paciente y sus avances."}
+                            {esSeguimiento && step === 4 && "Guarda tus notas de evolución y define cuál será el siguiente paso en la terapia."}
                         </p>
                     </div>
 
@@ -675,16 +764,97 @@ const Reportes = () => {
 
                     {step === 4 && !isAnalyzing && (
                         <div className="space-y-6 animate-fade-in">
+                            
+                            {/* 🌟 LA CAJA DE TEXTO AHORA SIEMPRE SALE (Para redactar o editar la IA) */}
                             <div>
-                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Diagnóstico Final (Profesional)</label>
-                                <input type="text" value={formData.finalDiagnosis} onChange={(e) => setFormData({...formData, finalDiagnosis: e.target.value})} placeholder="Ej. Trastorno Depresivo Mayor, leve..." className={`w-full rounded-2xl px-5 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.finalDiagnosis ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-slate-50 border-slate-200 focus:ring-[#0F766E] border'}`} />
-                                {formErrors.finalDiagnosis && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Establece un diagnóstico clínico final</p>}
+                                <label className="block text-[10px] font-black text-[#0F766E] uppercase tracking-widest mb-2">
+                                    {esSeguimiento 
+                                        ? "Notas de Evolución Terapéutica" 
+                                        : (modoManual ? "Análisis Clínico y de Evolución (Redacción Manual)" : "Análisis de IA (Puedes editar el texto antes de guardar)")} 
+                                    <span className="text-rose-500">*</span>
+                                </label>
+                                <textarea 
+                                    value={formData.analisis_ia || ''} 
+                                    onChange={(e) => setFormData({...formData, analisis_ia: e.target.value})} 
+                                    placeholder={esSeguimiento ? "Escribe aquí los detalles de la sesión, progreso del paciente y tareas asignadas..." : "Escribe aquí tu análisis clínico completo..."} 
+                                    rows="8" 
+                                    className={`w-full rounded-2xl px-5 py-4 text-sm font-medium text-[#113130] focus:outline-none focus:ring-2 focus:ring-[#0F766E] border border-slate-200 bg-white shadow-inner resize-y transition-all ${formErrors.analisis_ia ? 'border-rose-400 bg-rose-50' : ''}`}
+                                ></textarea>
+                                {formErrors.analisis_ia && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Este campo no puede estar vacío.</p>}
                             </div>
-                            <div>
-                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Recomendaciones Terapéuticas</label>
-                                <textarea value={formData.recommendations} onChange={(e) => setFormData({...formData, recommendations: e.target.value})} placeholder="Pautas a seguir, tareas o sugerencias clínicas..." rows="4" className={`w-full rounded-2xl px-5 py-4 text-sm font-medium text-[#113130] focus:outline-none focus:ring-2 transition-all resize-none ${formErrors.recommendations ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-slate-50 border-slate-200 focus:ring-[#0F766E] border'}`}></textarea>
-                                {formErrors.recommendations && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Ingresa las recomendaciones</p>}
-                            </div>
+                            
+                            {/* 🌟 SWITCH DE REVALUACIÓN (Solo aparece en Seguimientos) */}
+                            {esSeguimiento && (
+                                <div className="bg-amber-50/50 p-5 rounded-2xl border border-amber-100 mt-4 transition-all">
+                                    <label className="flex items-center gap-3 cursor-pointer select-none">
+                                        <div className="relative flex items-center">
+                                            <input 
+                                                type="checkbox" 
+                                                className="peer sr-only"
+                                                checked={formData.revaluacionActiva}
+                                                onChange={(e) => setFormData({...formData, revaluacionActiva: e.target.checked})}
+                                            />
+                                            {/* El switch visual */}
+                                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                                        </div>
+                                        <span className="text-sm font-black text-amber-900 tracking-tight">
+                                            ¿Ajustar o cambiar el diagnóstico del paciente?
+                                        </span>
+                                    </label>
+                                    
+                                   {/* 🌟 LA CAJA QUE APARECE SI EL SWITCH ESTÁ ENCENDIDO */}
+                                    {formData.revaluacionActiva && (
+                                        <div className="mt-5 animate-fade-in border-t border-amber-200/60 pt-5 space-y-4">
+                                            <div>
+                                                <label className="block text-[10px] font-black text-amber-700 uppercase tracking-widest mb-2">
+                                                    Nuevo Diagnóstico Clínico <span className="text-rose-500">*</span>
+                                                </label>
+                                                <input 
+                                                    type="text" 
+                                                    value={formData.nuevoDiagnostico} 
+                                                    onChange={(e) => setFormData({...formData, nuevoDiagnostico: e.target.value})} 
+                                                    placeholder="Ej. Trastorno de Ansiedad Generalizada (Ajuste por evolución)..." 
+                                                    className={`w-full rounded-xl px-4 py-3 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.nuevoDiagnostico ? 'border-rose-400 bg-rose-50 ring-rose-200' : 'bg-white border-amber-200 focus:ring-amber-500 border'}`} 
+                                                />
+                                                {formErrors.nuevoDiagnostico && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Debes escribir el nuevo diagnóstico</p>}
+                                            </div>
+                                            
+                                            {/* 🌟 NUEVO: CAJA DE RECOMENDACIONES */}
+                                            <div>
+                                                <label className="block text-[10px] font-black text-amber-700 uppercase tracking-widest mb-2">
+                                                    Nuevas Recomendaciones Terapéuticas <span className="text-rose-500">*</span>
+                                                </label>
+                                                <textarea 
+                                                    value={formData.recommendations} 
+                                                    onChange={(e) => setFormData({...formData, recommendations: e.target.value})} 
+                                                    placeholder="Nuevas pautas a seguir, enfoque clínico o tareas..." 
+                                                    rows="3" 
+                                                    className={`w-full rounded-xl px-4 py-3 text-sm font-medium text-[#113130] focus:outline-none focus:ring-2 transition-all resize-none ${formErrors.recommendations ? 'border-rose-400 bg-rose-50 ring-rose-200' : 'bg-white border-amber-200 focus:ring-amber-500 border'}`} 
+                                                ></textarea>
+                                                {formErrors.recommendations && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Ingresa las nuevas recomendaciones</p>}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* 🌟 ESTOS CAMPOS DESAPARECEN SOLO SI ES SEGUIMIENTO (Sin importar si usaste IA o no) */}
+                            {!esSeguimiento && (
+                                <>
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Diagnóstico Final (Profesional)</label>
+                                        <input type="text" value={formData.finalDiagnosis} onChange={(e) => setFormData({...formData, finalDiagnosis: e.target.value})} placeholder="Ej. Trastorno Depresivo Mayor, leve..." className={`w-full rounded-2xl px-5 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.finalDiagnosis ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-slate-50 border-slate-200 focus:ring-[#0F766E] border'}`} />
+                                        {formErrors.finalDiagnosis && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Establece un diagnóstico clínico final</p>}
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Recomendaciones Terapéuticas</label>
+                                        <textarea value={formData.recommendations} onChange={(e) => setFormData({...formData, recommendations: e.target.value})} placeholder="Pautas a seguir, tareas o sugerencias clínicas..." rows="4" className={`w-full rounded-2xl px-5 py-4 text-sm font-medium text-[#113130] focus:outline-none focus:ring-2 transition-all resize-none ${formErrors.recommendations ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-slate-50 border-slate-200 focus:ring-[#0F766E] border'}`}></textarea>
+                                        {formErrors.recommendations && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Ingresa las recomendaciones</p>}
+                                    </div>
+                                </>
+                            )}
+                            
+                            {/* EL PLAN DE ACCIÓN SIEMPRE SE MUESTRA (Opciones de Derivación, Alta, etc.) */}
                             <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 space-y-6">
                                 <div>
                                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Plan de Acción Directo</label>
@@ -774,16 +944,29 @@ const Reportes = () => {
                             >
                                 Atrás
                             </button>
-                            <button 
-                                onClick={handleNextStep}
-                                disabled={availableAppointments.length === 0}
-                                className="px-8 py-3.5 bg-[#0F766E] hover:bg-[#0D9488] text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-lg shadow-teal-900/20 transition-colors disabled:opacity-50 flex items-center gap-2"
-                            >
-                                {step === 1 ? 'Siguiente: Notas' : 
-                                 step === 2 ? <>✨ Analizar con IA</> : 
-                                 step === 3 ? 'Siguiente: Diagnóstico Final' : 
-                                 'Guardar Expediente'}
-                            </button>
+                            
+                            <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                                {/* 🌟 EL NUEVO BOTÓN: Solo aparece en el Paso 2 */}
+                                {step === 2 && (
+                                    <button 
+                                        onClick={handleGuardarSinIA}
+                                        className="w-full sm:w-auto px-6 py-3.5 bg-white border-2 border-slate-200 hover:border-slate-300 text-slate-500 hover:text-slate-700 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all shadow-sm"
+                                    >
+                                        Guardar Solo Notas (Sin IA) / Seguimiento Terapéutico 
+                                    </button>
+                                )}
+
+                                <button 
+                                    onClick={handleNextStep}
+                                    disabled={availableAppointments.length === 0}
+                                    className="w-full sm:w-auto px-8 py-3.5 bg-[#0F766E] hover:bg-[#0D9488] text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-lg shadow-teal-900/20 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                                >
+                                    {step === 1 ? 'Siguiente: Notas' : 
+                                     step === 2 ? <>✨ Analizar con IA</> : 
+                                     step === 3 ? 'Siguiente: Diagnóstico Final' : 
+                                     'Guardar Expediente'}
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>
@@ -791,10 +974,18 @@ const Reportes = () => {
         );
     }
 
-    // ================= VISTA 3: INFORME FINAL (DOCUMENTO) =================
+   // ================= VISTA 3: INFORME FINAL (DOCUMENTO) =================
     if (view === 'reportDetail' && activeReport) {
         const repData = activeReport.fullData;
         const pInfo = repData.paciente_data || {}; 
+
+        // 🌟 EL DETECTOR BLINDADO: Agarra el texto de la pantalla, lo pasa a minúsculas y busca la palabra clave
+        const textoDiagnostico = String(activeReport.diagnosis || repData.diagnostico_final || "").toLowerCase();
+        
+        // Es seguimiento SOLO si dice "seguimiento" o "sin diagnóstico", pero NO si dice "revaluación"
+        const esReporteSeguimiento = (textoDiagnostico.includes('seguimiento') || textoDiagnostico.includes('sin diagnóstico')) && !textoDiagnostico.includes('revaluación');
+
+        // 🌟 Función para exportar a MS Word... (lo que ya tenés abajo)
 
        // 🌟 NUEVO: Función para exportar a MS Word (Versión Clínica Premium)
         const exportarAWord = () => {
@@ -861,6 +1052,7 @@ const Reportes = () => {
                         </td>
                         <td class="header-right" style="vertical-align: bottom;">
                             <b>EXPEDIENTE CLÍNICO AUTOMATIZADO</b><br>
+                            <span style="color: #0F766E; font-weight: bold;">Folio: ${activeReport.serialNumber}</span><br>
                             Fecha de Emisión: ${fechaEmision}
                         </td>
                     </tr>
@@ -887,17 +1079,19 @@ const Reportes = () => {
                 <h2>IV. Análisis y Observaciones Clínicas</h2>
                 <p>${(repData.notas_psicologo || "").replace(/\n/g, '<br>')}</p>
 
-                <h2>V. Análisis Clínico y Fundamentación DSM-5</h2>
-                <p style="font-size: 9pt; color: #64748b;"><i>* Sección procesada mediante ALMA AI (HorizonFlow Cognitive Module)</i></p>
+                <h2>${esReporteSeguimiento ? 'V. Notas de Evolución Terapéutica' : 'V. Análisis Clínico y Fundamentación DSM-5'}</h2>
+                ${!esReporteSeguimiento ? '<p style="font-size: 9pt; color: #64748b;"><i>* Sección procesada mediante ALMA AI (HorizonFlow Cognitive Module)</i></p>' : ''}
                 <div>${analisisIA}</div>
 
+                ${!esReporteSeguimiento ? `
                 <h2>VI. Diagnóstico Clínico</h2>
                 <div class="diag-box">
                     ${activeReport.diagnosis || repData.diagnostico_final}
                 </div>
+                ` : ''}
 
-                <h2>VII. Recomendaciones y Plan a Seguir</h2>
-                <p>${(repData.recomendaciones || "").replace(/\n/g, '<br>')}</p>
+                <h2>${esReporteSeguimiento ? 'VI. Plan a Seguir' : 'VII. Recomendaciones y Plan a Seguir'}</h2>
+                ${!esReporteSeguimiento && repData.recomendaciones ? `<p>${repData.recomendaciones.replace(/\n/g, '<br>')}</p>` : ''}
                 ${repData.plan_accion ? `<p><b>Plan de Acción Directo:</b><br>${repData.plan_accion}</p>` : ''}
 
                 <table class="signatures">
@@ -939,11 +1133,13 @@ const Reportes = () => {
                         </div>
                         <div className="text-right">
                             <p className="text-xs font-bold text-[#113130]">EXPEDIENTE CLÍNICO AUTOMATIZADO</p>
+                            {/* 🌟 NUEVO: Folio visible en el encabezado del PDF impreso */}
+                            <p className="text-xs font-black text-[#0F766E] mt-0.5">FOLIO: {activeReport.serialNumber}</p>
                             <p className="text-[10px] font-medium text-slate-500 mt-0.5">Fecha de Emisión: {new Date().toLocaleDateString()}</p>
                         </div>
                     </div>
                 </div>
-                
+
                 <div className="max-w-4xl mx-auto mb-6 flex flex-wrap items-center justify-between gap-4 print:hidden">
                     <button 
                         onClick={() => setView('list')} 
@@ -988,9 +1184,10 @@ const Reportes = () => {
                             <h2 className="text-sm font-black text-[#113130] uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 font-sans">I. Datos Generales</h2>
                             <div className="grid grid-cols-2 gap-4 text-sm bg-slate-50 p-6 rounded-2xl font-sans border border-slate-100">
                                 <div><span className="font-bold text-slate-500 block mb-1">Paciente:</span> <span className="font-bold text-[#113130] text-base">{activeReport.patientName}</span></div>
+                                {/* 🌟 NUEVO: Folio destacado en Datos Generales */}
+                                <div><span className="font-bold text-slate-500 block mb-1">Folio Único de Expediente:</span> <span className="font-black text-[#0F766E] text-base">{activeReport.serialNumber}</span></div>
                                 <div><span className="font-bold text-slate-500 block mb-1">Edad:</span> <span className="font-bold text-[#113130] text-base">{pInfo.edad || 'N/E'} años</span></div>
                                 <div><span className="font-bold text-slate-500 block mb-1">Teléfono:</span> <span className="font-bold text-[#113130] text-base">{pInfo.telefono || 'N/E'}</span></div>
-                                <div><span className="font-bold text-slate-500 block mb-1">Evaluador:</span> <span className="font-bold text-[#113130] text-base">Psicólogo Autorizado</span></div>
                             </div>
                         </section>
 
@@ -1018,38 +1215,44 @@ const Reportes = () => {
                             </p>
                         </section>
 
-                        {/* V. ANÁLISIS CLÍNICO (LIMPIO, SIN CAJAS BLANCAS RARAS) */}
+                        {/* V. ANÁLISIS / EVOLUCIÓN */}
                         <section className="print:break-inside-avoid mb-8 pb-2">
                             <h2 className="text-sm font-black text-[#113130] uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 font-sans">
-                                V. Análisis Clínico y Fundamentación DSM-5 (ALMA AI)
+                                {esReporteSeguimiento ? "V. Notas de Evolución Terapéutica" : "V. Análisis Clínico y Fundamentación DSM-5 "}
                             </h2>
                             <div className="text-[15px] text-justify text-slate-700 mb-6">
                                 <TextoFormateadoIA texto={repData.analisis_ia} />
                             </div>
                         </section>
 
-                        {/* VI. DIAGNÓSTICO CLÍNICO */}
-                        <section className="print:break-inside-avoid mb-8 pb-2">
-                            <h2 className="text-sm font-black text-[#113130] uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 font-sans">VI. Diagnóstico Clínico</h2>
-                            <p className="text-xl font-bold text-[#113130] bg-slate-50 p-5 rounded-2xl text-center font-sans border border-slate-200 shadow-inner">
-                                {activeReport.diagnosis || repData.diagnostico_final}
-                            </p>
-                        </section>
+                        
 
-                      {/* VII. RECOMENDACIONES Y PLAN A SEGUIR */}
+                        {/* VI. DIAGNÓSTICO CLÍNICO (🌟 DESAPARECE SI ES SEGUIMIENTO) */}
+                        {!esReporteSeguimiento && (
+                            <section className="print:break-inside-avoid mb-8 pb-2">
+                                <h2 className="text-sm font-black text-[#113130] uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 font-sans">VI. Diagnóstico Clínico</h2>
+                                <p className="text-xl font-bold text-[#113130] bg-slate-50 p-5 rounded-2xl text-center font-sans border border-slate-200 shadow-inner">
+                                    {activeReport.diagnosis || repData.diagnostico_final}
+                                </p>
+                            </section>
+                        )}
+
+                        {/* VII. RECOMENDACIONES Y PLAN A SEGUIR */}
                         <section className="mb-8 pb-2 print:block print:break-inside-avoid">
                             <h2 className="text-sm font-black text-[#113130] uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 font-sans print:break-after-avoid">
-                                VII. Recomendaciones y Plan a Seguir
+                                {esReporteSeguimiento ? "VI. Plan a Seguir" : "VII. Recomendaciones y Plan a Seguir"}
                             </h2>
-                            <p className="text-[15px] whitespace-pre-wrap text-slate-700 mb-6">
-                                {repData.recomendaciones}
-                            </p>
                             
-                            {/* 🌟 AQUÍ ESTÁ EL REEMPLAZO CON EL DISEÑO PREMIUM */}
+                            {/* 🌟 Las recomendaciones desaparecen en seguimiento, solo queda el cuadrito del plan */}
+                            {!esReporteSeguimiento && repData.recomendaciones && (
+                                <p className="text-[15px] whitespace-pre-wrap text-slate-700 mb-6">
+                                    {repData.recomendaciones}
+                                </p>
+                            )}
+                            
                             {repData.plan_accion && (
                                 <div className="mt-4 mb-6">
                                     <h4 className="text-[15px] font-bold text-[#113130] mb-3">Plan de Acción:</h4>
-                                    
                                     <div className="bg-slate-50/80 rounded-xl p-4 border border-slate-100 inline-flex items-center gap-4 print:border-slate-200 print:bg-slate-50">
                                         <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">
                                             Decisión Clínica:

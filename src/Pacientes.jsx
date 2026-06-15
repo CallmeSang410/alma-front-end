@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { useAlerta, AlertaProvider } from './AlertaContext.jsx'; // 🌟 1. IMPORTAMOS AMBAS COSAS
 
 
+
 const SelectorPremium = ({ valor, opciones, alCambiar, placeholder, conError }) => {
     const [abierto, setAbierto] = useState(false);
     return (
@@ -587,7 +588,23 @@ const Pacientes = ({ onNavigateToReportes }) => {
                                 <div className={`absolute top-1/2 left-0 right-0 h-1.5 transform -translate-y-1/2 z-0 ${activeTimeline === 'estado' ? 'bg-gradient-to-r from-amber-100 via-amber-200 to-slate-200' : 'bg-gradient-to-r from-teal-100 via-teal-200 to-slate-200'}`}></div>
                                 
                                 <div className="flex items-center gap-10 md:gap-16 w-max min-w-full px-10 relative z-10">
-                                    {timelineEvents.filter(e => e.impacto === activeTimeline).map((evt) => {
+                                {timelineEvents
+                                    .filter(e => e.impacto === activeTimeline)
+                                    .sort((a, b) => {
+                                        // 🌟 FUNCIÓN NINJA: Convierte tu texto "DD/MM/YYYY" a números para ordenarlos
+                                        const parseFecha = (str) => {
+                                            if (!str) return 0;
+                                            const partes = str.split('/');
+                                            // Si el usuario puso Año (Ej. 04/04/2004)
+                                            if (partes.length === 3) return new Date(partes[2], partes[1] - 1, partes[0]).getTime();
+                                            // Si el usuario solo puso Día/Mes (Ej. 04/10) - Asume un año base para ordenarlo
+                                            if (partes.length === 2) return new Date(2000, partes[1] - 1, partes[0]).getTime();
+                                            return 0; // Si dejó vacío o puso letras
+                                        };
+                                        // Ordenamos del más antiguo al más reciente
+                                        return parseFecha(a.fecha_evento) - parseFecha(b.fecha_evento); 
+                                    })
+                                    .map((evt) => {
                                         const notaTitulo = evt.nota_titulo;
                                         const notaContenido = evt.nota_contenido;
 
@@ -607,20 +624,30 @@ const Pacientes = ({ onNavigateToReportes }) => {
                                                             <div className={`absolute -bottom-1.5 left-1/2 transform -translate-x-1/2 w-3 h-3 rotate-45 border-r border-b bg-white transition-colors duration-300 ${activeTimeline === 'estado' ? 'border-amber-100 group-hover:border-amber-300' : 'border-teal-100 group-hover:border-teal-300'}`}></div>
                                                             <span className="block truncate">{notaTitulo}</span>
                                                         </button>
+                                                    ) : isTimelineEditMode ? (
+                                                        <button 
+                                                            type="button"
+                                                            onClick={(e) => { 
+                                                                // 🌟 1. Evitamos que el clic se pierda o recargue cosas
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                
+                                                                
+                                                                // 🌟 3. Activamos tu estado
+                                                                setSelectedNote({ titulo: '', contenido: '' }); 
+                                                                setNoteStageId(evt.id); 
+                                                                setIsNoteModalOpen(true); 
+                                                            }} 
+                                                            // 🌟 4. Le subimos el z-index a 100 para que nadie lo tape
+                                                            className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center hover:bg-[#0F766E] shadow-lg hover:scale-110 transition-all cursor-pointer border-2 border-white relative z-[100]"
+                                                        >
+                                                            {/* El pointer-events-none evita que el clic le dé al SVG en lugar del botón */}
+                                                            <svg className="w-5 h-5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" /></svg>
+                                                        </button>
                                                     ) : (
-                                                        isTimelineEditMode && (
-                                                            <button 
-                                                                type="button"
-                                                                onClick={() => { 
-                                                                    setSelectedNote({ titulo: '', contenido: '' }); 
-                                                                    setNoteStageId(evt.id); 
-                                                                    setIsNoteModalOpen(true); 
-                                                                }} 
-                                                                className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center hover:bg-[#0F766E] shadow-lg hover:scale-110 transition-all cursor-pointer border-2 border-white"
-                                                            >
-                                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" /></svg>
-                                                            </button>
-                                                        )
+                                                        <div className="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center opacity-50">
+                                                            <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
+                                                        </div>
                                                     )}
                                                 </div>
 
@@ -629,24 +656,24 @@ const Pacientes = ({ onNavigateToReportes }) => {
                                                 </div>
 
                                                 <div className="flex-1 w-48 flex flex-col justify-start pt-4 z-40 items-center text-center">
-                                                    {isTimelineEditMode && (
+                                                    {isTimelineEditMode ? (
                                                         <div className="space-y-3 px-3 py-2 bg-white/90 rounded-xl backdrop-blur-md border border-slate-200 shadow-sm w-full">
                                                             <input 
                                                                 type="text" 
-                                                                value={evt.titulo} 
+                                                                value={evt.titulo || ''} 
                                                                 onChange={(e) => handleChangeStage(evt.id, 'titulo', e.target.value)}
                                                                 className="w-full text-xs font-black text-[#113130] text-center border-b-2 border-[#0F766E] focus:outline-none bg-transparent placeholder-slate-300"
                                                                 placeholder="Etapa..."
                                                             />
                                                             <input 
                                                                 type="text" 
-                                                                value={evt.fecha_evento} 
+                                                                value={evt.fecha_evento || ''} 
                                                                 onChange={(e) => handleChangeStage(evt.id, 'fecha_evento', e.target.value)}
                                                                 className="w-20 mx-auto text-[10px] font-black text-slate-500 text-center border-b border-slate-300 focus:outline-none focus:border-[#0F766E] bg-transparent uppercase placeholder-slate-300 block"
                                                                 placeholder="DD/MM"
                                                             />
                                                         </div>
-                                                    )(
+                                                    ) : (
                                                         <div className="bg-white/70 p-2 rounded-xl backdrop-blur-sm inline-block min-w-[80%]">
                                                             <h4 className="text-sm font-black text-[#113130] truncate px-1">{evt.titulo || 'Sin Título'}</h4>
                                                             <div className="mt-1.5">
@@ -692,6 +719,58 @@ const Pacientes = ({ onNavigateToReportes }) => {
                         </div>
                     </div>, document.body
                 )}
+
+            {/* 🌟 AQUÍ PEGÁS EL MODAL DE LAS NOTAS PARA QUE REACT SÍ LO LEA */}
+                {isNoteModalOpen && createPortal(
+                    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+                        <div className="absolute inset-0 bg-[#113130]/60 backdrop-blur-sm" onClick={() => setIsNoteModalOpen(false)}></div>
+                        
+                        <div className="bg-white rounded-[2rem] w-full max-w-md relative z-10 shadow-2xl p-6 md:p-8 animate-fade-in">
+                            
+                            {!isTimelineEditMode && selectedNote.titulo ? (
+                                /* --- MODO LECTURA --- */
+                                <div>
+                                    <h3 className="text-xl font-black text-[#113130]">{selectedNote.titulo}</h3>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 mb-6">
+                                        Fecha: {timelineEvents.find(s => s.id === noteStageId)?.fecha_evento || 'Desconocida'}
+                                    </p>
+                                    <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 mb-8">
+                                        <p className="text-sm font-medium text-slate-600 leading-relaxed whitespace-pre-wrap">{selectedNote.contenido}</p>
+                                    </div>
+                                    <button onClick={() => setIsNoteModalOpen(false)} className="w-full py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors">Cerrar Detalles</button>
+                                </div>
+                            ) : (
+                                /* --- MODO EDICIÓN --- */
+                                <div>
+                                    <h3 className="text-xl font-black text-[#113130] mb-6">{selectedNote.titulo ? 'Modificar Nota' : 'Nueva Nota'}</h3>
+                                    <div className="space-y-5">
+                                        <input 
+                                            type="text" 
+                                            value={selectedNote.titulo || ''} 
+                                            onChange={(e) => setSelectedNote({...selectedNote, titulo: e.target.value})} 
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-[#113130] focus:outline-none focus:border-[#0F766E]" 
+                                            placeholder="Título (Ej. Crisis de Pánico)" 
+                                        />
+                                        <textarea 
+                                            value={selectedNote.contenido || ''} 
+                                            onChange={(e) => setSelectedNote({...selectedNote, contenido: e.target.value})} 
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-600 min-h-[120px] resize-none focus:outline-none focus:border-[#0F766E]" 
+                                            placeholder="Detalles clínicos de la etapa..." 
+                                        />
+                                    </div>
+                                    <div className="flex gap-3 mt-8">
+                                        {selectedNote.titulo && (
+                                            <button onClick={() => handleDeleteNote(noteStageId)} className="px-5 py-3.5 bg-rose-50 text-rose-500 rounded-xl text-[10px] font-black uppercase hover:bg-rose-100 transition-colors">Eliminar</button>
+                                        )}
+                                        <button onClick={handleSaveNote} className="flex-1 py-3.5 bg-[#0F766E] text-white rounded-xl text-[10px] font-black uppercase hover:bg-[#0D9488] transition-colors shadow-md shadow-teal-900/20">Guardar Nota</button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>, 
+                    document.body
+                )}
+                
             </div>
         );
     }
@@ -786,14 +865,17 @@ const Pacientes = ({ onNavigateToReportes }) => {
     return (
         <>
             {/* 🌟 MODAL DE NOTAS CLÍNICAS */}
-            {isNoteModalOpen && selectedNote && createPortal(
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-[#113130]/60 backdrop-blur-sm" onClick={() => setIsNoteModalOpen(false)}></div>
-                    <div className="bg-white rounded-[2rem] w-full max-w-md p-8 relative z-10 shadow-2xl animate-fade-in border border-slate-100">
-                        <button onClick={() => setIsNoteModalOpen(false)} className="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-colors">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
-                        </button>
-
+          {/* ================= MODAL DE NOTAS DE LA LÍNEA DE TIEMPO ================= */}
+            {isNoteModalOpen && createPortal(
+                <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+                    {/* La cortina oscura que cierra el modal al tocar afuera */}
+                    <div 
+                        className="absolute inset-0 bg-[#113130]/60 backdrop-blur-sm" 
+                        onClick={() => setIsNoteModalOpen(false)}
+                    ></div>
+                    
+                    <div className="bg-white rounded-[2rem] w-full max-w-md relative z-10 shadow-2xl p-6 md:p-8 animate-fade-in">
+                        
                         {/* MODO LECTURA */}
                         {!isTimelineEditMode && selectedNote.titulo ? (
                             <div>
@@ -834,7 +916,8 @@ const Pacientes = ({ onNavigateToReportes }) => {
                             </div>
                         )}
                     </div>
-                </div>, document.body
+                </div>, 
+                document.body
             )}
             
             {/* FALLBACK EN CASO DE ERROR DE VISTA */}
@@ -848,7 +931,7 @@ const Pacientes = ({ onNavigateToReportes }) => {
     );
 };
 
-// 🌟 4. EXPORTACIÓN ENVUELTA EN EL PROVEEDOR (HACK ANTI-CHOQUES)
+// 🌟 EXPORTACIÓN ENVUELTA EN EL PROVEEDOR (HACK ANTI-CHOQUES)
 export default function PacientesIntegrado(props) {
     return (
         <AlertaProvider>
