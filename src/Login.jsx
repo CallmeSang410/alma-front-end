@@ -18,6 +18,8 @@ function Login({ onLoginSuccess }) {
   const [showPassword, setShowPassword] = useState(false);
   const [activeTab, setActiveTab] = useState('login');
   const [formErrors, setFormErrors] = useState({ email: '', password: '', clinicName: '', terms: '' });
+  const [showRecuperarModal, setShowRecuperarModal] = useState(false);
+  const [nuevaPassword, setNuevaPassword] = useState('');
 
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [termsType, setTermsType] = useState('terms'); 
@@ -138,13 +140,45 @@ function Login({ onLoginSuccess }) {
   
   const handleForgotPassword = (e) => {
     e.preventDefault();
-    if (email) {
-      mostrarAlerta('exito', 'Correo Enviado', `Se enviará un enlace de recuperación a ${email}.`); 
-    } else {
-      mostrarAlerta('error', 'Falta el Correo', 'Ingresa tu email en el campo anterior para recuperar tu contraseña.'); 
+    if (!email.trim() || !email.includes('@gmail.com')) {
+      mostrarAlerta('error', 'Correo Inválido', 'Ingresa tu email registrado en el campo de arriba para recuperar tu contraseña.'); 
+      return;
+    }
+    // Si escribió un correo, abrimos el modal
+    setShowRecuperarModal(true);
+  };
+const procesarRecuperacion = async () => {
+    if (nuevaPassword.length < 8) {
+        mostrarAlerta('error', 'Contraseña débil', 'La nueva contraseña debe tener 8 caracteres mínimo.');
+        return;
+    }
+
+    setIsLoading(true);
+    try {
+        const respuesta = await fetch('http://127.0.0.1:8000/usuarios/recuperar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                email: email, // El que escribió en la pantalla de login
+                nueva_password: nuevaPassword
+            })
+        });
+
+        if (respuesta.ok) {
+            mostrarAlerta('exito', '¡Contraseña Recuperada!', 'Tu contraseña ha sido restablecida. Ya puedes iniciar sesión.');
+            setShowRecuperarModal(false);
+            setNuevaPassword('');
+            setPassword(''); // Limpiamos el login
+        } else {
+            const errorData = await respuesta.json();
+            mostrarAlerta('error', 'Error', errorData.detail || 'No se pudo recuperar la contraseña.');
+        }
+    } catch (error) {
+        mostrarAlerta('error', 'Error de Conexión', 'No se pudo contactar al servidor.');
+    } finally {
+        setIsLoading(false);
     }
   };
-
   return (
     <div className="min-h-screen font-sans bg-gradient-to-br from-[#F4F8F8] to-[#E8F5F5] text-[#113130] flex items-center justify-center p-4 antialiased relative">
       <style>{cssStyles}</style>
@@ -462,7 +496,54 @@ function Login({ onLoginSuccess }) {
           </div>
         </div>
       </div>
+      {/* ================= MODAL DE RECUPERAR CONTRASEÑA ================= */}
+      {showRecuperarModal && createPortal(
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 w-screen h-screen">
+          <div className="absolute inset-0 bg-[#113130]/70 backdrop-blur-sm" onClick={() => setShowRecuperarModal(false)} />
+          <div className="bg-white rounded-[2rem] w-full max-w-sm p-6 sm:p-8 relative z-10 shadow-2xl animate-fade-in border border-teal-100 flex flex-col">
+            
+            <div className="text-center mb-6">
+                <div className="w-12 h-12 rounded-full bg-teal-50 text-[#0F766E] flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
+                </div>
+                <h3 className="text-xl font-black text-[#113130]">Recuperar Acceso</h3>
+                <p className="text-xs text-slate-500 mt-2 font-medium">Restableciendo contraseña para:<br/><span className="text-[#0F766E] font-bold">{email}</span></p>
+            </div>
 
+            <div className="space-y-4">
+                <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5">Nueva Contraseña</label>
+                    <input 
+                        type="password" 
+                        placeholder="Mínimo 8 caracteres" 
+                        value={nuevaPassword}
+                        onChange={(e) => setNuevaPassword(e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold text-[#113130] focus:outline-none focus:border-[#0F766E] transition-all"
+                    />
+                </div>
+                
+                <div className="flex gap-3 pt-2">
+                    <button 
+                        type="button" 
+                        onClick={() => setShowRecuperarModal(false)} 
+                        className="flex-1 py-3 rounded-xl text-xs font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 transition-colors"
+                    >
+                        Cancelar
+                    </button>
+                    <button 
+                        type="button" 
+                        onClick={procesarRecuperacion} 
+                        disabled={isLoading}
+                        className="flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest text-white bg-[#0F766E] hover:bg-[#0D9488] shadow-md transition-all disabled:opacity-70"
+                    >
+                        {isLoading ? 'Guardando...' : 'Restablecer'}
+                    </button>
+                </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
       {/* ================= MODAL DE TÉRMINOS Y POLÍTICAS ================= */}
       {showTermsModal && createPortal(
         <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 w-screen h-screen">

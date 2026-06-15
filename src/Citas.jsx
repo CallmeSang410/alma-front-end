@@ -465,7 +465,7 @@ const Citas = () => {
         }
     };
 
-    const confirmCancelAppointment = async () => {
+   const confirmCancelAppointment = async () => {
         try {
             const respuesta = await fetch(`http://127.0.0.1:8000/citas/${appointmentToCancel}`, {
                 method: 'DELETE',
@@ -476,6 +476,9 @@ const Citas = () => {
                 cargarDatos(); 
                 setAppointmentToCancel(null);
                 mostrarAlerta('exito', '¡Eliminada!', 'La cita se eliminó correctamente.');
+                
+                // 🌟 EL GRITO PARA EL CALENDARIO: Le avisa a Interface.jsx que borre el punto rojo
+                window.dispatchEvent(new Event('citasActualizadas'));
             } else {
                 mostrarAlerta('error', 'Error', 'No se pudo eliminar la cita.');
             }
@@ -497,6 +500,9 @@ const Citas = () => {
             if (res.ok) {
                 setAppointments(prevCitas => prevCitas.filter(cita => cita.id !== citaId));
                 mostrarAlerta('exito', '¡Completada!', 'La cita se ha marcado como completada.');
+                
+                // 🌟 EL GRITO EXTRA: Si completás la cita, el calendario también se actualiza al instante
+                window.dispatchEvent(new Event('citasActualizadas'));
             } else {
                 mostrarAlerta('error', 'Error', 'No se pudo completar la cita.');
             }

@@ -1,14 +1,29 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react'; // 🌟 1. Agregar useRef
 
 const CampanaAlertas = () => {
     const [alertas, setAlertas] = useState([]);
     const [isOpen, setIsOpen] = useState(false);
     const [view, setView] = useState('alertas');
     
-    // Configuración de horas (24, 48 o 72)
+    // 🌟 ESTA ES LA QUE SE NOS HABÍA BORRADO
     const [horasAnticipacion, setHorasAnticipacion] = useState(() => {
         return parseInt(localStorage.getItem('hf_alerta_horas')) || 24;
     });
+    
+    // La referencia de la campana
+    const campanaRef = useRef(null); 
+    
+    // EFECTO CLICK OUTSIDE
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (campanaRef.current && !campanaRef.current.contains(event.target)) {
+                setIsOpen(false); 
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     // 🌟 MOTOR REAL: Conexión directa con tu FastAPI
     const revisarAlertasReal = async () => {
@@ -106,7 +121,13 @@ useEffect(() => {
                     </span>
                 )}
             </button>
-
+                {/* 🌟 LA CORTINA INVISIBLE PARA LA CAMPANA */}
+        {isOpen && (
+            <div 
+                className="fixed inset-0 z-[90]" 
+                onClick={() => setIsOpen(false)}
+            ></div>
+        )}
             {/* DROPDOWN */}
             {isOpen && (
                 <div className="absolute right-0 mt-3 w-80 bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden z-50 animate-fade-in">

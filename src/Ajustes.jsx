@@ -74,22 +74,55 @@ const Ajustes = () => {
 
     const [reporteBug, setReporteBug] = useState({ asunto: '', descripcion: '' });
 
-    const handleSave = (e) => {
+    // 🌟 LA FUNCIÓN MAESTRA: Unifica el guardado local y el Backend (Python)
+    const handleSave = async (e) => {
         e.preventDefault();
         setIsSaving(true);
 
         if (activeTab === 'perfil') {
-            localStorage.setItem('hf_nombre_clinica', perfilData.nombreClinica || 'Usuario Activo');
-            localStorage.setItem('hf_email', perfilData.email);
+            // 1. Guardamos el nuevo nombre en el navegador (Usando la llave correcta: userName)
+            localStorage.setItem('userName', perfilData.nombreClinica || 'Usuario Activo');
+            
+            // Disparamos el evento para que el Header cambie el nombre al instante
             window.dispatchEvent(new Event('perfilActualizado'));
-            // 🌟 ALERTA DE PERFIL
-            mostrarAlerta('exito', 'Perfil Actualizado', 'Tus credenciales y datos clínicos se han guardado.');
+
+            // 2. Avisarle a FastAPI si hay un cambio de nombre o contraseña
+            try {
+                const token = localStorage.getItem('token');
+                
+                // Petición a Dervin
+                const respuesta = await fetch('http://127.0.0.1:8000/usuarios/actualizar', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        nombre_clinica: perfilData.nombreClinica,
+                        password_actual: perfilData.passwordActual, // 🌟 AHORA MANDAMOS LA VIEJA
+                        password: perfilData.passwordNueva          // 🌟 Y LA NUEVA
+                    })
+                });
+
+                if (respuesta.ok) {
+                    if (perfilData.passwordNueva) {
+                        mostrarAlerta('exito', 'Perfil Actualizado', 'Tu nombre y contraseña han sido guardados en el servidor.');
+                    } else {
+                        mostrarAlerta('exito', 'Perfil Actualizado', 'El nombre de tu clínica ha sido actualizado.');
+                    }
+                    // Limpiamos las contraseñas del formulario por seguridad
+                    setPerfilData({...perfilData, passwordActual: '', passwordNueva: ''});
+                } else {
+                    mostrarAlerta('error', 'Error en el servidor', 'FastAPI no pudo guardar tus datos. (Error 404 o 422)');
+                }
+            } catch (error) {
+                mostrarAlerta('error', 'Error de red', 'No hay conexión con el backend en Python.');
+            }
         }
 
         if (activeTab === 'alertas') {
             localStorage.setItem('hf_alerta_horas', preferenciasData.anticipacion_alerta);
             window.dispatchEvent(new Event('configuracionAlertasActualizada'));
-            // 🌟 ALERTA DE NOTIFICACIONES
             mostrarAlerta('exito', 'Alertas Configuradas', `Te avisaremos ${preferenciasData.anticipacion_alerta} horas antes de cada cita.`);
         }
 
@@ -102,55 +135,12 @@ const Ajustes = () => {
             } else {
                 document.documentElement.style.fontSize = '16px'; 
             }
-            // 🌟 ALERTA DE APARIENCIA
             mostrarAlerta('exito', 'Apariencia Guardada', 'Se ha actualizado el tamaño del texto general.');
         }
 
         setTimeout(() => {
             setIsSaving(false);
         }, 800);
-    };
-    // 🌟 ESTA ES LA FUNCIÓN QUE HACE QUE EL BOTÓN VERDE FUNCIONE
-    const handleGuardarCambios = async (e) => {
-        e.preventDefault();
-
-        // 1. Guardamos el nuevo nombre en el navegador para que no se borre al recargar
-        localStorage.setItem('userName', perfilData.nombreClinica);
-        
-        // Disparamos el evento para que el Header (arriba a la derecha) cambie el nombre al instante
-        window.dispatchEvent(new Event('perfilActualizado'));
-
-        // 2. Avisarle al Backend (Python) si hay un cambio de contraseña
-        if (perfilData.passwordNueva) {
-            try {
-                const token = localStorage.getItem('token');
-                
-                // ⚠️ OJO: Dervin tiene que tener un endpoint en FastAPI para actualizar esto
-                const respuesta = await fetch('http://127.0.0.1:8000/usuarios/actualizar', {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        nombre_clinica: perfilData.nombreClinica,
-                        password: perfilData.passwordNueva // Mandamos la nueva clave a la Base de Datos
-                    })
-                });
-
-                if (respuesta.ok) {
-                    mostrarAlerta('exito', 'Perfil Actualizado', 'Tu nombre y contraseña han sido guardados.');
-                    setPerfilData({...perfilData, passwordActual: '', passwordNueva: ''}); // Limpiamos los campos
-                } else {
-                    mostrarAlerta('error', 'Error', 'No se pudo guardar la contraseña en la base de datos.');
-                }
-            } catch (error) {
-                mostrarAlerta('error', 'Error de conexión', 'No hay respuesta del servidor.');
-            }
-        } else {
-            // Si solo cambió el nombre y NO la contraseña, solo mostramos éxito
-            mostrarAlerta('exito', 'Perfil Actualizado', 'Nombre del consultorio actualizado con éxito.');
-        }
     };
     const renderPerfil = () => (
         <form onSubmit={handleSave} className="space-y-6 animate-fade-in-up">
@@ -182,22 +172,34 @@ const Ajustes = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                     <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Contraseña Actual</label>
-                        <input type="password" placeholder="••••••••" className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-[#113130] focus:outline-none focus:border-[#0F766E] focus:ring-1 focus:ring-[#0F766E] transition-all bg-white" />
+                        <input 
+                            type="password" 
+                            placeholder="••••••••" 
+                            value={perfilData.passwordActual} 
+                            onChange={(e) => setPerfilData({...perfilData, passwordActual: e.target.value})}
+                            className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-[#113130] focus:outline-none focus:border-[#0F766E] focus:ring-1 focus:ring-[#0F766E] transition-all bg-white" 
+                        />
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nueva Contraseña</label>
-                        <input type="password" placeholder="••••••••" className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-[#113130] focus:outline-none focus:border-[#0F766E] focus:ring-1 focus:ring-[#0F766E] transition-all bg-white" />
+                        <input 
+                            type="password" 
+                            placeholder="••••••••" 
+                            value={perfilData.passwordNueva}
+                            onChange={(e) => setPerfilData({...perfilData, passwordNueva: e.target.value})}
+                            className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-[#113130] focus:outline-none focus:border-[#0F766E] focus:ring-1 focus:ring-[#0F766E] transition-all bg-white" 
+                        />
                     </div>
                 </div>
             </div>
 
             <div className="pt-4 border-t border-slate-100 flex justify-end">
                 <button 
-    type="button" 
-    onClick={handleGuardarCambios}
-    className="px-8 py-3.5 bg-[#0F766E] text-white rounded-xl text-[11px] font-black uppercase tracking-widest shadow-lg shadow-teal-900/20 hover:bg-[#0D9488] transition-colors"
+    type="submit" 
+    disabled={isSaving}
+    className="px-8 py-3.5 bg-[#0F766E] text-white rounded-xl text-[11px] font-black uppercase tracking-widest shadow-lg shadow-teal-900/20 hover:bg-[#0D9488] transition-colors disabled:opacity-70"
 >
-    Guardar Cambios
+    {isSaving ? 'Guardando...' : 'Guardar Cambios'}
 </button>
             </div>
         </form>
@@ -281,37 +283,6 @@ const Ajustes = () => {
                             </button>
                         ))}
                     </div>
-                </div>
-
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-slate-50 p-5 rounded-2xl border border-slate-200 shadow-sm transition-colors gap-4">
-                    <div>
-                        <h4 className="text-sm font-bold text-[#113130] flex items-center gap-2">
-                            {temaActual === 'dark' ? '🌙 Modo Oscuro Activado' : '☀️ Modo Claro Activado'}
-                        </h4>
-                        <p className="text-xs text-slate-500 mt-1">Alterna la paleta de colores de la interfaz.</p>
-                    </div>
-                    
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setTemaActual(temaActual === 'light' ? 'dark' : 'light');
-                            // 🌟 ALERTA TEMA (Opcional, puede ser mucho si cambias seguido)
-                            mostrarAlerta('exito', 'Apariencia Actualizada', temaActual === 'light' ? 'Modo Oscuro activado' : 'Modo Claro activado');
-                        }}
-                        className={`relative inline-flex h-7 w-14 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:ring-offset-2 ${
-                            temaActual === 'dark' ? 'bg-[#0F766E]' : 'bg-slate-300'
-                        }`}
-                        role="switch"
-                        aria-checked={temaActual === 'dark'}
-                    >
-                        <span className="sr-only">Alternar modo oscuro</span>
-                        <span
-                            aria-hidden="true"
-                            className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md ring-0 transition duration-300 ease-in-out ${
-                                temaActual === 'dark' ? 'translate-x-7' : 'translate-x-0'
-                            }`}
-                        />
-                    </button>
                 </div>
 
                 <div className="pt-4 border-t border-slate-100 flex justify-end">

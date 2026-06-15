@@ -64,6 +64,8 @@ export default function Interface({ onLogout }) {
     const { t, i18n } = useTranslation();
     const [langMenuOpen, setLangMenuOpen] = useState(false);
     const [citaParaReporte, setCitaParaReporte] = useState(null);
+    // 🌟 Referencia para detectar clics fuera del calendario
+    const calendarioRef = useRef(null);
     // Pegá esto al inicio de tu componente Interface
     const correoActivo = localStorage.getItem('userEmail') || 'usuario@gmail.com';
 
@@ -98,6 +100,18 @@ export default function Interface({ onLogout }) {
     
    // 1. Efecto para Perfil (CORREGIDO)
     useEffect(() => {
+        const handleClickOutside = (event) => {
+            // Si el calendario está abierto, la referencia existe, y el clic NO fue adentro de ese div...
+            if (calendarioRef.current && !calendarioRef.current.contains(event.target)) {
+                setShowCalendar(false); // ¡Lo cerramos!
+            }
+            
+            // Si también tenés el menú del perfil aquí, podés aprovechar de una vez (si creaste un perfilRef):
+            // if (perfilRef.current && !perfilRef.current.contains(event.target)) {
+            //     setIsProfileMenuOpen(false);
+            // }
+        };
+        
         const actualizarPerfil = () => {
             // 🌟 Usamos las llaves exactas que guardamos en el Login
             setPerfilNombre(localStorage.getItem('userName') || 'Usuario Activo');
@@ -118,8 +132,6 @@ export default function Interface({ onLogout }) {
                 const token = localStorage.getItem('token');
                 const headers = { 'Authorization': `Bearer ${token}` };
 
-                // 🌟 MAGIA: Pedimos las citas Y los pacientes al mismo tiempo
-                // (Asegurate de que la ruta '/pacientes' sea la correcta de tu backend)
                 const [resCitas, resPacientes] = await Promise.all([
                     fetch('http://127.0.0.1:8000/citas', { headers }),
                     fetch('http://127.0.0.1:8000/pacientes', { headers })
@@ -129,28 +141,31 @@ export default function Interface({ onLogout }) {
                     const dataCitas = await resCitas.json();
                     const dataPacientes = await resPacientes.json();
                     
+                    // 🌟 SACAMOS LA FECHA DE HOY (En formato YYYY-MM-DD)
+                    const hoy = new Date();
+                    const hoyStr = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
+                    
                     const citasFormateadas = dataCitas.map(c => {
                         const fechaCruda = c.fecha_cita; 
                         const partesFecha = fechaCruda ? fechaCruda.split('T') : ['', ''];
                         const fechaLimpia = partesFecha[0]; 
                         const horaExtraida = partesFecha[1] ? partesFecha[1].substring(0, 5) : 'N/H'; 
                         
-                        // 🌟 EL CRUCE: Buscamos al paciente cuyo ID coincida con el paciente_id de la cita
                         const pacienteEncontrado = dataPacientes.find(p => p.id === c.paciente_id);
-                        
-                        // Si lo encuentra, saca el nombre (ajustá p.nombre si tu tabla se llama distinto, ej p.nombres)
-                        // Si no lo encuentra, pone "Paciente Eliminado"
                         const nombreReal = pacienteEncontrado ? (pacienteEncontrado.nombre || pacienteEncontrado.nombres) : 'Paciente Eliminado';
                         
                         return {
                             fecha: fechaLimpia, 
-                            paciente: nombreReal, // ¡Boom! Ya tenemos el nombre real cruzado
+                            paciente: nombreReal,
                             hora: horaExtraida,
                             modalidad: c.modalidad || 'Presencial'
                         };
                     });
                     
-                    setCitasGlobales(citasFormateadas);
+                    // 🌟 EL FILTRO MÁGICO: Solo dejamos pasar las citas de hoy en adelante
+                    const citasFuturas = citasFormateadas.filter(cita => cita.fecha >= hoyStr);
+                    
+                    setCitasGlobales(citasFuturas);
                 }
             } catch (error) {
                 console.error("Error cargando datos para el calendario global:", error);
@@ -417,90 +432,100 @@ export default function Interface({ onLogout }) {
                     </div>
                 </div>
 
-                {/* LADO DERECHO: Iconos (Campana, Calendario, Perfil) */}
-                <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 sm:gap-4 w-full md:w-auto mt-2 md:mt-0">
-                    
-                    <div className="flex items-center gap-2 sm:gap-4 z-50 relative">
+               {/* LADO DERECHO: Iconos (Campana, Calendario, Perfil) */}
+                    <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 sm:gap-4 w-full md:w-auto mt-2 md:mt-0">
                         
-                        {/* ================= BOTÓN Y POPUP DEL CALENDARIO ================= */}
-                        <div className="relative">
-                            <button 
-                                onClick={() => setShowCalendar(!showCalendar)}
-                                className="p-2.5 bg-white rounded-xl shadow-xs border border-teal-100/40 hover:bg-teal-50/50 transition-colors relative"
-                            >
-                                <svg className="w-4 h-4 text-[#113130]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
-                                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#14B8A6] rounded-full"></span>
-                            </button>
+                        <div className="flex items-center gap-2 sm:gap-4 z-50 relative">
                             
-                            {showCalendar && (
-                                <div className="absolute top-full right-0 mt-3 w-72 sm:w-80 bg-white rounded-2xl shadow-2xl border border-teal-100/30 p-5 z-[100] animate-fade-in">
-                                    <div className="flex items-center justify-between mb-4">
-                                        <button onClick={handlePrevMonth} className="p-1.5 hover:bg-teal-50 rounded-lg transition-colors">
-                                            <svg className="w-4 h-4 text-[#113130]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
-                                            </svg>
-                                        </button>
-                                        
-                                        <div className="text-center">
-                                            <h3 className="text-sm font-bold text-[#113130]">{monthNames[currentMonth]}</h3>
-                                            <p className="text-xs text-slate-500">{currentYear}</p>
+                            {/* ================= BOTÓN Y POPUP DEL CALENDARIO ================= */}
+                            {/* 🌟 AQUÍ ESTÁ EL TRUCO: Le ponemos el ref al div padre */}
+                           {/* ================= BOTÓN Y POPUP DEL CALENDARIO ================= */}
+                            <div className="relative">
+                                <button 
+                                    onClick={() => setShowCalendar(!showCalendar)}
+                                    className="p-2.5 bg-white rounded-xl shadow-xs border border-teal-100/40 hover:bg-teal-50/50 transition-colors relative"
+                                >
+                                    <svg className="w-4 h-4 text-[#113130]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#14B8A6] rounded-full"></span>
+                                </button>
+                                
+                                {/* 🌟 MAGIA: LA CORTINA INVISIBLE QUE OCUPA TODA LA PANTALLA */}
+                                {showCalendar && (
+                                    <div 
+                                        className="fixed inset-0 z-[90]" 
+                                        onClick={() => setShowCalendar(false)}
+                                    ></div>
+                                )}
+                                
+                                {showCalendar && (
+                                    <div className="absolute top-full right-0 mt-3 w-72 sm:w-80 bg-white rounded-2xl shadow-2xl border border-teal-100/30 p-5 z-[100] animate-fade-in">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <button onClick={handlePrevMonth} className="p-1.5 hover:bg-teal-50 rounded-lg transition-colors">
+                                                <svg className="w-4 h-4 text-[#113130]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
+                                                </svg>
+                                            </button>
+                                            
+                                            <div className="text-center">
+                                                <h3 className="text-sm font-bold text-[#113130]">{monthNames[currentMonth]}</h3>
+                                                <p className="text-xs text-slate-500">{currentYear}</p>
+                                            </div>
+                                            
+                                            <button onClick={handleNextMonth} className="p-1.5 hover:bg-teal-50 rounded-lg transition-colors">
+                                                <svg className="w-4 h-4 text-[#113130]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
+                                                </svg>
+                                            </button>
                                         </div>
                                         
-                                        <button onClick={handleNextMonth} className="p-1.5 hover:bg-teal-50 rounded-lg transition-colors">
-                                            <svg className="w-4 h-4 text-[#113130]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
-                                            </svg>
-                                        </button>
-                                    </div>
-                                    
-                                    <div className="grid grid-cols-7 gap-1.5 mb-3">
-                                        {dayNames.map(day => (
-                                            <div key={day} className="h-7 flex items-center justify-center text-xs font-bold text-[#0F766E]">{day}</div>
-                                        ))}
-                                    </div>
-                                    
-                                    <div className="grid grid-cols-7 gap-1.5 mb-4">
-                                        {renderCalendar()}
-                                    </div>
-                                    
-                                    {/* INFORMACIÓN DEL DÍA SELECCIONADO */}
-                                    <div className="mt-2 max-h-32 overflow-y-auto pr-1 space-y-2">
-                                        {citasDelDiaSeleccionado.length > 0 ? (
-                                            citasDelDiaSeleccionado.map((cita, index) => (
-                                                <div key={index} className="bg-gradient-to-r from-teal-50 to-cyan-50 rounded-xl p-3 border border-[#14B8A6]/20">
-                                                    <div className="flex items-center justify-between mb-1">
-                                                        <p className="text-[10px] font-black text-[#0F766E] uppercase tracking-wider flex items-center gap-1">
-                                                            📅 {cita.hora}
+                                        <div className="grid grid-cols-7 gap-1.5 mb-3">
+                                            {dayNames.map(day => (
+                                                <div key={day} className="h-7 flex items-center justify-center text-xs font-bold text-[#0F766E]">{day}</div>
+                                            ))}
+                                        </div>
+                                        
+                                        <div className="grid grid-cols-7 gap-1.5 mb-4">
+                                            {renderCalendar()}
+                                        </div>
+                                        
+                                        {/* INFORMACIÓN DEL DÍA SELECCIONADO */}
+                                        <div className="mt-2 max-h-32 overflow-y-auto pr-1 space-y-2">
+                                            {citasDelDiaSeleccionado.length > 0 ? (
+                                                citasDelDiaSeleccionado.map((cita, index) => (
+                                                    <div key={index} className="bg-gradient-to-r from-teal-50 to-cyan-50 rounded-xl p-3 border border-[#14B8A6]/20">
+                                                        <div className="flex items-center justify-between mb-1">
+                                                            <p className="text-[10px] font-black text-[#0F766E] uppercase tracking-wider flex items-center gap-1">
+                                                                📅 {cita.hora}
+                                                            </p>
+                                                            <span className="text-[8px] font-bold bg-white px-1.5 py-0.5 rounded text-slate-500 border border-slate-100">
+                                                                {cita.modalidad}
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-xs font-bold text-[#113130] truncate">
+                                                            {cita.paciente}
                                                         </p>
-                                                        <span className="text-[8px] font-bold bg-white px-1.5 py-0.5 rounded text-slate-500 border border-slate-100">
-                                                            {cita.modalidad}
-                                                        </span>
                                                     </div>
-                                                    <p className="text-xs font-bold text-[#113130] truncate">
-                                                        {cita.paciente}
+                                                ))
+                                            ) : (
+                                                <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 text-center">
+                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                                        Día Libre
                                                     </p>
+                                                    <p className="text-xs text-slate-500 mt-1">No hay citas programadas.</p>
                                                 </div>
-                                            ))
-                                        ) : (
-                                            <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 text-center">
-                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                                    Día Libre
-                                                </p>
-                                                <p className="text-xs text-slate-500 mt-1">No hay citas programadas.</p>
-                                            </div>
-                                        )}
+                                            )}
+                                        </div>
+                                        <button onClick={() => setShowCalendar(false)} className="w-full mt-4 py-2 text-xs font-bold bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-lg transition-colors">Cerrar</button>
                                     </div>
-                                    <button onClick={() => setShowCalendar(false)} className="w-full mt-4 py-2 text-xs font-bold bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-lg transition-colors">Cerrar</button>
-                                </div>
-                            )}
+                                )}
+                            </div>
+                            
+                            <CampanaAlertas />
                         </div>
-                        
-                        <CampanaAlertas />
-                    </div>
 
-                    <div className="hidden sm:block h-6 w-px bg-teal-200/50 mx-1"></div>
+                        <div className="hidden sm:block h-6 w-px bg-teal-200/50 mx-1"></div>
 
                     {/* ================= PERFIL DE USUARIO ================= */}
                     <div className="relative z-40">

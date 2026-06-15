@@ -1036,7 +1036,7 @@ const Reportes = () => {
                             </p>
                         </section>
 
-                        {/* VII. RECOMENDACIONES Y PLAN A SEGUIR */}
+                      {/* VII. RECOMENDACIONES Y PLAN A SEGUIR */}
                         <section className="mb-8 pb-2 print:block print:break-inside-avoid">
                             <h2 className="text-sm font-black text-[#113130] uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 font-sans print:break-after-avoid">
                                 VII. Recomendaciones y Plan a Seguir
@@ -1044,11 +1044,21 @@ const Reportes = () => {
                             <p className="text-[15px] whitespace-pre-wrap text-slate-700 mb-6">
                                 {repData.recomendaciones}
                             </p>
+                            
+                            {/* 🌟 AQUÍ ESTÁ EL REEMPLAZO CON EL DISEÑO PREMIUM */}
                             {repData.plan_accion && (
-                                <p className="text-[15px] whitespace-pre-wrap text-slate-700 mb-6">
-                                    <span className="font-bold text-[#113130] block mb-1">Plan de Acción:</span>
-                                    {repData.plan_accion}
-                                </p>
+                                <div className="mt-4 mb-6">
+                                    <h4 className="text-[15px] font-bold text-[#113130] mb-3">Plan de Acción:</h4>
+                                    
+                                    <div className="bg-slate-50/80 rounded-xl p-4 border border-slate-100 inline-flex items-center gap-4 print:border-slate-200 print:bg-slate-50">
+                                        <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">
+                                            Decisión Clínica:
+                                        </span>
+                                        <span className="bg-indigo-100 text-indigo-700 font-bold uppercase tracking-wider text-[11px] px-4 py-2 rounded-lg border border-indigo-200/50 shadow-sm print:bg-transparent print:border-indigo-300 print:shadow-none">
+                                            {repData.plan_accion}
+                                        </span>
+                                    </div>
+                                </div>
                             )}
                         </section>
 
