@@ -119,11 +119,23 @@ function Login({ onLoginSuccess }) {
       }
 
     } catch (error) {
-      // --- 3. MANEJO DE ERRORES ---
       console.error("Error capturado por Axios:", error);
       
-      // Axios extrae el mensaje de FastAPI (ej: "Este correo ya está registrado")
-      const errorMsg = error.response?.data?.detail || 'Hubo un error de conexión con el servidor.';
+      let errorMsg = 'Hubo un error de conexión con el servidor.';
+      
+      // Verificamos si FastAPI mandó un detalle del error
+      if (error.response?.data?.detail) {
+        const detalle = error.response.data.detail;
+        
+        // Si es un texto normal (como "Correo ya registrado")
+        if (typeof detalle === 'string') {
+          errorMsg = detalle;
+        } 
+        // Si es el infame error 422 (FastAPI manda un Arreglo/Objeto)
+        else if (Array.isArray(detalle) && detalle.length > 0) {
+          errorMsg = `El backend rechazó el formato: ${detalle[0].msg} en el campo ${detalle[0].loc.join(" -> ")}`;
+        }
+      }
       
       if (activeTab === 'login') {
         mostrarAlerta('error', 'Acceso Denegado', errorMsg); 
