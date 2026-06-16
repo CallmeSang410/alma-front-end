@@ -449,7 +449,21 @@ const Citas = () => {
             mostrarAlerta('error', 'Error', errorMsg);
         }
     };
+    const confirmCancelAppointment = async () => {
+        try {
+            await api.delete(`/citas/${appointmentToCancel}`);
 
+            cargarDatos(); 
+            setAppointmentToCancel(null);
+            mostrarAlerta('exito', '¡Eliminada!', 'La cita se eliminó correctamente.');
+            window.dispatchEvent(new Event('citasActualizadas'));
+            
+        } catch (error) {
+            const errorMsg = error.response?.data?.detail || 'Ocurrió un error al intentar eliminar la cita.';
+            mostrarAlerta('error', 'Error', errorMsg);
+        }
+    };
+    
     const handleCompletarCita = async (citaId) => {
         try {
             await api.put(`/citas/${citaId}/completar`, {});
@@ -463,7 +477,7 @@ const Citas = () => {
             mostrarAlerta('error', 'Error', errorMsg);
         }
     };
-    
+
     const filteredAppointments = appointments.filter(appt => {
         // 1. Filtro de búsqueda (texto)
         const matchesSearch = appt.patientName.toLowerCase().includes(searchQuery.toLowerCase()) || 
