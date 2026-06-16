@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import logo from './assets/logo.png';
 import { useParams } from 'react-router-dom';
+import { useAlerta, AlertaProvider } from './AlertaContext.jsx'; // 🌟 1. IMPORTAMOS LAS ALERTAS
 // import './Formulario.css'; // <-- DESCOMENTA ESTA LÍNEA EN TU VS CODE
 
 const LogoSVG = ({ className }) => (
@@ -31,11 +32,15 @@ const IconClipboard = () => (
     </svg>
 );
 
-export default function Formulario() {
-    const { psicologoId } = useParams(); // 🌟 2. JALAMOS EL ID DE LA URL
+// 🌟 2. CAMBIAMOS EL NOMBRE DEL COMPONENTE PARA PODER ENVOLVERLO LUEGO
+const FormularioContent = () => {
+    // 🌟 INICIALIZAMOS LAS ALERTAS
+    const contextoAlerta = useAlerta();
+    const mostrarAlerta = contextoAlerta ? contextoAlerta.mostrarAlerta : (t, tit, msj) => alert(`${tit}: ${msj}`);
+
+    const { psicologoId } = useParams(); 
     const [pasoActual, setPasoActual] = useState(1);
 
-    // 🌟 3. RENOMBRAMOS LAS VARIABLES PARA FASTAPI
     const [respuestas, setRespuestas] = useState({
         q1_satisfaccion_general: 0,
         q5_instalaciones: 0,
@@ -45,7 +50,7 @@ export default function Formulario() {
         q7_impacto_animo: '',
         q9_indice_recomendacion: '',
         q8_confianza_seguridad: '',
-        q4_aspectos_valorados: [], // Lo dejamos como array para que funcione su diseño
+        q4_aspectos_valorados: [], 
         q10_comentarios: ''
     });
 
@@ -53,17 +58,14 @@ export default function Formulario() {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }, [pasoActual]);
 
-    // Función para manejar las escalas del 1 al 5
     const handleRating = (pregunta, valor) => {
         setRespuestas(prev => ({ ...prev, [pregunta]: valor }));
     };
 
-    // Función para botones de selección única
     const handleSeleccion = (pregunta, valor) => {
         setRespuestas(prev => ({ ...prev, [pregunta]: valor }));
     };
 
-    // Función especial para checkboxes (permite seleccionar y deseleccionar múltiples)
     const handleSeleccionMultiple = (pregunta, valor) => {
         setRespuestas(prev => {
             const actuales = prev[pregunta];
@@ -75,9 +77,6 @@ export default function Formulario() {
         });
     };
 
-    // Envío del formulario completo
-    // 🌟 4. EL ENVÍO REAL A LA BASE DE DATOS
-    // Envío del formulario completo
     const handleSubmit = async (e) => { 
         e.preventDefault();
         
@@ -87,12 +86,12 @@ export default function Formulario() {
         const faltanSeleccionesMultiples = respuestas.q4_aspectos_valorados.length === 0;
         
         if (faltanEscalas || faltanSeleccionesUnicas || faltanSeleccionesMultiples) {
-            alert("Por favor, responda todas las preguntas (excepto las opcionales) antes de enviar el formulario.");
+            // 🌟 ALERTA PREMIUM PARA CAMPOS FALTANTES
+            mostrarAlerta('error', 'Faltan Respuestas', 'Por favor, respondé todas las preguntas (excepto la 10) antes de enviar.');
             return;
         }
 
         try {
-            // 🌟 NUEVO: Diccionarios para traducir las opciones largas de la UI a las opciones cortas del Dashboard
             const mapeoQ4 = {
                 'La escucha activa y empatía del psicólogo': 'Escucha activa y empatía',
                 'La claridad de las explicaciones y herramientas brindadas': 'Claridad de explicaciones',
@@ -107,10 +106,7 @@ export default function Formulario() {
                 'Peor / Más confundido(a)': 'Peor'
             };
 
-            // Convertimos el array de Q4 a los textos cortos y los unimos por comas
             const q4_traducido = respuestas.q4_aspectos_valorados.map(item => mapeoQ4[item]).join(', ');
-            
-            // Convertimos la respuesta única de Q7 a su texto corto
             const q7_traducido = mapeoQ7[respuestas.q7_impacto_animo];
 
             const datosAEnviar = {
@@ -130,11 +126,13 @@ export default function Formulario() {
             } else {
                 const errorData = await res.json();
                 console.error("Error Backend:", errorData);
-                alert("Hubo un problema al guardar la encuesta.");
+                // 🌟 ALERTA PREMIUM PARA ERROR DEL SERVIDOR (422)
+                mostrarAlerta('error', 'Error al Guardar', 'Hubo un problema al guardar la encuesta. Revisá las opciones seleccionadas.');
             }
         } catch (error) {
             console.error("Error de Red:", error);
-            alert("El servidor no responde, revisá tu conexión.");
+            // 🌟 ALERTA PREMIUM PARA ERROR DE CORS O RED CAÍDA
+            mostrarAlerta('error', 'Sin Conexión', 'El servidor no responde. Por favor, revisá tu conexión a internet.');
         }
     };
 
@@ -308,7 +306,7 @@ export default function Formulario() {
     }
 
     return (
-        <div className="min-h-screen bg-[#F4F8F8] font-sans pb-16 animate-fade-in">
+        <div className="min-h-screen bg-[#F4F8F8] font-sans pb-16 animate-fade-in relative">
             
             {/* Barra de navegación superior fija */}
             <header className="bg-white py-4 px-4 sm:px-6 shadow-sm sticky top-0 z-50 border-b border-slate-200 flex items-center justify-between">
@@ -328,7 +326,7 @@ export default function Formulario() {
             </header>
 
             <main className="max-w-2xl mx-auto px-4 sm:px-6 mt-6">
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form onSubmit={handleSubmit} className="space-y-6 relative">
                     
                     {/* SECCIÓN 1: Evaluación Clínica */}
                     <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200">
@@ -459,12 +457,19 @@ export default function Formulario() {
                 </form>
             </main>
             
-            {/* NOTA: Esta etiqueta style se incluyó ÚNICAMENTE para que la vista previa aquí no marque error. 
-                En tu VS Code puedes borrar toda esta etiqueta <style> porque ya tienes tu import './Formulario.css'. */}
             <style>{`
                 .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
                 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
             `}</style>
         </div>
+    );
+};
+
+// 🌟 3. ENVOLVEMOS EL FORMULARIO CON EL ESCUDO
+export default function Formulario() {
+    return (
+        <AlertaProvider>
+            <FormularioContent />
+        </AlertaProvider>
     );
 }

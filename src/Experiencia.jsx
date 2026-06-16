@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { createPortal } from 'react-dom';
 import './Experiencia.css'; 
+import { useAlerta, AlertaProvider } from './AlertaContext.jsx'; // 🌟 1. Importamos el sistema de alertas premium
 
 // --- ÍCONOS VECTORIALES ---
 const IconStar = ({ className }) => (
@@ -177,13 +178,16 @@ const estadisticasVacias = {
     Q10_comentarios: []
 };
 
-export default function Experiencia() {
+// 🌟 2. Cambiamos la firma de la función para prepararla para el "Hack Anti-Choques"
+const Experiencia = () => {
+    // 🌟 3. INICIALIZAMOS EL ESCUDO DE ALERTAS PREMIUM
+    const contextoAlerta = useAlerta();
+    const mostrarAlerta = contextoAlerta ? contextoAlerta.mostrarAlerta : (t, tit, msj) => alert(`${tit}: ${msj}`);
+
     const [filtroTiempo, setFiltroTiempo] = useState('mes');
     const [estadisticas, setEstadisticas] = useState(estadisticasVacias);
-    // 🌟 2. NUEVO ESTADO: Para controlar si se ve el QR o no
     const [mostrarQR, setMostrarQR] = useState(false);
 
-    // 🌟 3. GENERADOR DEL LINK PARA EL QR
     let linkEncuesta = "";
     const token = localStorage.getItem('token');
     if (token) {
@@ -194,8 +198,8 @@ export default function Experiencia() {
             console.error("Error leyendo token");
         }
     }
+    
     const procesarDatosEncuestas = (datosCrudos) => {
-        // SEGURO DE VIDA
         if (!Array.isArray(datosCrudos)) {
             console.error("FastAPI no devolvió una lista:", datosCrudos);
             return;
@@ -311,26 +315,31 @@ export default function Experiencia() {
         try {
             const token = localStorage.getItem('token');
             if (!token) {
-                alert("No se encontró la sesión del usuario.");
+                // 🌟 REEMPLAZAMOS EL ALERT FEO AQUÍ
+                mostrarAlerta('error', 'Sesión no encontrada', 'No se encontró la sesión del usuario.');
                 return;
             }
             
-            // Abrimos el token para sacar el usuario_id que pusiste en el login
             const payload = JSON.parse(atob(token.split('.')[1]));
             const usuarioId = payload.usuario_id;
             
-            // Armamos la URL (window.location.origin saca tu "http://localhost:5173" automático)
             const link = `${window.location.origin}/feedback/${usuarioId}`;
             
-            // Copiamos al portapapeles
             navigator.clipboard.writeText(link);
-            alert("¡Link copiado con éxito! Ya podés enviárselo al paciente por WhatsApp. 🚀");
+            
+            // 🌟 REEMPLAZAMOS EL ALERT FEO AQUÍ POR LA ALERTA PREMIUM DE ÉXITO
+            mostrarAlerta('exito', '¡Link copiado con éxito!', 'Ya podés enviárselo al paciente por WhatsApp. 🚀');
+            
+            // (Opcional) Puedes descomentar la siguiente línea si quieres que el modal se cierre automáticamente al copiar el link:
+            // setMostrarQR(false); 
             
         } catch (error) {
             console.error("Error al generar el link:", error);
-            alert("Hubo un problema al copiar el link.");
+            // 🌟 REEMPLAZAMOS EL ALERT FEO AQUÍ
+            mostrarAlerta('error', 'Error al copiar', 'Hubo un problema al copiar el link.');
         }
     };
+    
     const total = estadisticas.total_evaluaciones;
 
     return (
@@ -350,7 +359,6 @@ export default function Experiencia() {
                 {/* CONTENEDOR DERECHO: Botón + Filtros */}
                 <div className="flex flex-col sm:flex-row items-center gap-3">
                     
-                    {/* 🌟 EL BOTÓN NUEVO (REEMPLAZA AL VIEJO AQUÍ) */}
                     <button 
                         onClick={() => setMostrarQR(true)}
                         className="px-4 py-2 bg-[#0F766E] text-white text-[11px] font-bold uppercase tracking-wider rounded-2xl shadow-sm hover:bg-[#0D9488] transition-colors flex items-center gap-2"
@@ -359,7 +367,6 @@ export default function Experiencia() {
                         Compartir Encuesta
                     </button>
 
-                    {/* TUS FILTROS ORIGINALES */}
                     <div className="inline-flex flex-wrap items-center gap-2 bg-white p-1.5 rounded-3xl shadow-sm border border-slate-200">
                         {['semana', 'mes', 'historico'].map((f) => (
                             <button
@@ -496,13 +503,11 @@ export default function Experiencia() {
                     )}
                 </div>
             </div>
-            {/* 🌟 EL MODAL DEL QR OPTIMIZADO (Sin blur para evitar lag y manchas negras) */}
-            {/* Usamos createPortal y le decimos que lo mande directo al document.body */}
+            
 {mostrarQR && createPortal(
     <div className="fixed inset-0 bg-[#113130]/80 flex items-center justify-center z-[99999] p-4 transition-opacity">
         <div className="bg-white p-8 rounded-[2rem] shadow-2xl text-center max-w-sm w-full relative animate-fade-in-up">
             
-            {/* Botón de cerrar modificado para verse más limpio */}
             <button 
                 onClick={() => setMostrarQR(false)} 
                 className="absolute top-4 right-4 text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-colors p-2 rounded-full"
@@ -515,19 +520,17 @@ export default function Experiencia() {
                 <p className="text-sm text-slate-500 font-medium px-4">Pídale al paciente que escanee este código con la cámara de su celular.</p>
             </div>
             
-            {/* El Código QR con un marco más elegante */}
             <div className="flex justify-center mb-8">
                 <div className="p-5 bg-white border-2 border-slate-100 rounded-3xl shadow-sm">
                     <QRCodeCanvas 
                         value={linkEncuesta} 
                         size={180} 
                         level={"H"} 
-                        fgColor={"#0F766E"} // QR en tono verde HorizonFlow
+                        fgColor={"#0F766E"}
                     />
                 </div>
             </div>
             
-            {/* Separador sutil */}
             <div className="flex items-center gap-3 mb-5 opacity-70">
                 <div className="h-px bg-slate-200 flex-1"></div>
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Opción Alternativa</span>
@@ -543,8 +546,17 @@ export default function Experiencia() {
             </button>
         </div>
     </div>,
-    document.body // 🌟 AQUÍ ESTÁ LA MAGIA: Lo mandamos al body
+    document.body
 )}
         </div>
+    );
+};
+
+// 🌟 4. NUESTRO HACK ANTI-CHOQUES PARA INYECTAR LAS ALERTAS
+export default function ExperienciaIntegrada(props) {
+    return (
+        <AlertaProvider>
+            <Experiencia {...props} />
+        </AlertaProvider>
     );
 }
