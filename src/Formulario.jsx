@@ -113,17 +113,18 @@ const FormularioContent = () => {
                 q7_impacto_animo: q7_traducido
             };
 
-            const res = await api.post(`/encuestas/publica/${psicologoId}`, datosAEnviar);
-            if (res.ok) {
-                setPasoActual(3);
-            } else {
-                const errorData = await res.json();
-                console.error("Error Backend:", errorData);
-                mostrarAlerta('error', 'Error al Guardar', 'Hubo un problema al guardar la encuesta. Revisá las opciones seleccionadas.');
-            }
+            // Mandamos la petición limpia con Axios
+            await api.post(`/encuestas/publica/${psicologoId}`, datosAEnviar);
+            
+            // Si Axios no lanzó error al catch, es porque fue exitoso
+            setPasoActual(3);
+
         } catch (error) {
-            console.error("Error de Red:", error);
-            mostrarAlerta('error', 'Sin Conexión', 'El servidor no responde. Por favor, revisá tu conexión a internet.');
+            console.error("Error de Red o Backend:", error);
+            
+            // Axios extrae el mensaje de error de FastAPI (si lo hay)
+            const errorMsg = error.response?.data?.detail || 'Hubo un problema al guardar la encuesta. Revisá las opciones seleccionadas.';
+            mostrarAlerta('error', 'Error al Guardar', errorMsg);
         }
     };
 

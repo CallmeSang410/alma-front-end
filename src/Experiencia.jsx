@@ -293,17 +293,12 @@ const Experiencia = () => {
     useEffect(() => {
         const cargarExperiencias = async () => {
             try {
-                const token = localStorage.getItem('token');
-                if (!token) return;
-
-                const response = await api.get('/encuestas', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    procesarDatosEncuestas(data);
-                }
+                // Ya no validamos el token manual ni pasamos headers, api.js lo hace
+                const response = await api.get('/encuestas');
+                
+                // Axios entrega los datos listos en .data
+                procesarDatosEncuestas(response.data);
+                
             } catch (error) {
                 console.error("Error cargando encuestas:", error);
             }
