@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'; // 🌟 1. Agregar useRef
+import React, { useState, useEffect, useRef } from 'react'; 
 import api from './api'; // Importás tu instancia configurada
 
 const CampanaAlertas = () => {
@@ -17,6 +17,7 @@ const CampanaAlertas = () => {
     // EFECTO CLICK OUTSIDE
     useEffect(() => {
         const handleClickOutside = (event) => {
+            // 🌟 Verificamos que el clic no sea dentro de la campana
             if (campanaRef.current && !campanaRef.current.contains(event.target)) {
                 setIsOpen(false); 
             }
@@ -26,7 +27,7 @@ const CampanaAlertas = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    // 🌟 MOTOR REAL: Conexión directa con tu FastAPI
+    // 🌟 MOTOR REAL: Conexión directa con tu FastAPI mediante AXIOS
     const revisarAlertasReal = async () => {
         try {
             const token = localStorage.getItem('token');
@@ -35,44 +36,45 @@ const CampanaAlertas = () => {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             
-            if (res.ok) {
-                const citasDB = await res.json();
-                const ahora = new Date();
+            // 🌟 MAGIA DE AXIOS: No hay "res.ok", si llega aquí es porque fue exitoso
+            // Tampoco hay "res.json()", la data ya viene en res.data
+            const citasDB = res.data;
+            const ahora = new Date();
 
-                // Procesamos las citas para calcular la cuenta regresiva matemática exacta
-                const alertasProcesadas = citasDB.map(cita => {
-                    const fechaCita = new Date(cita.fecha_cita);
-                    const diferenciaMs = fechaCita - ahora;
-                    const diferenciaHoras = Math.floor(diferenciaMs / (1000 * 60 * 60));
-                    const diferenciaMinutos = Math.floor((diferenciaMs % (1000 * 60 * 60)) / (1000 * 60));
+            // Procesamos las citas para calcular la cuenta regresiva matemática exacta
+            const alertasProcesadas = citasDB.map(cita => {
+                const fechaCita = new Date(cita.fecha_cita);
+                const diferenciaMs = fechaCita - ahora;
+                const diferenciaHoras = Math.floor(diferenciaMs / (1000 * 60 * 60));
+                const diferenciaMinutos = Math.floor((diferenciaMs % (1000 * 60 * 60)) / (1000 * 60));
 
-                    // Formateamos un texto bonito para la tarjeta
-                    let textoTiempo = '';
-                    if (diferenciaHoras > 0) {
-                        textoTiempo = `${diferenciaHoras}h ${diferenciaMinutos}m`;
-                    } else {
-                        textoTiempo = `${diferenciaMinutos} min`;
-                    }
+                // Formateamos un texto bonito para la tarjeta
+                let textoTiempo = '';
+                if (diferenciaHoras > 0) {
+                    textoTiempo = `${diferenciaHoras}h ${diferenciaMinutos}m`;
+                } else {
+                    textoTiempo = `${diferenciaMinutos} min`;
+                }
 
-                    return {
-                        id: cita.id,
-                        patientName: cita.paciente ? cita.paciente.nombre : "Paciente",
-                        date: fechaCita.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }),
-                        time: fechaCita.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
-                        reason: cita.motivo_consulta || "Consulta General",
-                        timeLeft: textoTiempo,
-                        horasFaltantes: diferenciaHoras
-                    };
-                });
+                return {
+                    id: cita.id,
+                    patientName: cita.paciente ? cita.paciente.nombre : "Paciente",
+                    date: fechaCita.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }),
+                    time: fechaCita.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+                    reason: cita.motivo_consulta || "Consulta General",
+                    timeLeft: textoTiempo,
+                    horasFaltantes: diferenciaHoras
+                };
+            });
 
-                setAlertas(alertasProcesadas);
-            }
+            setAlertas(alertasProcesadas);
+            
         } catch (error) {
             console.error("Error cargando alertas reales del backend:", error);
         }
     };
 
-useEffect(() => {
+    useEffect(() => {
         revisarAlertasReal();
 
         const sincronizarDesdeAjustes = () => {
@@ -81,6 +83,7 @@ useEffect(() => {
         };
 
         window.addEventListener('configuracionAlertasActualizada', sincronizarDesdeAjustes);
+        
         // 👂 Oreja parada: Si alguien grita "actualizarRadarCitas", la campana revisa el backend de una vez
         const escucharCambios = () => {
             revisarAlertasReal();
@@ -94,6 +97,7 @@ useEffect(() => {
         return () => {
             clearInterval(intervalo);
             window.removeEventListener('actualizarRadarCitas', escucharCambios);
+            window.removeEventListener('configuracionAlertasActualizada', sincronizarDesdeAjustes);
         };
     }, [horasAnticipacion]);
 
@@ -105,7 +109,9 @@ useEffect(() => {
     };
 
     return (
-        <div className="relative font-sans">
+        // 🌟 AQUÍ ESTÁ EL FIX DEL CLICK OUTSIDE: Le pegamos el ref al contenedor padre
+        <div className="relative font-sans" ref={campanaRef}>
+            
             {/* BOTÓN DE LA CAMPANITA */}
             <button 
                 onClick={() => setIsOpen(!isOpen)} 
@@ -122,13 +128,7 @@ useEffect(() => {
                     </span>
                 )}
             </button>
-                {/* 🌟 LA CORTINA INVISIBLE PARA LA CAMPANA */}
-        {isOpen && (
-            <div 
-                className="fixed inset-0 z-[90]" 
-                onClick={() => setIsOpen(false)}
-            ></div>
-        )}
+            
             {/* DROPDOWN */}
             {isOpen && (
                 <div className="absolute right-0 mt-3 w-80 bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden z-50 animate-fade-in">
