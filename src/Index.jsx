@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import './App.css';
 import './i18n'; 
 import { useAlerta } from './AlertaContext.jsx'; // 🌟 1. Importamos el hook correcto
+import api from './api'; // Importás tu instancia configurada
 
 function App() {
   const { mostrarAlerta } = useAlerta(); // 🌟 2. Extraemos la función de alertas
@@ -44,8 +45,7 @@ function App() {
 
   const obtenerPacientes = async () => {
     try {
-      const respuesta = await fetch("http://127.0.0.1:8000/pacientes", {
-        method: "GET",
+      const respuesta = await api.get("/pacientes", {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (respuesta.ok) {
@@ -58,10 +58,9 @@ function App() {
   const manejarLogin = async (evento) => {
     evento.preventDefault();
     try {
-      const respuesta = await fetch("http://127.0.0.1:8000/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }) 
+      const respuesta = await api.post("/login", {
+        username,
+        password
       });
       const data = await respuesta.json();
       if (respuesta.ok) {
@@ -74,13 +73,9 @@ function App() {
   const registrarPaciente = async (e) => {
     e.preventDefault();
     try {
-      const respuesta = await fetch("http://127.0.0.1:8000/pacientes", {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}` 
-        },
-        body: JSON.stringify({ nombre: nombreNuevo, telefono: telefonoNuevo })
+      const respuesta = await api.post("/pacientes", {
+        nombre: nombreNuevo,
+        telefono: telefonoNuevo
       });
       if (respuesta.ok) {
         setNombreNuevo("");
@@ -117,16 +112,12 @@ function App() {
       // Por ahora usaremos un ID de cita temporal (ej: 1), luego lo haremos dinámico
       const citaId = 1; 
       
-      const respuesta = await fetch(`http://127.0.0.1:8000/citas/${citaId}/reporte`, {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}` 
-        },
-        // 2. Ajustamos el nombre del campo a 'notas_psicologo' como pide tu schemas.ReporteCreate
-        body: JSON.stringify({ 
-          notas_psicologo: notaActual 
-        })
+      const respuesta = await api.post(`/citas/${citaId}/reporte`, {
+        notas_psicologo: notaActual
+      }, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
       });
 
       const data = await respuesta.json();

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Clock, FileText, DollarSign, UserCheck, UserPlus, FileWarning, CalendarX, PieChart, X, CheckCircle2 } from 'lucide-react';
 import { createPortal } from 'react-dom';
+import api from './api'; // Importás tu instancia configurada
 
 
 
@@ -44,11 +45,11 @@ const Dashboard = ({ onNavigateToReportes }) => {
         try {
             // 1. 🌟 NUEVO: Agregamos el cuarto fetch al Promise.all
            const [resPacientes, resExpedientes, resAgenda, resMotivos, resAlertas] = await Promise.all([
-                fetch(`${baseUrl}/dashboard/pacientes-activos`, { headers }),
-                fetch(`${baseUrl}/dashboard/expedientes-pendientes`, { headers }),
-                fetch(`${baseUrl}/dashboard/agenda-hoy`, { headers }),
-                fetch(`${baseUrl}/estadisticas/motivos-distribucion`, { headers }),
-                fetch(`${baseUrl}/dashboard/alertas-inactividad`, { headers }) // 👈 NUEVO
+                api.get('/dashboard/pacientes-activos', { headers }),
+                api.get('/dashboard/expedientes-pendientes', { headers }),
+                api.get('/dashboard/agenda-hoy', { headers }),
+                api.get('/estadisticas/motivos-distribucion', { headers }),
+                api.get('/dashboard/alertas-inactividad', { headers }) // 👈 NUEVO
             ]);
 
             // 2. Guardamos los números de las tarjetas de arriba (KPIs)
@@ -91,7 +92,7 @@ const Dashboard = ({ onNavigateToReportes }) => {
                 setMotivosConsulta(datosFormateados);
             }
             // Agregalo en tu lista de fetches...
-            const resNegocio = await fetch(`${baseUrl}/dashboard/metricas-negocio`, { headers });
+            const resNegocio = await api.get('/dashboard/metricas-negocio', { headers });
 
             if (resNegocio.ok) {
                 const dataNegocio = await resNegocio.json();

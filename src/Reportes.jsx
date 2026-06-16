@@ -2,6 +2,7 @@ import React, { useState, useEffect, createContext, useContext } from 'react';
 import { createPortal } from 'react-dom';
 import './Reportes.css';
 import { useAlerta, AlertaProvider } from './AlertaContext.jsx'; // 🌟 Importación del sistema nativo
+import api from './api'; // Importás tu instancia de axios que configuramos antes
 
 // --- COMPONENTE TRADUCTOR DE MARKDOWN ---
 const TextoFormateadoIA = ({ texto }) => {
@@ -115,9 +116,9 @@ const Reportes = () => {
 
         try {
             const [resPacientes, resCitas, resReportes] = await Promise.all([
-                fetch('http://127.0.0.1:8000/pacientes', { headers: { 'Authorization': `Bearer ${token}` } }),
-                fetch('http://127.0.0.1:8000/citas', { headers: { 'Authorization': `Bearer ${token}` } }),
-                fetch('http://127.0.0.1:8000/reportes', { headers: { 'Authorization': `Bearer ${token}` } })
+                api.get('/pacientes'),
+                api.get('/citas'),
+                api.get('/reportes')
             ]);
 
             if (resPacientes.ok && resCitas.ok && resReportes.ok) {
@@ -223,11 +224,7 @@ const Reportes = () => {
                 sexo_paciente: sexoPaciente  
             };
 
-            const respuesta = await fetch(`http://127.0.0.1:8000/reportes/analizar`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify(payload)
-            });
+            const respuesta = await api.post('/reportes/analizar', payload);
 
             if (respuesta.ok) {
                 const data = await respuesta.json();
@@ -328,65 +325,63 @@ const Reportes = () => {
     };
 
     const submitReportToAI = async () => {
-       
-        setIsAnalyzing(true);
+    setIsAnalyzing(true);
+    
+    // 1. Preparación de strings y datos (Se mantiene exactamente igual)
+    let testsString = formData.testsUsed.filter(t => t !== 'Otros').join(', ');
+    if (formData.testsUsed.includes('Otros') && formData.otherTestDescription) {
+        testsString += (testsString ? ', ' : '') + `${formData.otherTestDescription}`;
+    }
+
+    const planFinal = formData.nextStep === 'Otros' ? formData.otherNextStepDescription : formData.nextStep;
+
+    const payload = {
+        motivo_consulta: formData.reason,
+        notas_psicologo: formData.interviewNotes,
+        pruebas_aplicadas: testsString || "Ninguna registrada",
+        analisis_ia: formData.analisis_ia, 
         
-        let testsString = formData.testsUsed.filter(t => t !== 'Otros').join(', ');
-        if (formData.testsUsed.includes('Otros') && formData.otherTestDescription) {
-            testsString += (testsString ? ', ' : '') + `${formData.otherTestDescription}`;
-        }
-
-        const planFinal = formData.nextStep === 'Otros' ? formData.otherNextStepDescription : formData.nextStep;
-
-        const payload = {
-            motivo_consulta: formData.reason,
-            notas_psicologo: formData.interviewNotes,
-            pruebas_aplicadas: testsString || "Ninguna registrada",
-            analisis_ia: formData.analisis_ia, 
-            
-            // 🌟 EL REPORTE DICE QUÉ PASÓ ESE DÍA:
-            diagnostico_final: (esSeguimiento && formData.revaluacionActiva) 
-                                ? `Revaluación Diagnóstica: ${formData.nuevoDiagnostico}` 
-                                : (esSeguimiento ? "Sesión de Seguimiento Terapéutico" : formData.finalDiagnosis),
-            
-            // 🌟 NUEVO: Toma las nuevas recomendaciones si es revaluación
-            recomendaciones: (esSeguimiento && formData.revaluacionActiva)
-                                ? formData.recommendations 
-                                : (esSeguimiento ? "Continuar con el proceso terapéutico." : formData.recommendations),
-            
-            // 🌟 LA ORDEN DIRECTA PARA LA TABLA PACIENTES EN LA BASE DE DATOS:
-            actualizar_diagnostico_paciente: (esSeguimiento && formData.revaluacionActiva) 
-                                            ? formData.nuevoDiagnostico 
-                                            : (!esSeguimiento ? formData.finalDiagnosis : null)
-        };
-
-        try {
-            const token = localStorage.getItem('token');
-            const url = `http://127.0.0.1:8000/citas/${formData.cita_id}/reporte`;
-            
-            const respuesta = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify(payload)
-            });
-
-            if (respuesta.ok) {
-                await cargarDatos();
-                setIsAnalyzing(false);
-                setView('list');
-                setStep(1);
-                setFormData(initialFormState);
-                mostrarAlerta('exito', '¡Guardado!', '¡Informe guardado con éxito en el expediente!'); // 🌟 Alerta nativa
-            } else {
-                const errorData = await respuesta.json();
-                mostrarAlerta('error', 'Error al Guardar', `Error al guardar: ${errorData.detail}`); // 🌟 Alerta nativa
-                setIsAnalyzing(false);
-            }
-        } catch (error) {
-            mostrarAlerta('error', 'Error de Red', 'No se pudo conectar con el servidor.'); // 🌟 Alerta nativa
-            setIsAnalyzing(false);
-        }
+        diagnostico_final: (esSeguimiento && formData.revaluacionActiva) 
+            ? `Revaluación Diagnóstica: ${formData.nuevoDiagnostico}` 
+            : (esSeguimiento ? "Sesión de Seguimiento Terapéutico" : formData.finalDiagnosis),
+        
+        recomendaciones: (esSeguimiento && formData.revaluacionActiva)
+            ? formData.recommendations 
+            : (esSeguimiento ? "Continuar con el proceso terapéutico." : formData.recommendations),
+        
+        actualizar_diagnostico_paciente: (esSeguimiento && formData.revaluacionActiva) 
+            ? formData.nuevoDiagnostico 
+            : (!esSeguimiento ? formData.finalDiagnosis : null)
     };
+
+    try {
+        // 2. Petición POST con Axios
+        // api.post( url, data ) -> Envía el payload como objeto directo sin JSON.stringify
+        await api.post(`/citas/${formData.cita_id}/reporte`, payload);
+
+        // 3. Éxito (Si entra aquí es porque FastAPI respondió un estado 2xx)
+        await cargarDatos();
+        setIsAnalyzing(false);
+        setView('list');
+        setStep(1);
+        setFormData(initialFormState);
+        mostrarAlerta('exito', '¡Guardado!', '¡Informe guardado con éxito en el expediente!'); 
+
+    } catch (error) {
+        console.error("Error al guardar informe:", error);
+        setIsAnalyzing(false);
+
+        // 4. Captura inteligente de errores de FastAPI
+        if (error.response) {
+            // El backend rechazó la petición (ej: un 422 de validación de Pydantic o un 400)
+            const mensajeBackend = error.response.data?.detail || 'Error desconocido al procesar el informe.';
+            mostrarAlerta('error', 'Error al Guardar', `Error al guardar: ${mensajeBackend}`);
+        } else {
+            // Error de red (Backend apagado o problemas de conexión)
+            mostrarAlerta('error', 'Error de Red', 'No se pudo conectar con el servidor.');
+        }
+    }
+};
      // 🌟 FUNCIÓN BYPASS: Manda al psicólogo a redactar manualmente
     const handleGuardarSinIA = () => {
         const errors = {};

@@ -2,6 +2,7 @@ import React, { useState, useEffect, createContext, useContext } from 'react';
 import HistorialSesiones from './HistorialSesiones'; // Ajustá la ruta si lo guardaste en otra carpeta
 import { createPortal } from 'react-dom';
 import { useAlerta, AlertaProvider } from './AlertaContext.jsx'; // 🌟 1. IMPORTAMOS AMBAS COSAS
+import api from './api'; // Importás tu instancia configurada
 
 
 
@@ -85,7 +86,7 @@ const Pacientes = ({ onNavigateToReportes }) => {
     const cargarEventosPaciente = async (pacienteId) => {
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch(`http://127.0.0.1:8000/pacientes/${pacienteId}/eventos`, {
+            const res = await api.get(`/pacientes/${pacienteId}/eventos`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (res.ok) {
@@ -156,7 +157,7 @@ const Pacientes = ({ onNavigateToReportes }) => {
 
                 // 1. Borrar de la BD los nodos eliminados
                 await Promise.all(eventsToDelete.map(id => 
-                    fetch(`http://127.0.0.1:8000/eventos/${id}`, { method: 'DELETE', headers })
+                    api.delete(`/eventos/${id}`, { headers })
                 ));
                 setEventsToDelete([]);
 
@@ -173,19 +174,11 @@ const Pacientes = ({ onNavigateToReportes }) => {
 
                     if (typeof evt.id === 'string' && evt.id.startsWith('temp-')) {
                         // Es un nodo nuevo creado en el frontend -> POST
-                        const res = await fetch(`http://127.0.0.1:8000/pacientes/${selectedPatient.id}/eventos`, {
-                            method: 'POST',
-                            headers,
-                            body: JSON.stringify(cuerpo)
-                        });
+                        const res = await api.post(`/pacientes/${selectedPatient.id}/eventos`, cuerpo, { headers });
                         return res.json();
                     } else {
                         // Es un nodo viejo modificado -> PUT
-                        const res = await fetch(`http://127.0.0.1:8000/eventos/${evt.id}`, {
-                            method: 'PUT',
-                            headers,
-                            body: JSON.stringify(cuerpo)
-                        });
+                        const res = await api.put(`/eventos/${evt.id}`, cuerpo, { headers });
                         return res.json();
                     }
                 }));
@@ -218,9 +211,9 @@ const Pacientes = ({ onNavigateToReportes }) => {
             const headers = { 'Authorization': `Bearer ${token}` };
 
             const [resPacientes, resCitas, resReportes] = await Promise.all([
-                fetch('http://127.0.0.1:8000/pacientes', { headers }),
-                fetch('http://127.0.0.1:8000/citas', { headers }),
-                fetch('http://127.0.0.1:8000/reportes', { headers })
+                api.get('/pacientes', { headers }),
+                api.get('/citas', { headers }),
+                api.get('/reportes', { headers })
             ]);
 
             // 🌟 CADA UNO SE CARGA POR SEPARADO PARA EVITAR APAGONES GLOBALES
@@ -286,58 +279,72 @@ const Pacientes = ({ onNavigateToReportes }) => {
     };
 
     const handleSavePatient = async (e) => {
-        e.preventDefault();
-        
-        console.log("1. Botón de guardar presionado"); 
+    e.preventDefault();
+    
+    console.log("1. Botón de guardar presionado"); 
 
-        const errors = {};
-        if (!formData.name.trim()) errors.name = true;
-        if (!formData.phone.trim()) errors.phone = true;
-        if (!formData.age.toString().trim()) errors.age = true;
+    // 1. Validaciones
+    const errors = {};
+    if (!formData.name.trim()) errors.name = true;
+    if (!formData.phone.trim()) errors.phone = true;
+    // Agregamos ?. por seguridad si age llega a ser undefined o null
+    if (!formData.age?.toString().trim()) errors.age = true; 
 
-        if (Object.keys(errors).length > 0) {
-            console.log("🛑 VALIDACIÓN FALLIDA. El formulario detuvo el envío por estos errores:", errors); 
-            setFormErrors(errors);
-            return;
-        }
-        setFormErrors({});
+    if (Object.keys(errors).length > 0) {
+        console.log("🛑 VALIDACIÓN FALLIDA. El formulario detuvo el envío por estos errores:", errors); 
+        setFormErrors(errors);
+        return;
+    }
+    setFormErrors({});
 
-        const datosParaBackend = {
-            nombre: formData.name,
-            telefono: formData.phone,
-            email: formData.email, 
-            edad: formData.age ? parseInt(formData.age) : null, 
-            estado: formData.status,
-            sexo: formData.sexo
-        };
-        
-        console.log("✅ Validación exitosa. Enviando a FastAPI esta data:", datosParaBackend); 
-
-        try {
-            const url = 'http://127.0.0.1:8000/pacientes';
-            const metodoHTTP = formData.id ? 'PUT' : 'POST';
-            const urlFinal = formData.id ? `${url}/${formData.id}` : url;
-
-            const respuesta = await fetch(urlFinal, {
-                method: metodoHTTP,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}` 
-                },
-                body: JSON.stringify(datosParaBackend)
-            });
-
-            if (respuesta.ok) {
-                obtenerDatosCompletos(); // Recargamos todo después de guardar
-                mostrarAlerta('exito', '¡Guardado!', formData.id ? "¡Expediente actualizado!" : "¡Expediente creado exitosamente!"); // 🌟 REEMPLAZO
-                setView('list'); 
-            } else {
-                mostrarAlerta('error', 'Error', 'Hubo un error al guardar en la base de datos.'); // 🌟 REEMPLAZO
-            }
-        } catch (error) {
-            mostrarAlerta('error', 'Sin Conexión', 'No se pudo conectar con el servidor.'); // 🌟 REEMPLAZO
-        }
+    // 2. Mapeo de datos para FastAPI
+    const datosParaBackend = {
+        nombre: formData.name,
+        telefono: formData.phone,
+        email: formData.email, 
+        edad: formData.age ? parseInt(formData.age, 10) : null, 
+        estado: formData.status,
+        sexo: formData.sexo
     };
+    
+    console.log("✅ Validación exitosa. Enviando a FastAPI esta data:", datosParaBackend); 
+
+    try {
+        let respuesta;
+        
+        // 3. Peticiones HTTP con Axios (la URL base y el Token ya están en api.js)
+        if (formData.id) {
+            // PUT a: BASE_URL + /pacientes/ID
+            respuesta = await api.put(`/pacientes/${formData.id}`, datosParaBackend);
+        } else {
+            // POST a: BASE_URL + /pacientes
+            respuesta = await api.post('/pacientes', datosParaBackend);
+        }
+
+        // 4. Con Axios, si entra aquí es porque el estatus fue exitoso (2xx)
+        obtenerDatosCompletos(); 
+        mostrarAlerta(
+            'exito', 
+            '¡Guardado!', 
+            formData.id ? "¡Expediente actualizado!" : "¡Expediente creado exitosamente!"
+        ); 
+        setView('list'); 
+
+    } catch (error) {
+        // 5. Axios atrapa todos los errores (400, 404, 500 o sin conexión) aquí automáticamente
+        console.error("Error en la petición:", error);
+        
+        if (error.response) {
+            // El servidor respondió con un error (ej. 400 o 500)
+            // FastAPI suele mandar los detalles en error.response.data.detail
+            const mensajeBackend = error.response.data?.detail || 'Hubo un error al guardar en la base de datos.';
+            mostrarAlerta('error', 'Error', mensajeBackend);
+        } else {
+            // El servidor ni respondió (No hay conexión / CORS / Server apagado)
+            mostrarAlerta('error', 'Sin Conexión', 'No se pudo conectar con el servidor.');
+        }
+    }
+};
 
     // 🌟 ================= FILTRO DE REPORTES PARA EL EXPEDIENTE =================
     let pacienteReportes = [];
@@ -350,36 +357,32 @@ const Pacientes = ({ onNavigateToReportes }) => {
     const handleDeletePatient = (id) => { setPatientToDelete(id); };
 
     const confirmDeletePatient = async () => {
-        try {
-            const token = localStorage.getItem('token');
-            if (!token) {
-                mostrarAlerta('error', 'Sesión Expirada', 'No tenés token de sesión. Volvé a loguearte.'); // 🌟 REEMPLAZO
-                return;
-            }
+    try {
+        // 1. Petición DELETE limpia con Axios (sin headers ni URL hardcodeada)
+        // Axios espera: api.delete(url, config)
+        await api.delete(`/pacientes/${patientToDelete}`);
 
-            const respuesta = await fetch(`http://127.0.0.1:8000/pacientes/${patientToDelete}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}` 
-                }
-            });
+        // 2. Si entra aquí, el estado fue exitoso (2xx) y FastAPI borró al paciente
+        setPatients(patients.filter(p => p.id !== patientToDelete));
+        setPatientToDelete(null);
+        setSelectedPatient(null); 
+        setView('list'); 
+        mostrarAlerta('exito', '¡Eliminado!', '¡Expediente eliminado definitivamente!'); 
 
-            if (respuesta.ok) {
-                setPatients(patients.filter(p => p.id !== patientToDelete));
-                setPatientToDelete(null);
-                setSelectedPatient(null); 
-                setView('list'); 
-                mostrarAlerta('exito', '¡Eliminado!', '¡Expediente eliminado definitivamente!'); // 🌟 REEMPLAZO
-            } else {
-                const errorData = await respuesta.json();
-                const mensajeError = errorData.detail || "Error desconocido en el servidor";
-                mostrarAlerta('error', 'Error de FastAPI', `FastAPI rechazó el borrado: ${mensajeError}`); // 🌟 REEMPLAZO
-            }
-        } catch (error) {
-            console.error("Error de conexión:", error);
-            mostrarAlerta('error', 'Sin Conexión', 'No se pudo conectar con el servidor para eliminar. ¿Está encendido FastAPI?'); // 🌟 REEMPLAZO
+    } catch (error) {
+        console.error("Error en el borrado:", error);
+        
+        // 3. Control de errores inteligente de Axios
+        if (error.response) {
+            // El servidor respondió con un error (ej. 401 sin token, 404 no encontrado, 403 prohibido)
+            const mensajeError = error.response.data?.detail || "Error desconocido en el servidor";
+            mostrarAlerta('error', 'Error de FastAPI', `FastAPI rechazó el borrado: ${mensajeError}`);
+        } else {
+            // El servidor no respondió (Server apagado, error de red, etc.)
+            mostrarAlerta('error', 'Sin Conexión', 'No se pudo conectar con el servidor para eliminar. ¿Está encendido FastAPI?');
         }
-    };
+    }
+};
 
     const handleViewDetails = async (patient) => {
         setSelectedPatient(patient);

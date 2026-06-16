@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'; // 🌟 1. Agregar useRef
+import api from './api'; // Importás tu instancia configurada
 
 const CampanaAlertas = () => {
     const [alertas, setAlertas] = useState([]);
@@ -30,7 +31,7 @@ const CampanaAlertas = () => {
         try {
             const token = localStorage.getItem('token');
             // Le pasamos las horas actuales configuradas como parámetro a la ruta
-            const res = await fetch(`http://127.0.0.1:8000/citas/alertas-activas?horas=${horasAnticipacion}`, {
+            const res = await api.get(`/citas/alertas-activas?horas=${horasAnticipacion}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             

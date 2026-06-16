@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import logoEmpresa from './assets/Logo.png';
 // 🌟 1. IMPORTAMOS AMBAS COSAS (EL HOOK Y EL PROVIDER)
 import { useAlerta, AlertaProvider } from './AlertaContext.jsx';
+import api from './api'; // Importás tu instancia configurada
 
 // 🌟 2. LE QUITAMOS EL "export default" A ESTA LÍNEA (lo haremos al final)
 function Login({ onLoginSuccess }) {
@@ -75,11 +76,7 @@ function Login({ onLoginSuccess }) {
           password: password
         };
 
-        const respuesta = await fetch('http://127.0.0.1:8000/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(datosLogin),
-        });
+        const respuesta = await api.post('/login', datosLogin);
 
        if (respuesta.ok) {
           const datosServidor = await respuesta.json();
@@ -114,11 +111,7 @@ function Login({ onLoginSuccess }) {
           rol: role
         };
 
-        const respuesta = await fetch('http://127.0.0.1:8000/usuarios', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(datosNuevoUsuario),
-        });
+        const respuesta = await api.post('/usuarios', datosNuevoUsuario);
 
         if (respuesta.ok) {
           mostrarAlerta('exito', '¡Cuenta Creada!', 'Se ha creado tu cuenta en HorizonFlow. Ahora inicia sesión.'); 
@@ -155,14 +148,11 @@ const procesarRecuperacion = async () => {
 
     setIsLoading(true);
     try {
-        const respuesta = await fetch('http://127.0.0.1:8000/usuarios/recuperar', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                email: email, // El que escribió en la pantalla de login
-                nueva_password: nuevaPassword
+        const respuesta = await api.post('/usuarios/recuperar', {
+            email: email, // El que escribió en la pantalla de login
+            nueva_password: nuevaPassword
             })
-        });
+        
 
         if (respuesta.ok) {
             mostrarAlerta('exito', '¡Contraseña Recuperada!', 'Tu contraseña ha sido restablecida. Ya puedes iniciar sesión.');

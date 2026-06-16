@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './Ajustes.css';
 import { useAlerta, AlertaProvider } from './AlertaContext.jsx'; // 🌟 Importamos las alertas
+import api from './api'; // Importás tu instancia configurada
 
 const IconProfile = () => (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
@@ -91,18 +92,16 @@ const Ajustes = () => {
                 const token = localStorage.getItem('token');
                 
                 // Petición a Dervin
-                const respuesta = await fetch('http://127.0.0.1:8000/usuarios/actualizar', {
-                    method: 'PUT',
+                const respuesta = await api.put('/usuarios/actualizar', {
+                    nombre_clinica: perfilData.nombreClinica,
+                    password_actual: perfilData.passwordActual,
+                    password: perfilData.passwordNueva
+                }, {
                     headers: {
-                        'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        nombre_clinica: perfilData.nombreClinica,
-                        password_actual: perfilData.passwordActual, // 🌟 AHORA MANDAMOS LA VIEJA
-                        password: perfilData.passwordNueva          // 🌟 Y LA NUEVA
-                    })
+                    }
                 });
+                       
 
                 if (respuesta.ok) {
                     if (perfilData.passwordNueva) {

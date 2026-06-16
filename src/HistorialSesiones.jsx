@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, AlertCircle, Clock, XCircle, ChevronRight, FileEdit, CalendarDays, Video, MapPin, Loader2 } from 'lucide-react';
+import api from './api'; // Importás tu instancia configurada
 
 export default function HistorialSesiones({ pacienteId, onRedactarReporte,onVerReporte }) {
     const [sesiones, setSesiones] = useState([]);
@@ -12,7 +13,7 @@ export default function HistorialSesiones({ pacienteId, onRedactarReporte,onVerR
             setCargando(true);
             try {
                 const token = localStorage.getItem('token');
-                const res = await fetch(`http://${window.location.hostname}:8000/pacientes/${pacienteId}/historial-sesiones`, {
+                const res = await api.get(`/pacientes/${pacienteId}/historial-sesiones`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 

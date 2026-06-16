@@ -10,6 +10,7 @@ import logoEmpresa from './assets/logo.png';
 import CampanaAlertas from './CampanaAlertas';
 import Experiencia from './Experiencia';
 import Ajustes from './Ajustes'; 
+import api from './api'; // Importás tu instancia configurada
 
 
 
@@ -133,8 +134,8 @@ export default function Interface({ onLogout }) {
                 const headers = { 'Authorization': `Bearer ${token}` };
 
                 const [resCitas, resPacientes] = await Promise.all([
-                    fetch('http://127.0.0.1:8000/citas', { headers }),
-                    fetch('http://127.0.0.1:8000/pacientes', { headers })
+                    api.get('/citas', { headers }),
+                    api.get('/pacientes', { headers })
                 ]);
                 
                 if (resCitas.ok && resPacientes.ok) {
@@ -323,13 +324,13 @@ export default function Interface({ onLogout }) {
             }));
 
             const token = localStorage.getItem('token');
-            const respuesta = await fetch('http://127.0.0.1:8000/soporte/chat', {
-                method: 'POST',
+            const respuesta = await api.post('/soporte/chat', {
+                historial: historialParaBackend
+            }, {
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ historial: historialParaBackend })
+                }
             });
 
             if (respuesta.ok) {

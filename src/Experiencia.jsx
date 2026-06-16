@@ -3,6 +3,7 @@ import { QRCodeCanvas } from 'qrcode.react';
 import { createPortal } from 'react-dom';
 import './Experiencia.css'; 
 import { useAlerta, AlertaProvider } from './AlertaContext.jsx'; // 🌟 1. Importamos el sistema de alertas premium
+import api from './api'; // Importás tu instancia configurada
 
 // --- ÍCONOS VECTORIALES ---
 const IconStar = ({ className }) => (
@@ -235,11 +236,11 @@ const Experiencia = () => {
                 { label: 'Cumplió parcialmente', count: contar('q2_cumplimiento_expectativas', 'Cumplió parcialmente'), color: 'bg-amber-400', hex: '#FBBF24' },
                 { label: 'No cumplió', count: contar('q2_cumplimiento_expectativas', 'No cumplió mis expectativas'), color: 'bg-rose-500', hex: '#F43F5E' }
             ],
-            Q3_empatia: [
+           Q3_empatia: [
                 { label: 'Sí, en todo momento', count: contar('q3_empatia_conexion', 'Sí, en todo momento'), color: 'bg-emerald-600', hex: '#059669' },
-                { label: 'La mayor parte', count: contar('q3_empatia_conexion', 'La mayor parte'), color: 'bg-teal-400', hex: '#2DD4BF' },
-                { label: 'Solo a veces', count: contar('q3_empatia_conexion', 'Solo a veces'), color: 'bg-amber-400', hex: '#FBBF24' },
-                { label: 'No, me sentí incomprendido', count: contar('q3_empatia_conexion', 'No, me sentí incomprendido'), color: 'bg-rose-500', hex: '#F43F5E' }
+                { label: 'La mayor parte', count: contar('q3_empatia_conexion', 'La mayor parte del tiempo'), color: 'bg-teal-400', hex: '#2DD4BF' },
+                { label: 'Solo a veces', count: contar('q3_empatia_conexion', 'Solo en algunos momentos'), color: 'bg-amber-400', hex: '#FBBF24' },
+                { label: 'No, me sentí incomprendido', count: contar('q3_empatia_conexion', 'No, me sentí poco comprendido(a)'), color: 'bg-rose-500', hex: '#F43F5E' }
             ],
             Q4_aspectos: [
                 { label: 'Escucha activa y empatía', count: contarAspecto('Escucha activa y empatía'), color: 'bg-[#0F766E]' },
@@ -295,7 +296,7 @@ const Experiencia = () => {
                 const token = localStorage.getItem('token');
                 if (!token) return;
 
-                const response = await fetch('http://127.0.0.1:8000/encuestas', {
+                const response = await api.get('/encuestas', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
@@ -478,9 +479,6 @@ const Experiencia = () => {
                         <h3 className="text-sm font-black text-[#113130] mb-1">Q10. Sugerencias y Comentarios</h3>
                         <p className="text-xs text-slate-400">Feedback cualitativo escrito por los pacientes.</p>
                     </div>
-                    <button className="text-xs font-bold text-[#0F766E] hover:text-[#0D9488] bg-teal-50 px-4 py-2 rounded-xl transition-colors">
-                        Exportar Feedbacks
-                    </button>
                 </div>
 
                 <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin">

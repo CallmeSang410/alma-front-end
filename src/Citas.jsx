@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import './Citas.css';
-import { useAlerta, AlertaProvider } from './AlertaContext.jsx'; 
+import { useAlerta, AlertaProvider } from './AlertaContext.jsx';
+import api from './api'; // Importás tu instancia configurada 
 
 // ================= COMPONENTES VISUALES PREMIUM =================
 
@@ -319,10 +320,10 @@ const Citas = () => {
         if (!token) return;
 
         try {
-            const resPacientes = await fetch('http://127.0.0.1:8000/pacientes', {
+            const resPacientes = await api.get('/pacientes', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            const resCitas = await fetch('http://127.0.0.1:8000/citas', {
+            const resCitas = await api.get('/citas', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
@@ -412,18 +413,15 @@ const Citas = () => {
             let finalPacienteId = formData.paciente_id;
 
             if (isNewPatient && !formData.id) {
-                const resNuevoPaciente = await fetch('http://127.0.0.1:8000/pacientes', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({
-                        nombre: newPatientData.nombre,
-                        telefono: newPatientData.telefono,
-                        email: null,
-                        edad: null,
-                        sexo: null,
-                        estado: 'Pendiente',
-                    })
-                });
+                const resNuevoPaciente = await api.post('/pacientes', {
+                    nombre: newPatientData.nombre,
+                    telefono: newPatientData.telefono,
+                    email: null,
+                    edad: null,
+                    sexo: null,
+                    estado: 'Pendiente',
+                }, { 'Authorization': `Bearer ${token}` });
+                
 
                 if (resNuevoPaciente.ok) {
                     const pacienteCreado = await resNuevoPaciente.json();
@@ -446,10 +444,10 @@ const Citas = () => {
             let url = formData.id ? `http://127.0.0.1:8000/citas/${formData.id}` : `http://127.0.0.1:8000/pacientes/${finalPacienteId}/citas`;
             let method = formData.id ? 'PUT' : 'POST';
 
-            const respuesta = await fetch(url, {
+            const respuesta = await api.request(url, {
                 method: method,
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify(datosParaCita)
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: datosParaCita 
             });
 
             if (respuesta.ok) {
@@ -467,8 +465,7 @@ const Citas = () => {
 
    const confirmCancelAppointment = async () => {
         try {
-            const respuesta = await fetch(`http://127.0.0.1:8000/citas/${appointmentToCancel}`, {
-                method: 'DELETE',
+            const respuesta = await api.delete(`/citas/${appointmentToCancel}`, {
                 headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
             });
 
@@ -492,10 +489,7 @@ const Citas = () => {
         if (!token) return;
 
         try {
-            const res = await fetch(`http://127.0.0.1:8000/citas/${citaId}/completar`, {
-                method: 'PUT',
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
-            });
+            const res = await api.put(`/citas/${citaId}/completar`, {}, { 'Authorization': `Bearer ${token}` });
 
             if (res.ok) {
                 setAppointments(prevCitas => prevCitas.filter(cita => cita.id !== citaId));

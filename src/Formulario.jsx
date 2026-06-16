@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import logo from './assets/logo.png';
 import { useParams } from 'react-router-dom';
 import { useAlerta, AlertaProvider } from './AlertaContext.jsx'; 
+import api from './api'; // Importás tu instancia configurada
 // import './Formulario.css'; // <-- DESCOMENTA ESTA LÍNEA EN TU VS CODE
 
 // Fallback por si la imagen logo.png no carga
@@ -112,12 +113,7 @@ const FormularioContent = () => {
                 q7_impacto_animo: q7_traducido
             };
 
-            const res = await fetch(`http://127.0.0.1:8000/encuestas/publica/${psicologoId}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(datosAEnviar)
-            });
-
+            const res = await api.post(`/encuestas/publica/${psicologoId}`, datosAEnviar);
             if (res.ok) {
                 setPasoActual(3);
             } else {
