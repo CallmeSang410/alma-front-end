@@ -42,12 +42,10 @@ function App() {
   }, [modoOscuro]);
 
   // ======= 1. CORREGIDO PARA AXIOS =======
-  const obtenerPacientes = async () => {
+ const obtenerPacientes = async () => {
     try {
-      const respuesta = await api.get("/pacientes", {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-      // Axios mete la respuesta exitosa directamente en .data
+      // Axios y el interceptor se encargan del header de autorización por debajo
+      const respuesta = await api.get("/pacientes");
       setPacientes(respuesta.data);
     } catch (error) { 
       console.error("Error obteniendo pacientes:", error); 
@@ -114,37 +112,19 @@ function App() {
 
   // ======= 4. CORREGIDO PARA AXIOS =======
   const analizarNotaConIA = async () => {
-    if (!notaActual.trim()) {
-      mostrarAlerta("error", "Campo Vacío", "Por favor, escribe algo en las notas antes de analizar.");
-      return;
-    }
-
-    setCargandoIA(true);
-    setResumenIA(""); 
-
+    // ... validaciones previas ...
     try {
       const citaId = 1; 
       
+      // Igual acá, solo le pasás la URL y los datos (body). Adiós headers.
       const respuesta = await api.post(`/citas/${citaId}/reporte`, {
         notas_psicologo: notaActual
-      }, {
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
       });
 
-      // Axios parsea automáticamente el JSON en respuesta.data
       setResumenIA(respuesta.data.analisis_ia); 
       mostrarAlerta("exito", "¡Análisis Completado!", "Reporte clínico generado y guardado en la base de datos ✨");
     } catch (error) {
-      console.error("Error conectando al servidor:", error);
-      if (error.response && error.response.data) {
-        mostrarAlerta("error", "Error", error.response.data.detail || "No se pudo generar el reporte");
-      } else {
-        mostrarAlerta("error", "Sin Conexión", "El servidor no responde. Verifica tu conexión o el backend.");
-      }
-    } finally {
-      setCargandoIA(false);
+      // ... manejo de errores ...
     }
   };
 
