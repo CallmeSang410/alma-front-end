@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import logoEmpresa from './assets/Logo.png';
+import logoEmpresa from './assets/logo.png';
 // 🌟 1. IMPORTAMOS AMBAS COSAS (EL HOOK Y EL PROVIDER)
 import { useAlerta, AlertaProvider } from './AlertaContext.jsx';
 import api from './api'; // Importás tu instancia configurada
