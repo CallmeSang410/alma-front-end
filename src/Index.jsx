@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import './App.css';
 import './i18n'; 
-import { useAlerta } from './AlertaContext.jsx'; // 🌟 1. Importamos el hook correcto
-import api from './api'; // Importás tu instancia configurada
+import { useAlerta } from './AlertaContext.jsx'; 
+import api from './api'; // Tu instancia configurada
 
 function App() {
-  const { mostrarAlerta } = useAlerta(); // 🌟 2. Extraemos la función de alertas
+  const { mostrarAlerta } = useAlerta(); 
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -16,9 +16,7 @@ function App() {
   const [nombreNuevo, setNombreNuevo] = useState("");
   const [telefonoNuevo, setTelefonoNuevo] = useState("");
 
-  // --- NUEVO: ¿Qué paciente estamos viendo en el consultorio? ---
   const [pacienteSeleccionado, setPacienteSeleccionado] = useState(null);
-  // --- NUEVO: ESTADOS PARA EL EXPEDIENTE Y LA IA ---
   const [notaActual, setNotaActual] = useState("");
   const [resumenIA, setResumenIA] = useState("");
   const [cargandoIA, setCargandoIA] = useState(false);
@@ -43,59 +41,67 @@ function App() {
     }
   }, [modoOscuro]);
 
+  // ======= 1. CORREGIDO PARA AXIOS =======
   const obtenerPacientes = async () => {
     try {
       const respuesta = await api.get("/pacientes", {
         headers: { "Authorization": `Bearer ${token}` }
       });
-      if (respuesta.ok) {
-        const data = await respuesta.json();
-        setPacientes(data);
-      }
-    } catch (error) { console.error("Error", error); }
+      // Axios mete la respuesta exitosa directamente en .data
+      setPacientes(respuesta.data);
+    } catch (error) { 
+      console.error("Error obteniendo pacientes:", error); 
+    }
   };
 
+  // ======= 2. SOLUCIÓN AL ERROR 400 (OAuth2 Form Format) =======
   const manejarLogin = async (evento) => {
     evento.preventDefault();
     try {
-      // 1. Axios hace el POST y te devuelve los datos directamente en 'data'
-      const { data } = await api.post("/login", {
-        username,
-        password
+      // Convertimos los datos al formato x-www-form-urlencoded que exige FastAPI
+      const datosFormulario = new URLSearchParams();
+      datosFormulario.append('username', username);
+      datosFormulario.append('password', password);
+
+      const { data } = await api.post("/login", datosFormulario, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
       });
       
-      // 2. Si llega aquí, significa que la respuesta fue exitosa (HTTP 200)
       setToken(data.tu_gafete_digital);
       localStorage.setItem("tokenAlma", data.tu_gafete_digital);
+      setMensajeError(""); // Limpiamos errores previos
       
     } catch (error) {
-      // 3. Si el servidor responde con un error (ej. 401 Credenciales incorrectas)
       if (error.response && error.response.data) {
-        // Captura el 'detail' que envía FastAPI desde el backend
-        setMensajeError(error.response.data.detail || "Error al iniciar sesión.");
+        setMensajeError(error.response.data.detail || "Credenciales incorrectas.");
       } else {
-        // Si de verdad se cayó el internet o el servidor está apagado
-        setMensajeError("Error de conexión.");
+        setMensajeError("Error de conexión con el servidor.");
       }
     }
-};
+  };
+
+  // ======= 3. CORREGIDO PARA AXIOS =======
   const registrarPaciente = async (e) => {
     e.preventDefault();
     try {
-      const respuesta = await api.post("/pacientes", {
+      await api.post("/pacientes", {
         nombre: nombreNuevo,
         telefono: telefonoNuevo
       });
-      if (respuesta.ok) {
-        setNombreNuevo("");
-        setTelefonoNuevo("");
-        obtenerPacientes();
-        // Opcional: Puedes agregar un mostrarAlerta de éxito aquí si quieres
-      } else {
-        mostrarAlerta("error", "Error", "No se pudo registrar el paciente.");
-      }
+      
+      // Si Axios no lanza error, asumimos éxito (HTTP 200/201)
+      setNombreNuevo("");
+      setTelefonoNuevo("");
+      obtenerPacientes();
+      mostrarAlerta("exito", "Completado", "Paciente registrado con éxito.");
     } catch (error) { 
-      mostrarAlerta("error", "Error de red", "Error al registrar paciente"); // 🌟 CAMBIO
+      if (error.response && error.response.data) {
+        mostrarAlerta("error", "Error", error.response.data.detail || "No se pudo registrar el paciente.");
+      } else {
+        mostrarAlerta("error", "Error de red", "Error al registrar paciente");
+      }
     }
   };
 
@@ -103,13 +109,13 @@ function App() {
     localStorage.removeItem("tokenAlma");
     setToken(null);
     setPacientes([]);
-    setPacienteSeleccionado(null); // Limpiamos el consultorio al salir
+    setPacienteSeleccionado(null);
   };
 
-  // --- NUEVO: FUNCIÓN PARA PEDIRLE EL RESUMEN A LA IA ---
+  // ======= 4. CORREGIDO PARA AXIOS =======
   const analizarNotaConIA = async () => {
     if (!notaActual.trim()) {
-      mostrarAlerta("error", "Campo Vacío", "Por favor, escribe algo en las notas antes de analizar."); // 🌟 CAMBIO
+      mostrarAlerta("error", "Campo Vacío", "Por favor, escribe algo en las notas antes de analizar.");
       return;
     }
 
@@ -117,8 +123,6 @@ function App() {
     setResumenIA(""); 
 
     try {
-      // 1. Ajustamos la URL a tu ruta real: /citas/{id}/reporte
-      // Por ahora usaremos un ID de cita temporal (ej: 1), luego lo haremos dinámico
       const citaId = 1; 
       
       const respuesta = await api.post(`/citas/${citaId}/reporte`, {
@@ -129,18 +133,16 @@ function App() {
         }
       });
 
-      const data = await respuesta.json();
-
-      if (respuesta.ok) {
-        // 3. Tu backend devuelve el objeto reporte, extraemos 'analisis_ia'
-        setResumenIA(data.analisis_ia); 
-        mostrarAlerta("exito", "¡Análisis Completado!", "Reporte clínico generado y guardado en la base de datos ✨"); // 🌟 CAMBIO
-      } else {
-        mostrarAlerta("error", "Error", data.detail || "No se pudo generar el reporte"); // 🌟 CAMBIO
-      }
+      // Axios parsea automáticamente el JSON en respuesta.data
+      setResumenIA(respuesta.data.analisis_ia); 
+      mostrarAlerta("exito", "¡Análisis Completado!", "Reporte clínico generado y guardado en la base de datos ✨");
     } catch (error) {
       console.error("Error conectando al servidor:", error);
-      mostrarAlerta("error", "Sin Conexión", "El servidor no responde. Verificá que Uvicorn esté corriendo."); // 🌟 CAMBIO
+      if (error.response && error.response.data) {
+        mostrarAlerta("error", "Error", error.response.data.detail || "No se pudo generar el reporte");
+      } else {
+        mostrarAlerta("error", "Sin Conexión", "El servidor no responde. Verifica tu conexión o el backend.");
+      }
     } finally {
       setCargandoIA(false);
     }
@@ -160,17 +162,13 @@ function App() {
           </header>
           
           <main className="contenido-principal">
-            
-            {/* RENDERIZADO CONDICIONAL: ¿Estamos en el Expediente o en la Lista? */}
             {pacienteSeleccionado ? (
-              
-            /* ====== VISTA 2: EL CONSULTORIO (EXPEDIENTE) ====== */
               <section className="seccion-expediente">
                 <button 
                   className="btn-volver" 
                   onClick={() => {
                     setPacienteSeleccionado(null);
-                    setNotaActual(""); // Limpiamos la nota al salir
+                    setNotaActual(""); 
                     setResumenIA("");
                   }}
                 >
@@ -204,20 +202,15 @@ function App() {
                     </button>
                   </div>
 
-                {/* Si la IA nos devuelve un resumen, mostramos esta tarjeta */}
                   {resumenIA && (
                     <div className="tarjeta-ia">
                       <h4>🤖 Resumen y Análisis Clínico (Generado por IA)</h4>
-                      {/* Magia aquí: ReactMarkdown traduce los asteriscos a HTML real */}
                       <ReactMarkdown>{resumenIA}</ReactMarkdown>
                     </div>
                   )}
                 </div>
               </section>
-
             ) : (
-
-              /* ====== VISTA 1: LA RECEPCIÓN (LISTA Y REGISTRO) ====== */
               <>
                 <section className="seccion-registro">
                   <h2>Registrar Nuevo Paciente</h2>
@@ -236,7 +229,6 @@ function App() {
                         <div key={p.id} className="tarjeta-paciente">
                           <h3>{p.nombre}</h3>
                           <p>📞 {p.telefono}</p>
-                          {/* NUEVO: Al hacer clic, guardamos a este paciente en la memoria */}
                           <button 
                             className="btn-ver" 
                             onClick={() => setPacienteSeleccionado(p)}
@@ -250,7 +242,6 @@ function App() {
                 </section>
               </>
             )}
-
           </main>
         </div>
       ) : (
