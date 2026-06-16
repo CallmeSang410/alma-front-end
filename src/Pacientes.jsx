@@ -82,17 +82,11 @@ const Pacientes = ({ onNavigateToReportes }) => {
     const [timelineEvents, setTimelineEvents] = useState([]);
     const [eventsToDelete, setEventsToDelete] = useState([]); // Rastrea los IDs eliminados en el frontend
 
-    // Función para descargar los eventos desde FastAPI
+    // Función limpia para descargar los eventos
     const cargarEventosPaciente = async (pacienteId) => {
         try {
-            const token = localStorage.getItem('token');
-            const res = await api.get(`/pacientes/${pacienteId}/eventos`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setTimelineEvents(data);
-            }
+            const res = await api.get(`/pacientes/${pacienteId}/eventos`);
+            setTimelineEvents(res.data); // Asignamos directo desde .data
         } catch (error) {
             console.error("Error al cargar eventos de la línea de tiempo:", error);
         }
@@ -149,15 +143,9 @@ const Pacientes = ({ onNavigateToReportes }) => {
     const toggleTimelineEditMode = async () => {
         if (isTimelineEditMode) {
             try {
-                const token = localStorage.getItem('token');
-                const headers = { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}` 
-                };
-
                 // 1. Borrar de la BD los nodos eliminados
                 await Promise.all(eventsToDelete.map(id => 
-                    api.delete(`/eventos/${id}`, { headers })
+                    api.delete(`/eventos/${id}`) // Axios puro, sin headers
                 ));
                 setEventsToDelete([]);
 
@@ -166,87 +154,63 @@ const Pacientes = ({ onNavigateToReportes }) => {
                     const cuerpo = {
                         titulo: evt.titulo || 'Nueva Etapa',
                         fecha_evento: evt.fecha_evento || 'DD/MM',
-                        descripcion: evt.descripcion || '', // Tu descripción original queda a salvo
+                        descripcion: evt.descripcion || '', 
                         impacto: evt.impacto,
-                        nota_titulo: evt.nota_titulo || '',       // 🌟 ENVIAMOS EL NUEVO CAMPO
-                        nota_contenido: evt.nota_contenido || ''  // 🌟 ENVIAMOS EL NUECO CAMPO
+                        nota_titulo: evt.nota_titulo || '',       
+                        nota_contenido: evt.nota_contenido || ''  
                     };
 
                     if (typeof evt.id === 'string' && evt.id.startsWith('temp-')) {
-                        // Es un nodo nuevo creado en el frontend -> POST
-                        const res = await api.post(`/pacientes/${selectedPatient.id}/eventos`, cuerpo, { headers });
-                        return res.json();
+                        // Nodo nuevo -> POST
+                        const res = await api.post(`/pacientes/${selectedPatient.id}/eventos`, cuerpo);
+                        return res.data; // 🌟 Cambiado a res.data
                     } else {
-                        // Es un nodo viejo modificado -> PUT
-                        const res = await api.put(`/eventos/${evt.id}`, cuerpo, { headers });
-                        return res.json();
+                        // Nodo viejo modificado -> PUT
+                        const res = await api.put(`/eventos/${evt.id}`, cuerpo);
+                        return res.data; // 🌟 Cambiado a res.data
                     }
                 }));
 
                 setTimelineEvents(eventosGuardados);
-                mostrarAlerta('exito', '¡Guardado!', 'Línea de tiempo guardada en la base de datos exitosamente.'); // 🌟 REEMPLAZO
+                mostrarAlerta('exito', '¡Guardado!', 'Línea de tiempo sincronizada exitosamente.');
             } catch (error) {
-                console.error(error);
-                mostrarAlerta('error', 'Error', 'Error al sincronizar la línea de tiempo con el servidor.'); // 🌟 REEMPLAZO
+                console.error("Error al guardar línea de tiempo:", error);
+                mostrarAlerta('error', 'Error', 'Error al sincronizar con el servidor.');
             }
         }
         setIsTimelineEditMode(!isTimelineEditMode);
     };
-
-    const clearTimeline = () => {
-        const updatedTimelines = { ...mockTimelines };
-        updatedTimelines[activeTimeline] = [];
-        setMockTimelines(updatedTimelines);
-        setShowDeleteTimelineModal(false);
-    };
-
     const [patients, setPatients] = useState([]);
 
-    // 🌟 NUEVA VERSIÓN DE CARGAR DATOS (Ahora trae TODO: Pacientes, Citas y Reportes)
+    // 🌟 NUEVA VERSIÓN PURIFICADA CON AXIOS
     const obtenerDatosCompletos = async () => {
         try {
-            const token = localStorage.getItem('token');
-            if (!token) return;
-
-            const headers = { 'Authorization': `Bearer ${token}` };
-
+            // Ya no necesitas meter el token a mano, api.js lo hace por vos
             const [resPacientes, resCitas, resReportes] = await Promise.all([
-                api.get('/pacientes', { headers }),
-                api.get('/citas', { headers }),
-                api.get('/reportes', { headers })
+                api.get('/pacientes'),
+                api.get('/citas'),
+                api.get('/reportes')
             ]);
 
-            // 🌟 CADA UNO SE CARGA POR SEPARADO PARA EVITAR APAGONES GLOBALES
-            if (resPacientes.ok) {
-                const datosPacientes = await resPacientes.json();
-                const pacientesFormateados = datosPacientes.map(p => ({
-                    id: p.id, 
-                    name: p.nombre,
-                    phone: p.telefono || 'Sin teléfono',
-                    email: p.email || 'Sin correo',
-                    age: p.edad,
-                    status: p.estado || 'Activo',
-                    sexo: p.sexo, 
-                    timeline: [], 
-                    reports: [] 
-                }));
-                setPatients(pacientesFormateados);
-            } else {
-                console.error("Error al cargar pacientes:", resPacientes.status);
-            }
-
-            if (resCitas.ok) {
-                const datosCitas = await resCitas.json();
-                setTodasLasCitas(datosCitas);
-            }
-
-            if (resReportes.ok) {
-                const datosReportes = await resReportes.json();
-                setTodosLosReportes(datosReportes);
-            }
+            // Axios guarda todo directo en ".data"
+            const pacientesFormateados = resPacientes.data.map(p => ({
+                id: p.id, 
+                name: p.nombre,
+                phone: p.telefono || 'Sin teléfono',
+                email: p.email || 'Sin correo',
+                age: p.edad,
+                status: p.estado || 'Activo',
+                sexo: p.sexo, 
+                timeline: [], 
+                reports: [] 
+            }));
+            
+            setPatients(pacientesFormateados);
+            setTodasLasCitas(resCitas.data);
+            setTodosLosReportes(resReportes.data);
 
         } catch (error) {
-            console.error("Error al cargar datos:", error);
+            console.error("Error al cargar datos completos:", error);
         }
     };
 

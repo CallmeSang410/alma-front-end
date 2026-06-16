@@ -29,84 +29,54 @@ const Dashboard = ({ onNavigateToReportes }) => {
         setPacientesInactivos(prev => prev.filter(paciente => paciente.id !== id));
     };
 
-    // 🌟 NUEVO MOTOR: Conexión con FastAPI al cargar el Dashboard
-   useEffect(() => {
-    const cargarDatosArriba = async () => {
-        const token = localStorage.getItem('token');
-        if (!token) return;
+    // 🌟 NUEVO MOTOR: Conexión con FastAPI al cargar el Dashboard (Limpiado con Axios)
+    useEffect(() => {
+        const cargarDatosArriba = async () => {
+            // Ya no necesitas preocuparte del token ni los headers, api.js lo hace por vos
+            try {
+                // 1. Disparamos todas las peticiones al mismo tiempo a la URL correcta
+                const [resPacientes, resExpedientes, resAgenda, resMotivos, resAlertas, resNegocio] = await Promise.all([
+                    api.get('/dashboard/pacientes-activos'),
+                    api.get('/dashboard/expedientes-pendientes'),
+                    api.get('/dashboard/agenda-hoy'),
+                    api.get('/estadisticas/motivos-distribucion'),
+                    api.get('/dashboard/alertas-inactividad'),
+                    api.get('/dashboard/metricas-negocio')
+                ]);
 
-        const headers = { 
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-        };
-
-        const baseUrl = `http://${window.location.hostname}:8000`;
-
-        try {
-            // 1. 🌟 NUEVO: Agregamos el cuarto fetch al Promise.all
-           const [resPacientes, resExpedientes, resAgenda, resMotivos, resAlertas] = await Promise.all([
-                api.get('/dashboard/pacientes-activos', { headers }),
-                api.get('/dashboard/expedientes-pendientes', { headers }),
-                api.get('/dashboard/agenda-hoy', { headers }),
-                api.get('/estadisticas/motivos-distribucion', { headers }),
-                api.get('/dashboard/alertas-inactividad', { headers }) // 👈 NUEVO
-            ]);
-
-            // 2. Guardamos los números de las tarjetas de arriba (KPIs)
-            if (resPacientes.ok && resExpedientes.ok) {
-                const dataPacientes = await resPacientes.json();
-                const dataExpedientes = await resExpedientes.json();
-
+                // 2. Axios ya guardó la información como objeto en ".data" (nada de .json())
                 setDatosKpi({
                     pacientes: {
-                        total: dataPacientes.total,
-                        crecimiento: dataPacientes.crecimiento_mes,
-                        historial: dataPacientes.historial || {}
+                        total: resPacientes.data.total,
+                        crecimiento: resPacientes.data.crecimiento_mes,
+                        historial: resPacientes.data.historial || {}
                     },
-                   expedientes: {
-                        pendientes: dataExpedientes.cantidad_pendientes,
-                        lista: dataExpedientes.detalles || [] 
+                    expedientes: {
+                        pendientes: resExpedientes.data.cantidad_pendientes,
+                        lista: resExpedientes.data.detalles || [] 
                     }
                 });
-            }
 
-            // 3. Guardamos la línea de tiempo de abajo
-            if (resAgenda.ok) {
-                const dataAgenda = await resAgenda.json();
-                setCitasHoy(dataAgenda);
-            }
-
-            // 4. 🌟 NUEVO: Procesamos los motivos que calculó tu base de datos
-            if (resMotivos.ok) {
-                const dataMotivos = await resMotivos.json();
+                // 3. Llenamos el resto de los estados
+                setCitasHoy(resAgenda.data);
                 
-                // Mapeamos los colores que ya tenías definidos arriba en tu diseño
+                // Mapeamos colores para los motivos
                 const coloresBw = ['bg-emerald-500', 'bg-teal-400', 'bg-blue-400', 'bg-indigo-400'];
-                
-                const datosFormateados = dataMotivos.map((item, index) => ({
+                const datosFormateados = resMotivos.data.map((item, index) => ({
                     motivo: item.motivo,
                     porcentaje: item.porcentaje,
-                    color: coloresBw[index % coloresBw.length] // Asigna color según la posición
+                    color: coloresBw[index % coloresBw.length]
                 }));
-
                 setMotivosConsulta(datosFormateados);
-            }
-            // Agregalo en tu lista de fetches...
-            const resNegocio = await api.get('/dashboard/metricas-negocio', { headers });
 
-            if (resNegocio.ok) {
-                const dataNegocio = await resNegocio.json();
-                setMetricasNegocio(dataNegocio);
-            }
-            if (resAlertas.ok) {
-                    const dataAlertas = await resAlertas.json();
-                    setPacientesInactivos(dataAlertas);
-                }
+                setPacientesInactivos(resAlertas.data);
+                setMetricasNegocio(resNegocio.data);
 
-        } catch (error) {
-            console.error("Error de red cargando el dashboard:", error);
-        }
-    };
+            } catch (error) {
+                // Si el servidor falla (ej: 401, 500), lo verás aquí en la consola
+                console.error("Error de red cargando el dashboard:", error);
+            }
+        };
 
         cargarDatosArriba();
     }, []);
