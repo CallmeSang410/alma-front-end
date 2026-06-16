@@ -75,7 +75,7 @@ const Ajustes = () => {
 
     const [reporteBug, setReporteBug] = useState({ asunto: '', descripcion: '' });
 
-    // 🌟 LA FUNCIÓN MAESTRA: Unifica el guardado local y el Backend (Python)
+   // 🌟 LA FUNCIÓN MAESTRA: Unifica el guardado local y el Backend (Python)
     const handleSave = async (e) => {
         e.preventDefault();
         setIsSaving(true);
@@ -89,33 +89,28 @@ const Ajustes = () => {
 
             // 2. Avisarle a FastAPI si hay un cambio de nombre o contraseña
             try {
-                const token = localStorage.getItem('token');
-                
-                // Petición a Dervin
-                const respuesta = await api.put('/usuarios/actualizar', {
+                // Axios manda la petición limpia. El token lo pone api.js automáticamente
+                await api.put('/usuarios/actualizar', {
                     nombre_clinica: perfilData.nombreClinica,
                     password_actual: perfilData.passwordActual,
                     password: perfilData.passwordNueva
-                }, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
                 });
-                       
 
-                if (respuesta.ok) {
-                    if (perfilData.passwordNueva) {
-                        mostrarAlerta('exito', 'Perfil Actualizado', 'Tu nombre y contraseña han sido guardados en el servidor.');
-                    } else {
-                        mostrarAlerta('exito', 'Perfil Actualizado', 'El nombre de tu clínica ha sido actualizado.');
-                    }
-                    // Limpiamos las contraseñas del formulario por seguridad
-                    setPerfilData({...perfilData, passwordActual: '', passwordNueva: ''});
+                // Si Axios pasa a esta línea, es porque fue un éxito rotundo (2xx)
+                if (perfilData.passwordNueva) {
+                    mostrarAlerta('exito', 'Perfil Actualizado', 'Tu nombre y contraseña han sido guardados en el servidor.');
                 } else {
-                    mostrarAlerta('error', 'Error en el servidor', 'FastAPI no pudo guardar tus datos. (Error 404 o 422)');
+                    mostrarAlerta('exito', 'Perfil Actualizado', 'El nombre de tu clínica ha sido actualizado.');
                 }
+                
+                // Limpiamos las contraseñas del formulario por seguridad
+                setPerfilData({...perfilData, passwordActual: '', passwordNueva: ''});
+                
             } catch (error) {
-                mostrarAlerta('error', 'Error de red', 'No hay conexión con el backend en Python.');
+                console.error("Error actualizando perfil:", error);
+                // Extraemos el error de FastAPI si lo hay (ej. "Contraseña actual incorrecta")
+                const errorMsg = error.response?.data?.detail || 'FastAPI no pudo guardar tus datos o no hay conexión.';
+                mostrarAlerta('error', 'Error al Guardar', errorMsg);
             }
         }
 
