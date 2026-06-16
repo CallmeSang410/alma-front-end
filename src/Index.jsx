@@ -58,18 +58,27 @@ function App() {
   const manejarLogin = async (evento) => {
     evento.preventDefault();
     try {
-      const respuesta = await api.post("/login", {
+      // 1. Axios hace el POST y te devuelve los datos directamente en 'data'
+      const { data } = await api.post("/login", {
         username,
         password
       });
-      const data = await respuesta.json();
-      if (respuesta.ok) {
-        setToken(data.tu_gafete_digital);
-        localStorage.setItem("tokenAlma", data.tu_gafete_digital);
-      } else { setMensajeError(data.detail); }
-    } catch (error) { setMensajeError("Error de conexión."); }
-  };
-
+      
+      // 2. Si llega aquí, significa que la respuesta fue exitosa (HTTP 200)
+      setToken(data.tu_gafete_digital);
+      localStorage.setItem("tokenAlma", data.tu_gafete_digital);
+      
+    } catch (error) {
+      // 3. Si el servidor responde con un error (ej. 401 Credenciales incorrectas)
+      if (error.response && error.response.data) {
+        // Captura el 'detail' que envía FastAPI desde el backend
+        setMensajeError(error.response.data.detail || "Error al iniciar sesión.");
+      } else {
+        // Si de verdad se cayó el internet o el servidor está apagado
+        setMensajeError("Error de conexión.");
+      }
+    }
+};
   const registrarPaciente = async (e) => {
     e.preventDefault();
     try {
