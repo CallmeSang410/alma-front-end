@@ -17,14 +17,11 @@ export default function HistorialSesiones({ pacienteId, onRedactarReporte,onVerR
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 
-                if (res.ok) {
-                    const data = await res.json();
-                    setSesiones(data);
-                } else {
-                    console.error("Error al cargar el historial");
-                }
+                // 🌟 MAGIA DE AXIOS: No hay .ok ni .json(). La data ya viene lista.
+                setSesiones(res.data);
+                
             } catch (error) {
-                console.error("Error de red:", error);
+                console.error("Error al cargar el historial:", error);
             } finally {
                 setCargando(false);
             }
@@ -203,4 +200,4 @@ export default function HistorialSesiones({ pacienteId, onRedactarReporte,onVerR
             )}
         </div>
     );
-};
+}
