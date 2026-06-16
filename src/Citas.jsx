@@ -316,44 +316,40 @@ const Citas = () => {
         }
     };
     const cargarDatos = async () => {
-        const token = localStorage.getItem('token');
-        if (!token) return;
-
         try {
-            const resPacientes = await api.get('/pacientes', {
-                headers: { 'Authorization': `Bearer ${token}` }
+            // Disparamos ambas peticiones limpias
+            const [resPacientes, resCitas] = await Promise.all([
+                api.get('/pacientes'),
+                api.get('/citas')
+            ]);
+
+            // Axios guarda todo en .data
+            const pacientesDB = resPacientes.data;
+            const citasDB = resCitas.data;
+
+            setPatientsList(pacientesDB);
+
+            const citasFormateadas = citasDB.map(cita => {
+                const paciente = pacientesDB.find(p => p.id === cita.paciente_id);
+                const [fecha, horaFull] = cita.fecha_cita.split('T');
+                const hora = horaFull ? horaFull.substring(0, 5) : "00:00";
+
+                return {
+                    id: cita.id,
+                    paciente_id: cita.paciente_id,
+                    patientName: paciente ? paciente.nombre : "Paciente Eliminado/Desconocido",
+                    patientPhone: paciente ? paciente.telefono : "",
+                    date: fecha,
+                    time: hora,
+                    reason: cita.motivo,
+                    status: cita.estado || "Pendiente",
+                    atention: cita.modalidad || "Presencial",
+                    tarifa: cita.tarifa || '' 
+                };
             });
-            const resCitas = await api.get('/citas', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (resPacientes.ok && resCitas.ok) {
-                const pacientesDB = await resPacientes.json();
-                const citasDB = await resCitas.json();
-
-                setPatientsList(pacientesDB);
-
-                const citasFormateadas = citasDB.map(cita => {
-                    const paciente = pacientesDB.find(p => p.id === cita.paciente_id);
-                    const [fecha, horaFull] = cita.fecha_cita.split('T');
-                    const hora = horaFull ? horaFull.substring(0, 5) : "00:00";
-
-                    return {
-                        id: cita.id,
-                        paciente_id: cita.paciente_id,
-                        patientName: paciente ? paciente.nombre : "Paciente Eliminado/Desconocido",
-                        patientPhone: paciente ? paciente.telefono : "",
-                        date: fecha,
-                        time: hora,
-                        reason: cita.motivo,
-                        status: cita.estado || "Pendiente",
-                        atention: cita.modalidad || "Presencial",
-                        tarifa: cita.tarifa || '' 
-                    };
-                });
-                window.dispatchEvent(new Event('citasActualizadas'));
-                setAppointments(citasFormateadas);
-            }
+            window.dispatchEvent(new Event('citasActualizadas'));
+            setAppointments(citasFormateadas);
+            
         } catch (error) {
             console.error("Error al cargar los datos:", error);
         }
@@ -409,9 +405,9 @@ const Citas = () => {
         setFormErrors({});
 
         try {
-            const token = localStorage.getItem('token');
             let finalPacienteId = formData.paciente_id;
 
+            // Si es un paciente rápido nuevo
             if (isNewPatient && !formData.id) {
                 const resNuevoPaciente = await api.post('/pacientes', {
                     nombre: newPatientData.nombre,
@@ -420,16 +416,9 @@ const Citas = () => {
                     edad: null,
                     sexo: null,
                     estado: 'Pendiente',
-                }, { 'Authorization': `Bearer ${token}` });
-                
-
-                if (resNuevoPaciente.ok) {
-                    const pacienteCreado = await resNuevoPaciente.json();
-                    finalPacienteId = pacienteCreado.id; 
-                } else {
-                    mostrarAlerta('error', 'Error', 'Error al crear el paciente rápido.');
-                    return; 
-                }
+                });
+                // Guardamos el ID que nos devolvió el servidor en resNuevoPaciente.data
+                finalPacienteId = resNuevoPaciente.data.id; 
             }
 
             const fechaCombinada = `${formData.date}T${formData.time}:00`;
@@ -441,70 +430,40 @@ const Citas = () => {
                 tarifa: formData.tarifa ? parseFloat(formData.tarifa) : 0
             };
 
-            let url = formData.id ? `http://127.0.0.1:8000/citas/${formData.id}` : `http://127.0.0.1:8000/pacientes/${finalPacienteId}/citas`;
-            let method = formData.id ? 'PUT' : 'POST';
-
-            const respuesta = await api.request(url, {
-                method: method,
-                headers: { 'Authorization': `Bearer ${token}` },
-                body: datosParaCita 
-            });
-
-            if (respuesta.ok) {
-                window.dispatchEvent(new Event('actualizarRadarCitas'));
-                cargarDatos(); 
-                setView('list');
-                mostrarAlerta('exito', '¡Guardado!', formData.id ? 'Cita modificada con éxito.' : 'Cita creada con éxito.');
+            // Mandamos los datos con axios
+            if (formData.id) {
+                await api.put(`/citas/${formData.id}`, datosParaCita);
             } else {
-                mostrarAlerta('error', 'Error', 'No se pudo guardar la cita en la base de datos.');
+                await api.post(`/pacientes/${finalPacienteId}/citas`, datosParaCita);
             }
-        } catch (error) {
-            mostrarAlerta('error', 'Sin conexión', 'No pudimos conectar con el servidor.');
-        }
-    };
 
-   const confirmCancelAppointment = async () => {
-        try {
-            const respuesta = await api.delete(`/citas/${appointmentToCancel}`, {
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-            });
+            // Si Axios pasa, fue un éxito
+            window.dispatchEvent(new Event('actualizarRadarCitas'));
+            cargarDatos(); 
+            setView('list');
+            mostrarAlerta('exito', '¡Guardado!', formData.id ? 'Cita modificada con éxito.' : 'Cita creada con éxito.');
 
-            if (respuesta.ok) {
-                cargarDatos(); 
-                setAppointmentToCancel(null);
-                mostrarAlerta('exito', '¡Eliminada!', 'La cita se eliminó correctamente.');
-                
-                // 🌟 EL GRITO PARA EL CALENDARIO: Le avisa a Interface.jsx que borre el punto rojo
-                window.dispatchEvent(new Event('citasActualizadas'));
-            } else {
-                mostrarAlerta('error', 'Error', 'No se pudo eliminar la cita.');
-            }
         } catch (error) {
-            mostrarAlerta('error', 'Error', 'Ocurrió un error al intentar eliminar la cita.');
+            console.error("Error guardando cita:", error);
+            const errorMsg = error.response?.data?.detail || 'No se pudo guardar la cita en la base de datos.';
+            mostrarAlerta('error', 'Error', errorMsg);
         }
     };
 
     const handleCompletarCita = async (citaId) => {
-        const token = localStorage.getItem('token');
-        if (!token) return;
-
         try {
-            const res = await api.put(`/citas/${citaId}/completar`, {}, { 'Authorization': `Bearer ${token}` });
+            await api.put(`/citas/${citaId}/completar`, {});
 
-            if (res.ok) {
-                setAppointments(prevCitas => prevCitas.filter(cita => cita.id !== citaId));
-                mostrarAlerta('exito', '¡Completada!', 'La cita se ha marcado como completada.');
-                
-                // 🌟 EL GRITO EXTRA: Si completás la cita, el calendario también se actualiza al instante
-                window.dispatchEvent(new Event('citasActualizadas'));
-            } else {
-                mostrarAlerta('error', 'Error', 'No se pudo completar la cita.');
-            }
+            setAppointments(prevCitas => prevCitas.filter(cita => cita.id !== citaId));
+            mostrarAlerta('exito', '¡Completada!', 'La cita se ha marcado como completada.');
+            window.dispatchEvent(new Event('citasActualizadas'));
+
         } catch (error) {
-            mostrarAlerta('error', 'Error de Red', 'No pudimos conectar con el servidor.');
+            const errorMsg = error.response?.data?.detail || 'No se pudo completar la cita.';
+            mostrarAlerta('error', 'Error', errorMsg);
         }
     };
-
+    
     const filteredAppointments = appointments.filter(appt => {
         // 1. Filtro de búsqueda (texto)
         const matchesSearch = appt.patientName.toLowerCase().includes(searchQuery.toLowerCase()) || 
