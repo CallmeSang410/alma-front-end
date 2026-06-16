@@ -72,18 +72,17 @@ function Login({ onLoginSuccess }) {
 
     // --- 2. LLAMADAS AL BACKEND (AXIOS PURO) ---
     try {
-      if (activeTab === 'login') {
-        // Para Login: FastAPI exige formato de formulario
-        const datosFormulario = new URLSearchParams();
-        datosFormulario.append('username', email); // FastAPI busca 'username'
-        datosFormulario.append('password', password);
+     if (activeTab === 'login') {
+        // Volvemos a lo simple: un objeto normal.
+        // Ojo: Usamos "email", pero si tu backend pide "username", cambialo a username: email
+        const datosLogin = {
+          email: email,
+          password: password
+        };
 
-        // Axios manda la petición. Si algo falla, salta directo al catch.
-        const respuesta = await api.post('/login', datosFormulario, {
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-        });
+        // Axios ya sabe que esto es JSON, no le ponemos headers raros
+        const respuesta = await api.post('/login', datosLogin);
 
-        // Ya no hay .json(), la data viene lista en respuesta.data
         const datosServidor = respuesta.data;
         const tokenReal = datosServidor.tu_gafete_digital;
 
