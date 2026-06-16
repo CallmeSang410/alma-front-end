@@ -131,24 +131,29 @@ const Reportes = () => {
                     const citaAsociada = citasDB.find(c => c.id === rep.cita_id);
                     const pacienteAsociado = citaAsociada ? pacientesDB.find(p => p.id === citaAsociada.paciente_id) : null;
                     
-                    // 🌟 MAGIA PARA LAS TARJETAS: Embellecemos el texto si no hay diagnóstico
+                    // 🌟 MAGIA PARA LAS TARJETAS: Embellecemos el texto principal y cuidamos la privacidad
                     let textoDiagnostico = rep.diagnostico_final || "";
-                    if (!textoDiagnostico || textoDiagnostico.toLowerCase().includes('sin diagnóstico')) {
+                    
+                    // Verificamos si es seguimiento
+                    const esSeguimientoVisual = !textoDiagnostico || textoDiagnostico.toLowerCase().includes('sin diagnóstico') || textoDiagnostico.toLowerCase().includes('seguimiento');
+                    
+                    if (esSeguimientoVisual) {
                         textoDiagnostico = "🔄 Sesión de Seguimiento Terapéutico";
-                    } else if (textoDiagnostico.toLowerCase().includes('seguimiento')) {
-                        textoDiagnostico = "🔄 Sesión de Seguimiento Terapéutico";
+                    } else {
+                        // 🌟 NUEVO: Si es un diagnóstico real, lo ocultamos y ponemos "Informe Psicológico"
+                        textoDiagnostico = "📋 Informe Psicológico";
                     }
                     
-                   return {
+                    return {
                         id: rep.id,
-                        
-                        // 🌟 ESTA ES LA LÍNEA NUEVA QUE FALTA:
-                        paciente_id: pacienteAsociado ? pacienteAsociado.id : null, 
-                        
+                        paciente_id: pacienteAsociado ? pacienteAsociado.id : null,
                         serialNumber: pacienteAsociado ? `CD-${String(pacienteAsociado.id).padStart(4, '0')}` : `CD-0000`,
                         patientName: pacienteAsociado ? pacienteAsociado.nombre : "Paciente Desconocido",
                         date: new Date(rep.fecha_generacion).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }),
+                        
+                        // 🌟 APLICAMOS EL TEXTO EMBELLECIDO AQUÍ
                         diagnosis: textoDiagnostico, 
+                        
                         nextStep: rep.plan_accion || 'No especificado',
                         status: "Cerrado",
                         fullData: rep 
@@ -230,6 +235,7 @@ const Reportes = () => {
             } else {
                 setFormData(prev => ({ ...prev, analisis_ia: "⚠️ No se pudo generar el análisis. Procedé con tu evaluación manual." }));
             }
+        
         } catch (error) {
             setFormData(prev => ({ ...prev, analisis_ia: "⚠️ Error de conexión con la IA." }));
         } finally {
@@ -395,6 +401,7 @@ const Reportes = () => {
         }
         
         setFormErrors({});
+        
         
         // Activamos el modo manual, limpiamos cualquier rastro de IA y lo mandamos al Paso 4
         setModoManual(true);
@@ -1083,11 +1090,17 @@ const Reportes = () => {
                 ${!esReporteSeguimiento ? '<p style="font-size: 9pt; color: #64748b;"><i>* Sección procesada mediante ALMA AI (HorizonFlow Cognitive Module)</i></p>' : ''}
                 <div>${analisisIA}</div>
 
+                // VI. DIAGNÓSTICO CLÍNICO (Solo si no es seguimiento)
                 ${!esReporteSeguimiento ? `
-                <h2>VI. Diagnóstico Clínico</h2>
-                <div class="diag-box">
-                    ${activeReport.diagnosis || repData.diagnostico_final}
-                </div>
+                <h2 class="section-title">VI. DIAGNÓSTICO CLÍNICO</h2>
+                <table class="data-table">
+                    <tr>
+                        <td style="padding: 15px; text-align: center; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+                            <!-- 🌟 EL ARREGLO PARA WORD: Data cruda -->
+                            <strong>${activeReport.fullData.diagnostico_final}</strong>
+                        </td>
+                    </tr>
+                </table>
                 ` : ''}
 
                 <h2>${esReporteSeguimiento ? 'VI. Plan a Seguir' : 'VII. Recomendaciones y Plan a Seguir'}</h2>
@@ -1117,7 +1130,15 @@ const Reportes = () => {
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = `Expediente_${activeReport.patientName.replace(/\s+/g, '_')}.doc`;
+           
+            
+            
+            // 🌟 NUEVO: Nombramiento dinámico del archivo según el tipo de reporte
+            const nombreFormateado = activeReport.patientName.replace(/\s+/g, '_');
+            link.download = esReporteSeguimiento 
+                ? `Seguimiento_Terapeutico_${nombreFormateado}.doc` 
+                : `Informe_Psicologico_${nombreFormateado}.doc`;
+                
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -1228,41 +1249,40 @@ const Reportes = () => {
                         
 
                         {/* VI. DIAGNÓSTICO CLÍNICO (🌟 DESAPARECE SI ES SEGUIMIENTO) */}
-                        {!esReporteSeguimiento && (
+                         {!esReporteSeguimiento && (
                             <section className="print:break-inside-avoid mb-8 pb-2">
                                 <h2 className="text-sm font-black text-[#113130] uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 font-sans">VI. Diagnóstico Clínico</h2>
-                                <p className="text-xl font-bold text-[#113130] bg-slate-50 p-5 rounded-2xl text-center font-sans border border-slate-200 shadow-inner">
-                                    {activeReport.diagnosis || repData.diagnostico_final}
-                                </p>
+                                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 text-center">
+                                    {/* 🌟 EL ARREGLO: Leemos la base de datos original, no la tarjeta */}
+                                    <span className="font-bold text-slate-700 text-lg">
+                                        {activeReport.fullData.diagnostico_final}
+                                    </span>
+                                </div>
                             </section>
                         )}
 
-                        {/* VII. RECOMENDACIONES Y PLAN A SEGUIR */}
-                        <section className="mb-8 pb-2 print:block print:break-inside-avoid">
-                            <h2 className="text-sm font-black text-[#113130] uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 font-sans print:break-after-avoid">
+                        {/* SECCIÓN DE RECOMENDACIONES Y PLAN DE ACCIÓN */}
+                        <section className="print:break-inside-avoid mb-8 pb-2">
+                            <h2 className="text-sm font-black text-[#113130] uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 font-sans">
                                 {esReporteSeguimiento ? "VI. Plan a Seguir" : "VII. Recomendaciones y Plan a Seguir"}
                             </h2>
                             
-                            {/* 🌟 Las recomendaciones desaparecen en seguimiento, solo queda el cuadrito del plan */}
-                            {!esReporteSeguimiento && repData.recomendaciones && (
-                                <p className="text-[15px] whitespace-pre-wrap text-slate-700 mb-6">
-                                    {repData.recomendaciones}
-                                </p>
-                            )}
+                            {/* 🌟 AQUÍ ESTABA EL ERROR: Aseguramos que imprima el texto siempre */}
+                            <p className="text-sm text-slate-700 leading-relaxed font-sans mb-6 text-justify">
+                                {activeReport.fullData.recomendaciones || activeReport.recommendations || "Continuar con el proceso terapéutico."}
+                            </p>
                             
-                            {repData.plan_accion && (
-                                <div className="mt-4 mb-6">
-                                    <h4 className="text-[15px] font-bold text-[#113130] mb-3">Plan de Acción:</h4>
-                                    <div className="bg-slate-50/80 rounded-xl p-4 border border-slate-100 inline-flex items-center gap-4 print:border-slate-200 print:bg-slate-50">
-                                        <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">
-                                            Decisión Clínica:
-                                        </span>
-                                        <span className="bg-indigo-100 text-indigo-700 font-bold uppercase tracking-wider text-[11px] px-4 py-2 rounded-lg border border-indigo-200/50 shadow-sm print:bg-transparent print:border-indigo-300 print:shadow-none">
-                                            {repData.plan_accion}
-                                        </span>
-                                    </div>
+                            {/* La cajita de la decisión clínica */}
+                            <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 flex items-center gap-4">
+                                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                    Decisión Clínica:
                                 </div>
-                            )}
+                                <div className="bg-indigo-100 text-indigo-700 font-bold text-xs px-3 py-1.5 rounded-lg uppercase tracking-wide">
+                                    {activeReport.fullData?.plan_accion && activeReport.fullData.plan_accion !== "No especificado" 
+                                        ? activeReport.fullData.plan_accion 
+                                        : "SEGUIMIENTO TERAPÉUTICO"}
+                                </div>
+                            </div>
                         </section>
 
                         {/* FIRMAS (ÚNICAS Y ORIGINALES) */}

@@ -154,11 +154,15 @@ export default function Interface({ onLogout }) {
                         const pacienteEncontrado = dataPacientes.find(p => p.id === c.paciente_id);
                         const nombreReal = pacienteEncontrado ? (pacienteEncontrado.nombre || pacienteEncontrado.nombres) : 'Paciente Eliminado';
                         
+                        // 🌟 BLINDAJE: Agarramos 'estado' o 'status' y lo pasamos a minúsculas para que no falle
+                        const estadoLimpio = (c.estado || c.status || 'pendiente').toLowerCase();
+
                         return {
                             fecha: fechaLimpia, 
                             paciente: nombreReal,
                             hora: horaExtraida,
-                            modalidad: c.modalidad || 'Presencial'
+                            modalidad: c.modalidad || 'Presencial',
+                            estado: estadoLimpio 
                         };
                     });
                     
@@ -180,14 +184,23 @@ export default function Interface({ onLogout }) {
     }, []);
 
     // ================= FUNCIONES DEL CALENDARIO =================
+    // ================= FUNCIONES DEL CALENDARIO =================
     const tieneCitas = (day) => {
         const fechaStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        return citasGlobales.some(c => c.fecha === fechaStr);
+        
+        // 🌟 Verifica que coincida la fecha y que NO sea cancelada ni completada
+        return citasGlobales.some(c => 
+            c.fecha === fechaStr && 
+            c.estado !== 'cancelada' && 
+            c.estado !== 'completada'
+        );
     };
 
     const citasDelDiaSeleccionado = citasGlobales.filter(c => {
         const fechaStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(diaSeleccionado).padStart(2, '0')}`;
-        return c.fecha === fechaStr;
+        
+        // 🌟 Aplica el MISMO filtro a las tarjetitas de abajo
+        return c.fecha === fechaStr && c.estado !== 'cancelada' && c.estado !== 'completada';
     });
 
     const menuItems = [

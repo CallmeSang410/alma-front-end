@@ -350,7 +350,7 @@ const Citas = () => {
                         tarifa: cita.tarifa || '' 
                     };
                 });
-
+                window.dispatchEvent(new Event('citasActualizadas'));
                 setAppointments(citasFormateadas);
             }
         } catch (error) {
