@@ -38,10 +38,11 @@ function Login({ onLoginSuccess }) {
     button:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.18); }
   `;
 
-  const handleSubmit = async (e) => {
+ const handleSubmit = async (e) => {
     e.preventDefault();
     const errors = {};
 
+    // --- 1. VALIDACIONES ---
     if (activeTab === 'signup') {
       if (!clinicName.trim()) {
         errors.clinicName = 'El nombre del consultorio es obligatorio.';
@@ -69,41 +70,39 @@ function Login({ onLoginSuccess }) {
     setFormErrors({ email: '', password: '', clinicName: '', terms: '' });
     setIsLoading(true);
 
+    // --- 2. LLAMADAS AL BACKEND (AXIOS PURO) ---
     try {
       if (activeTab === 'login') {
-        const datosLogin = {
-          email: email,
-          password: password
-        };
+        // Para Login: FastAPI exige formato de formulario
+        const datosFormulario = new URLSearchParams();
+        datosFormulario.append('username', email); // FastAPI busca 'username'
+        datosFormulario.append('password', password);
 
-        const respuesta = await api.post('/login', datosLogin);
+        // Axios manda la petición. Si algo falla, salta directo al catch.
+        const respuesta = await api.post('/login', datosFormulario, {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+        });
 
-       if (respuesta.ok) {
-          const datosServidor = await respuesta.json();
-          const tokenReal = datosServidor.tu_gafete_digital;
+        // Ya no hay .json(), la data viene lista en respuesta.data
+        const datosServidor = respuesta.data;
+        const tokenReal = datosServidor.tu_gafete_digital;
 
-          if (!tokenReal) {
-            mostrarAlerta('error', 'Error Interno', 'No se recibió la llave de acceso del servidor.'); 
-            return;
-          }
-  
-          localStorage.setItem('token', tokenReal);
-          
-          // 🌟 AQUÍ ESTÁ EL CAMBIO: Guardamos el correo real del usuario (la variable "email")
-          localStorage.setItem('userEmail', email); 
-          // Le decimos que intente agarrar el nombre real que manda el backend, 
-          // y si el backend no lo manda, que deje el que ya estaba en la memoria, o "Psicólogo" por defecto.
-          const nombreReal = datosServidor.nombre_clinica || localStorage.getItem('userName') || 'Psicólogo';
-          localStorage.setItem('userName', nombreReal);
-          
-          mostrarAlerta('exito', '¡Bienvenido!', 'Has iniciado sesión exitosamente.'); 
-          if (onLoginSuccess) onLoginSuccess(); 
-        } else {
-          const errorData = await respuesta.json();
-          const errorMsg = typeof errorData.detail === 'string' ? errorData.detail : 'El correo o la contraseña son incorrectos.';
-          mostrarAlerta('error', 'Acceso Denegado', errorMsg); 
+        if (!tokenReal) {
+          mostrarAlerta('error', 'Error Interno', 'No se recibió la llave de acceso del servidor.'); 
+          return;
         }
+  
+        localStorage.setItem('token', tokenReal);
+        localStorage.setItem('userEmail', email); 
+        
+        const nombreReal = datosServidor.nombre_clinica || localStorage.getItem('userName') || 'Psicólogo';
+        localStorage.setItem('userName', nombreReal);
+          
+        mostrarAlerta('exito', '¡Bienvenido!', 'Has iniciado sesión exitosamente.'); 
+        if (onLoginSuccess) onLoginSuccess(); 
+
       } else {
+        // Para Registro (Sign Up): JSON normal
         const datosNuevoUsuario = {
           email: email,
           password: password,
@@ -111,21 +110,26 @@ function Login({ onLoginSuccess }) {
           rol: role
         };
 
-        const respuesta = await api.post('/usuarios', datosNuevoUsuario);
+        await api.post('/usuarios', datosNuevoUsuario);
 
-        if (respuesta.ok) {
-          mostrarAlerta('exito', '¡Cuenta Creada!', 'Se ha creado tu cuenta en HorizonFlow. Ahora inicia sesión.'); 
-          setActiveTab('login'); 
-          setPassword(''); 
-        } else {
-          const errorData = await respuesta.json();
-          const errorMsg = typeof errorData.detail === 'string' ? errorData.detail : 'Hubo un error al crear la cuenta.';
-          mostrarAlerta('error', 'Error de Registro', errorMsg); 
-        }
+        // Si la línea de arriba no falló, fue un éxito
+        mostrarAlerta('exito', '¡Cuenta Creada!', 'Se ha creado tu cuenta en HorizonFlow. Ahora inicia sesión.'); 
+        setActiveTab('login'); 
+        setPassword(''); 
       }
+
     } catch (error) {
-      console.error("Error de servidor:", error);
-      mostrarAlerta('error', 'Error de Conexión', 'No se pudo conectar con el servidor. Verifica que FastAPI esté encendido.'); 
+      // --- 3. MANEJO DE ERRORES ---
+      console.error("Error capturado por Axios:", error);
+      
+      // Axios extrae el mensaje de FastAPI (ej: "Este correo ya está registrado")
+      const errorMsg = error.response?.data?.detail || 'Hubo un error de conexión con el servidor.';
+      
+      if (activeTab === 'login') {
+        mostrarAlerta('error', 'Acceso Denegado', errorMsg); 
+      } else {
+        mostrarAlerta('error', 'Error de Registro', errorMsg); 
+      }
     } finally {
       setIsLoading(false);
     }
