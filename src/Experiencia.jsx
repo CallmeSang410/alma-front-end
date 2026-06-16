@@ -229,11 +229,11 @@ const Experiencia = () => {
                 { label: '2 Estrellas (Malo)', count: contar('q1_satisfaccion_general', 2), color: 'bg-orange-400' },
                 { label: '1 Estrella (Pésimo)', count: contar('q1_satisfaccion_general', 1), color: 'bg-rose-500' }
             ],
-            Q2_expectativas: [
-                { label: 'Superó ampliamente', count: contar('q2_cumplimiento_expectativas', 'Superó ampliamente'), color: 'bg-emerald-600', hex: '#059669' },
-                { label: 'Cumplió totalmente', count: contar('q2_cumplimiento_expectativas', 'Cumplió totalmente'), color: 'bg-teal-400', hex: '#2DD4BF' },
+           Q2_expectativas: [
+                { label: 'Superó ampliamente', count: contar('q2_cumplimiento_expectativas', 'Superó ampliamente mis expectativas'), color: 'bg-emerald-600', hex: '#059669' },
+                { label: 'Cumplió totalmente', count: contar('q2_cumplimiento_expectativas', 'Cumplió totalmente mis expectativas'), color: 'bg-teal-400', hex: '#2DD4BF' },
                 { label: 'Cumplió parcialmente', count: contar('q2_cumplimiento_expectativas', 'Cumplió parcialmente'), color: 'bg-amber-400', hex: '#FBBF24' },
-                { label: 'No cumplió', count: contar('q2_cumplimiento_expectativas', 'No cumplió'), color: 'bg-rose-500', hex: '#F43F5E' }
+                { label: 'No cumplió', count: contar('q2_cumplimiento_expectativas', 'No cumplió mis expectativas'), color: 'bg-rose-500', hex: '#F43F5E' }
             ],
             Q3_empatia: [
                 { label: 'Sí, en todo momento', count: contar('q3_empatia_conexion', 'Sí, en todo momento'), color: 'bg-emerald-600', hex: '#059669' },
@@ -253,11 +253,11 @@ const Experiencia = () => {
                 { label: '3 Estrellas', count: contar('q5_instalaciones', 3), color: 'bg-amber-400' },
                 { label: '1 - 2 Estrellas', count: contar('q5_instalaciones', 2) + contar('q5_instalaciones', 1), color: 'bg-rose-500' }
             ],
-            Q6_claridad: [
-                { label: 'Totalmente claras', count: contar('q6_claridad_pautas', 'Totalmente claras'), color: 'bg-emerald-600', hex: '#059669' },
+           Q6_claridad: [
+                { label: 'Totalmente claras', count: contar('q6_claridad_pautas', 'Totalmente claras y fáciles de aplicar'), color: 'bg-emerald-600', hex: '#059669' },
                 { label: 'Claras en su mayoría', count: contar('q6_claridad_pautas', 'Claras en su mayoría'), color: 'bg-teal-400', hex: '#2DD4BF' },
-                { label: 'Me quedaron dudas', count: contar('q6_claridad_pautas', 'Me quedaron dudas'), color: 'bg-amber-400', hex: '#FBBF24' },
-                { label: 'Fueron confusas', count: contar('q6_claridad_pautas', 'Fueron confusas'), color: 'bg-rose-500', hex: '#F43F5E' }
+                { label: 'Me quedaron dudas', count: contar('q6_claridad_pautas', 'Me quedaron algunas dudas sobre cómo aplicarlas'), color: 'bg-amber-400', hex: '#FBBF24' },
+                { label: 'Fueron confusas', count: contar('q6_claridad_pautas', 'Fueron confusas o poco claras'), color: 'bg-rose-500', hex: '#F43F5E' }
             ],
             Q7_animo: [
                 { label: 'Mucho mejor', count: contar('q7_impacto_animo', 'Mucho mejor'), color: 'bg-emerald-500' },
@@ -265,17 +265,18 @@ const Experiencia = () => {
                 { label: 'Igual', count: contar('q7_impacto_animo', 'Igual'), color: 'bg-slate-300' },
                 { label: 'Peor', count: contar('q7_impacto_animo', 'Peor'), color: 'bg-rose-400' }
             ],
+            
             Q8_confianza: [
-                { label: 'Completamente seguro', count: contar('q8_confianza_seguridad', 'Completamente seguro'), color: 'bg-emerald-600', hex: '#059669' },
-                { label: 'En su mayor parte', count: contar('q8_confianza_seguridad', 'En su mayor parte'), color: 'bg-teal-400', hex: '#2DD4BF' },
-                { label: 'Me costó abrirme', count: contar('q8_confianza_seguridad', 'Me costó abrirme'), color: 'bg-amber-400', hex: '#FBBF24' },
-                { label: 'No me sentí seguro', count: contar('q8_confianza_seguridad', 'No me sentí seguro'), color: 'bg-rose-500', hex: '#F43F5E' }
+                { label: 'Completamente seguro', count: contar('q8_confianza_seguridad', 'Sí, me sentí completamente seguro(a) y en confianza'), color: 'bg-emerald-600', hex: '#059669' },
+                { label: 'En su mayor parte', count: contar('q8_confianza_seguridad', 'En su mayor parte me sentí cómodo(a)'), color: 'bg-teal-400', hex: '#2DD4BF' },
+                { label: 'Me costó abrirme', count: contar('q8_confianza_seguridad', 'Me costó un poco abrirme en este espacio'), color: 'bg-amber-400', hex: '#FBBF24' },
+                { label: 'No me sentí seguro', count: contar('q8_confianza_seguridad', 'No me sentí seguro(a) ni en confianza'), color: 'bg-rose-500', hex: '#F43F5E' }
             ],
             Q9_recomendacion: [
-                { label: 'Definitivamente', count: contar('q9_indice_recomendacion', 'Definitivamente'), color: 'bg-emerald-600', hex: '#059669' },
-                { label: 'Probablemente', count: contar('q9_indice_recomendacion', 'Probablemente'), color: 'bg-teal-400', hex: '#2DD4BF' },
+                { label: 'Definitivamente', count: contar('q9_indice_recomendacion', 'Definitivamente lo recomendaría'), color: 'bg-emerald-600', hex: '#059669' },
+                { label: 'Probablemente', count: contar('q9_indice_recomendacion', 'Probablemente lo recomendaría'), color: 'bg-teal-400', hex: '#2DD4BF' },
                 { label: 'Poco probable', count: contar('q9_indice_recomendacion', 'Poco probable'), color: 'bg-amber-400', hex: '#FBBF24' },
-                { label: 'Definitivamente no', count: contar('q9_indice_recomendacion', 'Definitivamente no'), color: 'bg-rose-500', hex: '#F43F5E' }
+                { label: 'Definitivamente no', count: contar('q9_indice_recomendacion', 'Definitivamente no lo recomendaría'), color: 'bg-rose-500', hex: '#F43F5E' }
             ],
             Q10_comentarios: datosCrudos
                 .filter(d => d.q10_comentarios && d.q10_comentarios.trim() !== '')

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import logo from './assets/logo.png';
 import { useParams } from 'react-router-dom';
-import { useAlerta, AlertaProvider } from './AlertaContext.jsx'; // 🌟 1. IMPORTAMOS LAS ALERTAS
+import { useAlerta, AlertaProvider } from './AlertaContext.jsx'; 
 // import './Formulario.css'; // <-- DESCOMENTA ESTA LÍNEA EN TU VS CODE
 
+// Fallback por si la imagen logo.png no carga
 const LogoSVG = ({ className }) => (
     <svg className={className} viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M40 20 L50 60 L60 20 M30 30 L40 70 L50 30" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
@@ -12,7 +13,7 @@ const LogoSVG = ({ className }) => (
     </svg>
 );
 
-// `Logo` usa `logo.png` si existe; de lo contrario hace fallback al SVG.
+// 🌟 COMPONENTE DEL LOGO OPTIMIZADO
 const Logo = ({ className, alt = 'HorizonFlow' }) => {
     if (logo) {
         return <img src={logo} alt={alt} className={`${className} object-contain`} />;
@@ -32,9 +33,7 @@ const IconClipboard = () => (
     </svg>
 );
 
-// 🌟 2. CAMBIAMOS EL NOMBRE DEL COMPONENTE PARA PODER ENVOLVERLO LUEGO
 const FormularioContent = () => {
-    // 🌟 INICIALIZAMOS LAS ALERTAS
     const contextoAlerta = useAlerta();
     const mostrarAlerta = contextoAlerta ? contextoAlerta.mostrarAlerta : (t, tit, msj) => alert(`${tit}: ${msj}`);
 
@@ -80,13 +79,11 @@ const FormularioContent = () => {
     const handleSubmit = async (e) => { 
         e.preventDefault();
         
-        // Validación
         const faltanEscalas = ['q1_satisfaccion_general', 'q5_instalaciones'].some(key => respuestas[key] === 0);
         const faltanSeleccionesUnicas = ['q2_cumplimiento_expectativas', 'q3_empatia_conexion', 'q6_claridad_pautas', 'q7_impacto_animo', 'q9_indice_recomendacion', 'q8_confianza_seguridad'].some(key => respuestas[key] === '');
         const faltanSeleccionesMultiples = respuestas.q4_aspectos_valorados.length === 0;
         
         if (faltanEscalas || faltanSeleccionesUnicas || faltanSeleccionesMultiples) {
-            // 🌟 ALERTA PREMIUM PARA CAMPOS FALTANTES
             mostrarAlerta('error', 'Faltan Respuestas', 'Por favor, respondé todas las preguntas (excepto la 10) antes de enviar.');
             return;
         }
@@ -126,14 +123,17 @@ const FormularioContent = () => {
             } else {
                 const errorData = await res.json();
                 console.error("Error Backend:", errorData);
-                // 🌟 ALERTA PREMIUM PARA ERROR DEL SERVIDOR (422)
                 mostrarAlerta('error', 'Error al Guardar', 'Hubo un problema al guardar la encuesta. Revisá las opciones seleccionadas.');
             }
         } catch (error) {
             console.error("Error de Red:", error);
-            // 🌟 ALERTA PREMIUM PARA ERROR DE CORS O RED CAÍDA
             mostrarAlerta('error', 'Sin Conexión', 'El servidor no responde. Por favor, revisá tu conexión a internet.');
         }
+    };
+
+    const cerrarVentana = () => {
+        window.open('', '_self', '');
+        window.close();
     };
 
     const EscalaPuntuacion = ({ preguntaId }) => {
@@ -227,16 +227,14 @@ const FormularioContent = () => {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
                         </svg>
                     </div>
-                    <h2 className="text-2xl font-bold text-[#113130] mb-3">Evaluación Recibida</h2>
+                    <h2 className="text-2xl font-bold text-[#113130] mb-3">¡Evaluación Recibida!</h2>
                     <p className="text-slate-600 text-sm leading-relaxed mb-8">
                         Agradecemos profundamente su tiempo. Sus respuestas han sido registradas de forma confidencial y serán utilizadas exclusivamente para mantener nuestros estándares de excelencia clínica.
                     </p>
-                    <button 
-                        onClick={() => window.close()} 
-                        className="w-full py-3.5 bg-[#0F766E] text-white rounded-xl font-semibold text-sm hover:bg-[#0D9488] transition-colors shadow-sm"
-                    >
-                        Finalizar y cerrar
-                    </button>
+                    <div className="bg-teal-50 border border-teal-100 rounded-xl p-4 flex items-center justify-center gap-3">
+                        <svg className="w-5 h-5 text-[#0F766E]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                        <span className="text-[#0F766E] font-bold text-sm">Ya podés cerrar esta pestaña con seguridad.</span>
+                    </div>
                 </div>
             </div>
         );
@@ -247,11 +245,12 @@ const FormularioContent = () => {
             <div className="min-h-screen bg-[#F4F8F8] font-sans flex flex-col items-center justify-center p-4 sm:p-6 animate-fade-in">
                 <div className="max-w-2xl w-full bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
                     
-                    {/* Encabezado Institucional */}
-                    <div className="bg-[#113130] py-10 px-8 flex flex-col items-center text-center relative">
-                        <LogoSVG className="h-16 w-auto text-white drop-shadow-lg mb-4" />
+                    {/* 🌟 ENCABEZADO CON TAMAÑO DE LOGO EQUILIBRADO */}
+                    <div className="bg-[#113130] pt-10 pb-8 px-6 sm:px-8 flex flex-col items-center text-center relative">
+                        <Logo className="w-48 sm:w-56 md:w-64 h-auto mb-6 drop-shadow-lg" />
+                        
                         <h1 className="text-white text-xl sm:text-2xl font-bold tracking-tight">Protocolo de Calidad Asistencial</h1>
-                        <div className="h-px w-16 bg-teal-500/50 my-3"></div>
+                        <div className="h-px w-16 bg-teal-500/50 my-4"></div>
                         <p className="text-teal-100/90 text-xs uppercase tracking-widest font-semibold">
                             Evaluación Confidencial del Paciente
                         </p>
@@ -268,16 +267,14 @@ const FormularioContent = () => {
                             </p>
                             
                             <div className="grid gap-4 sm:grid-cols-2 mt-4">
-                                {/* Tarjeta: Confidencialidad */}
                                 <div className="flex flex-col gap-2 bg-teal-50/50 p-5 rounded-2xl border border-teal-100/50">
                                     <IconShield />
-                                    <h3 className="font-bold text-[#0F766E]">Secreto Médico y Anonimato</h3>
+                                    <h3 className="font-bold text-[#0F766E]">Privacidad y Confidencialidad Exclusiva</h3>
                                     <p className="text-xs text-slate-600">
-                                        Sus respuestas serán procesadas de manera <strong>estrictamente confidencial</strong>. El sistema consolida los datos estadísticamente, desvinculándolos por completo de su expediente clínico o identidad.
+                                        Sus respuestas son <strong>estrictamente anónimas</strong>. Esta información viaja de forma segura y es enviada de manera exclusiva a su psicólogo tratante. <strong>Nadie más tiene acceso a esta información</strong>, garantizando que usted pueda expresarse con total libertad.
                                     </p>
                                 </div>
 
-                                {/* Tarjeta: Instrucciones */}
                                 <div className="flex flex-col gap-2 bg-slate-50 p-5 rounded-2xl border border-slate-200">
                                     <IconClipboard />
                                     <h3 className="font-bold text-slate-700">Instrucciones de Llenado</h3>
@@ -308,9 +305,7 @@ const FormularioContent = () => {
     return (
         <div className="min-h-screen bg-[#F4F8F8] font-sans pb-16 animate-fade-in relative">
             
-            {/* Barra de navegación superior fija */}
-            <header className="bg-white py-4 px-4 sm:px-6 shadow-sm sticky top-0 z-50 border-b border-slate-200 flex items-center justify-between">
-                <LogoSVG className="h-7 sm:h-8 w-auto text-[#113130]" />
+            <header className="bg-white py-4 px-4 sm:px-6 shadow-sm sticky top-0 z-50 border-b border-slate-200 flex items-center justify-end">
                 <div className="flex items-center gap-3">
                     <button 
                         type="button"
@@ -321,14 +316,15 @@ const FormularioContent = () => {
                         <span className="hidden sm:inline">Ver instructivo</span>
                         <span className="sm:hidden">Volver</span>
                     </button>
-                    <span className="hidden md:inline-block text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-100 px-3 py-1.5 rounded-full">Evaluación Confidencial</span>
+                    <span className="hidden md:inline-block text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200">
+                        Evaluación Confidencial
+                    </span>
                 </div>
             </header>
 
             <main className="max-w-2xl mx-auto px-4 sm:px-6 mt-6">
                 <form onSubmit={handleSubmit} className="space-y-6 relative">
                     
-                    {/* SECCIÓN 1: Evaluación Clínica */}
                     <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200">
                         <h3 className="text-xs font-black text-[#0F766E] uppercase tracking-widest mb-6 border-b border-slate-100 pb-2">Evaluación Clínica General</h3>
                         
@@ -354,7 +350,6 @@ const FormularioContent = () => {
                         </div>
                     </div>
 
-                    {/* SECCIÓN 2: Experiencia e Instalaciones */}
                     <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200">
                         <h3 className="text-xs font-black text-[#0F766E] uppercase tracking-widest mb-6 border-b border-slate-100 pb-2">Experiencia en Consultorio</h3>
                         
@@ -378,7 +373,6 @@ const FormularioContent = () => {
                         </div>
                     </div>
 
-                    {/* SECCIÓN 3: Impacto y Recomendación */}
                     <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200">
                         <h3 className="text-xs font-black text-[#0F766E] uppercase tracking-widest mb-6 border-b border-slate-100 pb-2">Impacto y Recomendación</h3>
                         
@@ -425,7 +419,6 @@ const FormularioContent = () => {
                         </div>
                     </div>
 
-                    {/* SECCIÓN 4: Abierta */}
                     <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200">
                         <label className="block text-sm font-bold text-[#113130] mb-2">
                             10. Sugerencias y Oportunidades de Mejora <span className="text-slate-400 font-normal text-xs ml-1">(Opcional)</span>
@@ -439,7 +432,6 @@ const FormularioContent = () => {
                         />
                     </div>
 
-                    {/* Botón de Enviar Final */}
                     <div className="pt-4 pb-8">
                         <button 
                             type="submit"
@@ -465,7 +457,6 @@ const FormularioContent = () => {
     );
 };
 
-// 🌟 3. ENVOLVEMOS EL FORMULARIO CON EL ESCUDO
 export default function Formulario() {
     return (
         <AlertaProvider>
