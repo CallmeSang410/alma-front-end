@@ -121,58 +121,58 @@ const Reportes = () => {
                 api.get('/reportes')
             ]);
 
-            if (resPacientes.ok && resCitas.ok && resReportes.ok) {
-                const pacientesDB = await resPacientes.json();
-                const citasDB = await resCitas.json();
-                const reportesDB = await resReportes.json();
+            // En axios, la data ya viene parseada en 'data', no usamos .json() ni comprobamos .ok
+            const pacientesDB = resPacientes.data;
+            const citasDB = resCitas.data;
+            const reportesDB = resReportes.data;
 
-                setPatientsData(pacientesDB);
+            setPatientsData(pacientesDB);
 
-                const reportesFormateados = reportesDB.map(rep => {
-                    const citaAsociada = citasDB.find(c => c.id === rep.cita_id);
-                    const pacienteAsociado = citaAsociada ? pacientesDB.find(p => p.id === citaAsociada.paciente_id) : null;
+            const reportesFormateados = reportesDB.map(rep => {
+                const citaAsociada = citasDB.find(c => c.id === rep.cita_id);
+                const pacienteAsociado = citaAsociada ? pacientesDB.find(p => p.id === citaAsociada.paciente_id) : null;
+                
+                // 🌟 MAGIA PARA LAS TARJETAS: Embellecemos el texto principal y cuidamos la privacidad
+                let textoDiagnostico = rep.diagnostico_final || "";
+                
+                // Verificamos si es seguimiento
+                const esSeguimientoVisual = !textoDiagnostico || textoDiagnostico.toLowerCase().includes('sin diagnóstico') || textoDiagnostico.toLowerCase().includes('seguimiento');
+                
+                if (esSeguimientoVisual) {
+                    textoDiagnostico = "🔄 Sesión de Seguimiento Terapéutico";
+                } else {
+                    // 🌟 NUEVO: Si es un diagnóstico real, lo ocultamos y ponemos "Informe Psicológico"
+                    textoDiagnostico = "📋 Informe Psicológico";
+                }
+                
+                return {
+                    id: rep.id,
+                    paciente_id: pacienteAsociado ? pacienteAsociado.id : null,
+                    serialNumber: pacienteAsociado ? `CD-${String(pacienteAsociado.id).padStart(4, '0')}` : `CD-0000`,
+                    patientName: pacienteAsociado ? pacienteAsociado.nombre : "Paciente Desconocido",
+                    date: new Date(rep.fecha_generacion).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }),
                     
-                    // 🌟 MAGIA PARA LAS TARJETAS: Embellecemos el texto principal y cuidamos la privacidad
-                    let textoDiagnostico = rep.diagnostico_final || "";
+                    // 🌟 APLICAMOS EL TEXTO EMBELLECIDO AQUÍ
+                    diagnosis: textoDiagnostico, 
                     
-                    // Verificamos si es seguimiento
-                    const esSeguimientoVisual = !textoDiagnostico || textoDiagnostico.toLowerCase().includes('sin diagnóstico') || textoDiagnostico.toLowerCase().includes('seguimiento');
-                    
-                    if (esSeguimientoVisual) {
-                        textoDiagnostico = "🔄 Sesión de Seguimiento Terapéutico";
-                    } else {
-                        // 🌟 NUEVO: Si es un diagnóstico real, lo ocultamos y ponemos "Informe Psicológico"
-                        textoDiagnostico = "📋 Informe Psicológico";
-                    }
-                    
-                    return {
-                        id: rep.id,
-                        paciente_id: pacienteAsociado ? pacienteAsociado.id : null,
-                        serialNumber: pacienteAsociado ? `CD-${String(pacienteAsociado.id).padStart(4, '0')}` : `CD-0000`,
-                        patientName: pacienteAsociado ? pacienteAsociado.nombre : "Paciente Desconocido",
-                        date: new Date(rep.fecha_generacion).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }),
-                        
-                        // 🌟 APLICAMOS EL TEXTO EMBELLECIDO AQUÍ
-                        diagnosis: textoDiagnostico, 
-                        
-                        nextStep: rep.plan_accion || 'No especificado',
-                        status: "Cerrado",
-                        fullData: rep 
-                    };
-                });
+                    nextStep: rep.plan_accion || 'No especificado',
+                    status: "Cerrado",
+                    fullData: rep 
+                };
+            });
 
-                const citasSinReporte = citasDB.filter(c => !reportesDB.some(r => r.cita_id === c.id));
-                const citasConNombre = citasSinReporte.map(c => {
-                    const paciente = pacientesDB.find(p => p.id === c.paciente_id);
-                    return {
-                        ...c,
-                        labelVisual: `${paciente ? paciente.nombre : 'Desconocido'} - Cita: ${new Date(c.fecha_cita).toLocaleDateString()}`
-                    };
-                });
+            const citasSinReporte = citasDB.filter(c => !reportesDB.some(r => r.cita_id === c.id));
+            const citasConNombre = citasSinReporte.map(c => {
+                const paciente = pacientesDB.find(p => p.id === c.paciente_id);
+                return {
+                    ...c,
+                    labelVisual: `${paciente ? paciente.nombre : 'Desconocido'} - Cita: ${new Date(c.fecha_cita).toLocaleDateString()}`
+                };
+            });
 
-                setPastReports(reportesFormateados.reverse());
-                setAvailableAppointments(citasConNombre);
-            }
+            setPastReports(reportesFormateados.reverse());
+            setAvailableAppointments(citasConNombre);
+
         } catch (error) {
             console.error("Error al cargar datos:", error);
         }
@@ -200,7 +200,7 @@ const Reportes = () => {
         setStep(3); 
         
         try {
-            const token = localStorage.getItem('token');
+            // 🌟 Con axios ya no hace falta obtener el token aquí porque `api` lo inyecta automáticamente.
             const citaSeleccionada = availableAppointments.find(
                 cita => String(cita.id) === String(formData.cita_id)
             );
@@ -224,17 +224,18 @@ const Reportes = () => {
                 sexo_paciente: sexoPaciente  
             };
 
+            // 🌟 AQUI ESTA LA MAGIA DE AXIOS
             const respuesta = await api.post('/reportes/analizar', payload);
 
-            if (respuesta.ok) {
-                const data = await respuesta.json();
-                setFormData(prev => ({ ...prev, analisis_ia: data.analisis }));
-            } else {
-                setFormData(prev => ({ ...prev, analisis_ia: "⚠️ No se pudo generar el análisis. Procedé con tu evaluación manual." }));
-            }
+            // Axios no tiene `respuesta.ok`, asume que si no hay un error, todo salió bien. 
+            // Además, los datos JSON ya vienen parseados dentro de `respuesta.data`
+            setFormData(prev => ({ ...prev, analisis_ia: respuesta.data.analisis }));
         
         } catch (error) {
-            setFormData(prev => ({ ...prev, analisis_ia: "⚠️ Error de conexión con la IA." }));
+            // Si hay un error, Axios captura la excepción aquí
+            console.error("Error al generar análisis con IA:", error);
+            const mensajeBackend = error.response?.data?.detail || "Error de conexión con la IA.";
+            setFormData(prev => ({ ...prev, analisis_ia: `⚠️ No se pudo generar el análisis. Procedé con tu evaluación manual. Razón: ${mensajeBackend}` }));
         } finally {
             setIsAnalyzing(false);
         }
