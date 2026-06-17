@@ -246,10 +246,24 @@ const Reportes = () => {
     const [memoriaAcciones, setMemoriaAcciones] = useState([]);
 
     useEffect(() => {
-        const instGuardados = JSON.parse(localStorage.getItem('hf_instrumentos')) || [];
-        const accGuardadas = JSON.parse(localStorage.getItem('hf_acciones')) || [];
+      try {
+        const instRaw = localStorage.getItem('hf_instrumentos');
+        const accRaw = localStorage.getItem('hf_acciones');
+        
+        // Solo intentamos procesar si realmente hay algo guardado
+        const instGuardados = instRaw ? JSON.parse(instRaw) : [];
+        const accGuardadas = accRaw ? JSON.parse(accRaw) : [];
+        
         setMemoriaInstrumentos(instGuardados);
         setMemoriaAcciones(accGuardadas);
+    } catch (error) {
+        console.error("Memoria corrupta detectada, limpiando...", error);
+        // Si la memoria está corrupta, la borramos para salvar a React del pantallazo blanco
+        localStorage.removeItem('hf_instrumentos');
+        localStorage.removeItem('hf_acciones');
+        setMemoriaInstrumentos([]);
+        setMemoriaAcciones([]);
+    }
     }, []);
 
     const guardarEnMemoria = (tipo, valor) => {
