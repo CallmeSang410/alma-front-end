@@ -6,7 +6,6 @@ const CampanaAlertas = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [view, setView] = useState('alertas');
     
-    // 🌟 ESTA ES LA QUE SE NOS HABÍA BORRADO
     const [horasAnticipacion, setHorasAnticipacion] = useState(() => {
         return parseInt(localStorage.getItem('hf_alerta_horas')) || 24;
     });
@@ -17,7 +16,6 @@ const CampanaAlertas = () => {
     // EFECTO CLICK OUTSIDE
     useEffect(() => {
         const handleClickOutside = (event) => {
-            // 🌟 Verificamos que el clic no sea dentro de la campana
             if (campanaRef.current && !campanaRef.current.contains(event.target)) {
                 setIsOpen(false); 
             }
@@ -27,28 +25,23 @@ const CampanaAlertas = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    // 🌟 MOTOR REAL: Conexión directa con tu FastAPI mediante AXIOS
+    // MOTOR REAL: Conexión directa con tu FastAPI mediante AXIOS
     const revisarAlertasReal = async () => {
         try {
             const token = localStorage.getItem('token');
-            // Le pasamos las horas actuales configuradas como parámetro a la ruta
             const res = await api.get(`/citas/alertas-activas?horas=${horasAnticipacion}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             
-            // 🌟 MAGIA DE AXIOS: No hay "res.ok", si llega aquí es porque fue exitoso
-            // Tampoco hay "res.json()", la data ya viene en res.data
             const citasDB = res.data;
             const ahora = new Date();
 
-            // Procesamos las citas para calcular la cuenta regresiva matemática exacta
             const alertasProcesadas = citasDB.map(cita => {
                 const fechaCita = new Date(cita.fecha_cita);
                 const diferenciaMs = fechaCita - ahora;
                 const diferenciaHoras = Math.floor(diferenciaMs / (1000 * 60 * 60));
                 const diferenciaMinutos = Math.floor((diferenciaMs % (1000 * 60 * 60)) / (1000 * 60));
 
-                // Formateamos un texto bonito para la tarjeta
                 let textoTiempo = '';
                 if (diferenciaHoras > 0) {
                     textoTiempo = `${diferenciaHoras}h ${diferenciaMinutos}m`;
@@ -84,16 +77,13 @@ const CampanaAlertas = () => {
 
         window.addEventListener('configuracionAlertasActualizada', sincronizarDesdeAjustes);
         
-        // 👂 Oreja parada: Si alguien grita "actualizarRadarCitas", la campana revisa el backend de una vez
         const escucharCambios = () => {
             revisarAlertasReal();
         };
         window.addEventListener('actualizarRadarCitas', escucharCambios);
 
-        // Tu radar normal de cada minuto
         const intervalo = setInterval(revisarAlertasReal, 60000); 
         
-        // Limpieza al desmontar el componente
         return () => {
             clearInterval(intervalo);
             window.removeEventListener('actualizarRadarCitas', escucharCambios);
@@ -109,8 +99,7 @@ const CampanaAlertas = () => {
     };
 
     return (
-        // 🌟 AQUÍ ESTÁ EL FIX DEL CLICK OUTSIDE: Le pegamos el ref al contenedor padre
-        <div className="relative font-sans" ref={campanaRef}>
+        <div className="static font-sans" ref={campanaRef}>
             
             {/* BOTÓN DE LA CAMPANITA */}
             <button 
@@ -131,7 +120,8 @@ const CampanaAlertas = () => {
             
             {/* DROPDOWN */}
             {isOpen && (
-              <div className="absolute top-full left-1/2 -translate-x-1/2 sm:translate-x-0 sm:left-auto sm:right-0 mt-3 w-[310px] sm:w-80 bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden z-50 animate-fade-in">
+              // 🌟 AQUÍ ESTÁ EL CAMBIO EXACTO QUE PEDISTE 🌟
+              <div className="absolute top-[100%] left-0 right-0 mx-auto sm:mx-0 sm:left-auto sm:right-16 mt-2 w-[310px] sm:w-80 bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden z-50 animate-fade-in">
                     <div className="bg-[#113130] p-4 flex justify-between items-center">
                         <h3 className="text-xs font-black text-white uppercase tracking-widest">
                             {view === 'alertas' ? 'Próximas Citas' : 'Configurar radar'}

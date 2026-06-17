@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, Component } from 'react';
 import './i18n'
 import { useTranslation } from 'react-i18next';
 import './Interface.css';
@@ -10,7 +10,43 @@ import logoEmpresa from './assets/logo.png';
 import CampanaAlertas from './CampanaAlertas';
 import Experiencia from './Experiencia';
 import Ajustes from './Ajustes'; 
-import api from './api'; // Importás tu instancia configurada
+import api from './api';
+
+// =========================================================
+// 🌟 ESCUDO ANTI-PANTALLA BLANCA (ERROR BOUNDARY) 🌟
+// =========================================================
+class ErrorBoundary extends Component {
+    constructor(props) {
+        super(props);
+        this.state = { hasError: false, errorMessage: '' };
+    }
+    static getDerivedStateFromError(error) {
+        return { hasError: true, errorMessage: error.toString() };
+    }
+    componentDidCatch(error, errorInfo) {
+        console.error("🚨 Error capturado por el Escudo:", error, errorInfo);
+    }
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div className="p-6 sm:p-10 max-w-lg mx-auto bg-white rounded-3xl shadow-xl border border-rose-100 mt-10 text-center animate-fade-in">
+                    <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner border-4 border-white ring-1 ring-rose-100">
+                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                    </div>
+                    <h2 className="text-xl font-black text-[#113130] mb-2">¡Ups! El código falló aquí 🛠️</h2>
+                    <p className="text-sm text-slate-500 mb-6 leading-relaxed">Evitamos el pantallazo en blanco. Hubo un error al cargar esta sección. Mándame captura de este código rojo para arreglarlo:</p>
+                    <div className="bg-slate-50 p-4 rounded-xl text-left overflow-x-auto text-[11px] font-mono text-rose-600 border border-slate-200 mb-6 font-bold shadow-inner">
+                        {this.state.errorMessage}
+                    </div>
+                    <button onClick={() => window.location.reload()} className="w-full py-3.5 bg-[#0F766E] text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-md hover:bg-[#0D9488] transition-colors">
+                        Recargar Aplicación
+                    </button>
+                </div>
+            );
+        }
+        return this.props.children;
+    }
+}
 
 // --- ICONOS VECTORIALES CLÍNICOS ---
 function IconDashboard() {
@@ -67,7 +103,6 @@ export default function Interface({ onLogout }) {
     const correoActivo = localStorage.getItem('userEmail') || 'usuario@gmail.com';
 
     const irAReportesDesdeAlerta = (citaId) => {
-        console.log("Paso 3: ¡Llegó a la Interface! Cambiando de pestaña. Cita:", citaId);
         setCitaParaReporte(citaId); 
         setActiveTab('reportes');
     };
@@ -87,14 +122,11 @@ export default function Interface({ onLogout }) {
     const [perfilEmail, setPerfilEmail] = useState(localStorage.getItem('hf_email') || '');
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     
-    // ================= ESTADOS DEL CALENDARIO GLOBAL =================
     const [diaSeleccionado, setDiaSeleccionado] = useState(new Date().getDate());
     const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
     const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
     const [citasGlobales, setCitasGlobales] = useState([]);
 
-    // ================= EFECTOS (useEffect) =================
-    
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (calendarioRef.current && !calendarioRef.current.contains(event.target)) {
@@ -167,20 +199,13 @@ export default function Interface({ onLogout }) {
         return () => window.removeEventListener('citasActualizadas', fetchCitasCalendario);
     }, []);
 
-    // ================= FUNCIONES DEL CALENDARIO =================
     const tieneCitas = (day) => {
         const fechaStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        
-        return citasGlobales.some(c => 
-            c.fecha === fechaStr && 
-            c.estado !== 'cancelada' && 
-            c.estado !== 'completada'
-        );
+        return citasGlobales.some(c => c.fecha === fechaStr && c.estado !== 'cancelada' && c.estado !== 'completada');
     };
 
     const citasDelDiaSeleccionado = citasGlobales.filter(c => {
         const fechaStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(diaSeleccionado).padStart(2, '0')}`;
-        
         return c.fecha === fechaStr && c.estado !== 'cancelada' && c.estado !== 'completada';
     });
 
@@ -214,13 +239,8 @@ export default function Interface({ onLogout }) {
         }
     };
     
-    const getDaysInMonth = (month, year) => {
-        return new Date(year, month + 1, 0).getDate();
-    };
-    
-    const getFirstDayOfMonth = (month, year) => {
-        return new Date(year, month, 1).getDay();
-    };
+    const getDaysInMonth = (month, year) => new Date(year, month + 1, 0).getDate();
+    const getFirstDayOfMonth = (month, year) => new Date(year, month, 1).getDay();
     
     const renderCalendar = () => {
         const daysInMonth = getDaysInMonth(currentMonth, currentYear);
@@ -320,7 +340,6 @@ export default function Interface({ onLogout }) {
    return (
        <div className="min-h-screen font-sans bg-[#F4F8F8] print:bg-white text-[#113130] flex flex-col lg:flex-row antialiased relative">
        
-       {/* ================= CABECERA MÓVIL ================= */}
        <div className="lg:hidden flex items-center justify-between p-4 bg-[#0F766E] text-white shadow-md relative py-6 print:hidden">
            <div className="w-10 h-10 invisible" />
            <div className="flex items-center justify-center flex-1">
@@ -336,7 +355,6 @@ export default function Interface({ onLogout }) {
            </button>
        </div>
 
-       {/* ================= 1. BARRA LATERAL ================= */}
        <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#0F766E] text-white flex flex-col justify-between transform lg:transform-none lg:opacity-100 lg:sticky lg:top-0 lg:h-screen transition-all duration-300 ease-out shrink-0 shadow-xl lg:shadow-none print:hidden ${sidebarOpen ? 'translate-x-0 opacity-100' : '-translate-x-full lg:translate-x-0'}`}>
            <div className="flex flex-col">
                <div className="w-full pt-8 pb-4 px-2 flex flex-col items-center relative">
@@ -359,7 +377,11 @@ export default function Interface({ onLogout }) {
                        return (
                            <button
                                key={item.id}
-                               onClick={() => { setActiveTab(item.id); setSidebarOpen(false); }}
+                               onClick={() => { 
+                                   if (item.id === 'reportes') setCitaParaReporte(null);
+                                   setActiveTab(item.id); 
+                                   setSidebarOpen(false); 
+                               }}
                                className={`w-full flex items-center gap-4 px-5 py-3 text-xs font-bold uppercase tracking-wider nav-button transition-transform duration-300 ${activo ? 'active-nav-curve text-[#0F766E] font-black' : 'text-teal-100/75 hover:text-white hover:translate-x-1.5'}`}
                            >
                                <span className={`transition-colors duration-200 ${activo ? 'text-[#0F766E]' : 'text-teal-200'}`}>{item.icon}</span>
@@ -388,12 +410,10 @@ export default function Interface({ onLogout }) {
            ></div>
        )}
        
-       {/* ================= CONTENEDOR CENTRAL ================= */}
       <div className="flex-1 flex flex-col min-h-screen overflow-x-hidden bg-[#F4F8F8] print:bg-white print:overflow-visible print:h-auto print:min-h-0 print:block">
            
            <header className="px-6 lg:px-8 py-5 bg-white flex flex-col md:flex-row items-center justify-between gap-4 border-b border-teal-100/30 print:hidden sticky top-0 z-20 shadow-sm">
                
-               {/* LADO IZQUIERDO */}
                <div className="flex items-center gap-3 w-full md:w-auto animate-fade-in-up">
                    <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center text-[#0F766E] shadow-sm border border-teal-100 shrink-0">
                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
@@ -408,16 +428,15 @@ export default function Interface({ onLogout }) {
                    </div>
                </div>
 
-               {/* 🌟 LADO DERECHO: CORRECCIÓN DE MÓVIL APLICADA AQUÍ */}
+               {/* 🌟 LADO DERECHO: TOTALMENTE FIXEADO PARA MÓVIL Y ESCRITORIO */}
                <div className="flex flex-wrap items-center justify-center sm:justify-end gap-3 sm:gap-4 w-full md:w-auto mt-4 md:mt-0">
-                   
-                   <div className="flex items-center gap-3 sm:gap-4 z-50 relative">
+                   <div className="flex items-center gap-3 sm:gap-4 z-50 static">
                        
-                       {/* ================= BOTÓN Y POPUP DEL CALENDARIO ================= */}
-                       <div className="relative" ref={calendarioRef}>
+                       {/* CALENDARIO */}
+                       <div className="static" ref={calendarioRef}>
                            <button 
                                onClick={() => setShowCalendar(!showCalendar)}
-                               className="p-2.5 bg-white rounded-xl shadow-xs border border-teal-100/40 hover:bg-teal-50/50 transition-colors relative"
+                               className="relative p-2.5 bg-white rounded-xl shadow-xs border border-teal-100/40 hover:bg-teal-50/50 transition-colors"
                            >
                                <svg className="w-4 h-4 text-[#113130]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -432,8 +451,9 @@ export default function Interface({ onLogout }) {
                                ></div>
                            )}
                            
+                           {/* 🌟 FIX: CENTRADO EN MÓVIL, ALINEADO A LA DERECHA EN PC */}
                            {showCalendar && (
-                               <div className="absolute top-full left-1/2 -translate-x-1/2 sm:translate-x-0 sm:left-auto sm:right-0 mt-3 w-[310px] sm:w-80 bg-white rounded-2xl shadow-2xl border border-teal-100/30 p-4 sm:p-5 z-[100] animate-fade-in">
+                               <div className="absolute top-[100%] left-0 right-0 mx-auto sm:mx-0 sm:left-auto sm:right-8 mt-2 w-[310px] sm:w-80 bg-white rounded-2xl shadow-2xl border border-teal-100/30 p-4 sm:p-5 z-[100] animate-fade-in">
                                    <div className="flex items-center justify-between mb-4">
                                        <button onClick={handlePrevMonth} className="p-1.5 hover:bg-teal-50 rounded-lg transition-colors">
                                            <svg className="w-4 h-4 text-[#113130]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -463,7 +483,6 @@ export default function Interface({ onLogout }) {
                                        {renderCalendar()}
                                    </div>
                                    
-                                   {/* INFORMACIÓN DEL DÍA SELECCIONADO */}
                                    <div className="mt-2 max-h-32 overflow-y-auto pr-1 space-y-2">
                                        {citasDelDiaSeleccionado.length > 0 ? (
                                            citasDelDiaSeleccionado.map((cita, index) => (
@@ -500,8 +519,7 @@ export default function Interface({ onLogout }) {
 
                    <div className="hidden sm:block h-6 w-px bg-teal-200/50 mx-1"></div>
 
-                   {/* ================= PERFIL DE USUARIO ================= */}
-                   <div className="relative z-40">
+                   <div className="static z-40">
                        <button 
                            onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
                            className={`flex items-center gap-3 px-3.5 py-1.5 rounded-full shadow-xs border transition-all text-left ${isProfileMenuOpen ? 'bg-teal-50 border-[#0F766E]/30' : 'bg-white border-teal-100/40 hover:bg-teal-50/50'}`}
@@ -515,8 +533,9 @@ export default function Interface({ onLogout }) {
                            </div>
                        </button>
 
+                       {/* 🌟 FIX: CENTRADO EN MÓVIL, ALINEADO A LA DERECHA EN PC */}
                        {isProfileMenuOpen && (
-                           <div className="absolute top-full left-1/2 -translate-x-1/2 sm:translate-x-0 sm:left-auto sm:right-0 mt-3 w-56 bg-white border border-teal-100/60 rounded-xl shadow-lg overflow-hidden animate-fade-in p-4 z-50">
+                           <div className="absolute top-[100%] left-0 right-0 mx-auto sm:mx-0 sm:left-auto sm:right-8 mt-2 w-56 bg-white border border-teal-100/60 rounded-xl shadow-lg overflow-hidden animate-fade-in p-4 z-50">
                                <div className="mb-3">
                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Correo Registrado</p>
                                    <p className="text-xs font-medium text-[#113130] truncate">
@@ -542,9 +561,10 @@ export default function Interface({ onLogout }) {
                </div>
            </header>
 
-           {/* Área de Contenido Dinámico */}
            <div className="flex-1 p-6 lg:p-8 animate-fade-in print:p-0">
-               {renderContent()}
+               <ErrorBoundary key={activeTab}>
+                   {renderContent()}
+               </ErrorBoundary>
            </div>
        </div>
 
@@ -574,7 +594,6 @@ export default function Interface({ onLogout }) {
            </div>
        )}
        
-       {/* ================= CHATBOT GLOBAL ================= */}
        <button 
            onClick={() => setIsChatOpen(true)}
            className="fixed bottom-6 right-6 lg:bottom-10 lg:right-10 w-14 h-14 bg-[#0F766E] text-white rounded-full shadow-2xl flex items-center justify-center hover:bg-[#0D9488] transition-transform hover:scale-105 z-[60] focus:outline-none print:hidden"
@@ -613,10 +632,7 @@ export default function Interface({ onLogout }) {
                {mensajesChat.map((msg, idx) => (
                    <div key={idx} className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                        <div className={`p-3.5 text-xs font-medium leading-relaxed max-w-[85%] shadow-sm whitespace-pre-wrap ${msg.role === 'user' ? 'bg-[#0F766E] rounded-2xl rounded-tr-sm text-white shadow-md' : 'bg-slate-50 rounded-2xl rounded-tl-sm border border-slate-100 text-slate-600'}`}>
-                           
-                           {/* 🌟 AQUÍ USAMOS EL FORMATEADOR */}
                            {msg.role === 'user' ? msg.parts[0].text : formatearTextoChat(msg.parts[0].text)}
-                           
                        </div>
                    </div>
                ))}
