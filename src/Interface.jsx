@@ -63,7 +63,6 @@ export default function Interface({ onLogout }) {
     const { t, i18n } = useTranslation();
     const [langMenuOpen, setLangMenuOpen] = useState(false);
     const [citaParaReporte, setCitaParaReporte] = useState(null);
-    // 🌟 Referencia para detectar clics fuera del calendario
     const calendarioRef = useRef(null);
     const correoActivo = localStorage.getItem('userEmail') || 'usuario@gmail.com';
 
@@ -96,7 +95,6 @@ export default function Interface({ onLogout }) {
 
     // ================= EFECTOS (useEffect) =================
     
-    // 1. Efecto para Perfil
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (calendarioRef.current && !calendarioRef.current.contains(event.target)) {
@@ -120,11 +118,9 @@ export default function Interface({ onLogout }) {
         };
     }, []);
 
-    // 2. Efecto para Citas del Calendario
     useEffect(() => {
         const fetchCitasCalendario = async () => {
             try {
-                // 🌟 MAGIA AXIOS: Cargamos ambas rutas sin .json() ni .ok
                 const [resCitas, resPacientes] = await Promise.all([
                     api.get('/citas'),
                     api.get('/pacientes')
@@ -307,7 +303,6 @@ export default function Interface({ onLogout }) {
                 texto: msg.parts[0].text
             }));
 
-            // 🌟 MAGIA AXIOS CHATBOT
             const respuesta = await api.post('/soporte/chat', {
                 historial: historialParaBackend
             });
@@ -413,97 +408,97 @@ export default function Interface({ onLogout }) {
                    </div>
                </div>
 
-               {/* LADO DERECHO */}
-                   <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 sm:gap-4 w-full md:w-auto mt-2 md:mt-0">
+               {/* 🌟 LADO DERECHO: CORRECCIÓN DE MÓVIL APLICADA AQUÍ */}
+               <div className="flex flex-wrap items-center justify-center sm:justify-end gap-3 sm:gap-4 w-full md:w-auto mt-4 md:mt-0">
+                   
+                   <div className="flex items-center gap-3 sm:gap-4 z-50 relative">
                        
-                       <div className="flex items-center gap-2 sm:gap-4 z-50 relative">
+                       {/* ================= BOTÓN Y POPUP DEL CALENDARIO ================= */}
+                       <div className="relative" ref={calendarioRef}>
+                           <button 
+                               onClick={() => setShowCalendar(!showCalendar)}
+                               className="p-2.5 bg-white rounded-xl shadow-xs border border-teal-100/40 hover:bg-teal-50/50 transition-colors relative"
+                           >
+                               <svg className="w-4 h-4 text-[#113130]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                               </svg>
+                               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#14B8A6] rounded-full"></span>
+                           </button>
                            
-                           {/* ================= BOTÓN Y POPUP DEL CALENDARIO ================= */}
-                           <div className="relative" ref={calendarioRef}>
-                               <button 
-                                   onClick={() => setShowCalendar(!showCalendar)}
-                                   className="p-2.5 bg-white rounded-xl shadow-xs border border-teal-100/40 hover:bg-teal-50/50 transition-colors relative"
-                               >
-                                   <svg className="w-4 h-4 text-[#113130]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                   </svg>
-                                   <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#14B8A6] rounded-full"></span>
-                               </button>
-                               
-                               {showCalendar && (
-                                   <div 
-                                       className="fixed inset-0 z-[90]" 
-                                       onClick={() => setShowCalendar(false)}
-                                   ></div>
-                               )}
-                               
-                               {showCalendar && (
-                                   <div className="absolute top-full right-0 mt-3 w-72 sm:w-80 bg-white rounded-2xl shadow-2xl border border-teal-100/30 p-5 z-[100] animate-fade-in">
-                                       <div className="flex items-center justify-between mb-4">
-                                           <button onClick={handlePrevMonth} className="p-1.5 hover:bg-teal-50 rounded-lg transition-colors">
-                                               <svg className="w-4 h-4 text-[#113130]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
-                                               </svg>
-                                           </button>
-                                           
-                                           <div className="text-center">
-                                               <h3 className="text-sm font-bold text-[#113130]">{monthNames[currentMonth]}</h3>
-                                               <p className="text-xs text-slate-500">{currentYear}</p>
-                                           </div>
-                                           
-                                           <button onClick={handleNextMonth} className="p-1.5 hover:bg-teal-50 rounded-lg transition-colors">
-                                               <svg className="w-4 h-4 text-[#113130]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
-                                               </svg>
-                                           </button>
+                           {showCalendar && (
+                               <div 
+                                   className="fixed inset-0 z-[90]" 
+                                   onClick={() => setShowCalendar(false)}
+                               ></div>
+                           )}
+                           
+                           {showCalendar && (
+                               <div className="absolute top-full left-1/2 -translate-x-1/2 sm:translate-x-0 sm:left-auto sm:right-0 mt-3 w-[310px] sm:w-80 bg-white rounded-2xl shadow-2xl border border-teal-100/30 p-4 sm:p-5 z-[100] animate-fade-in">
+                                   <div className="flex items-center justify-between mb-4">
+                                       <button onClick={handlePrevMonth} className="p-1.5 hover:bg-teal-50 rounded-lg transition-colors">
+                                           <svg className="w-4 h-4 text-[#113130]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
+                                           </svg>
+                                       </button>
+                                       
+                                       <div className="text-center">
+                                           <h3 className="text-sm font-bold text-[#113130]">{monthNames[currentMonth]}</h3>
+                                           <p className="text-xs text-slate-500">{currentYear}</p>
                                        </div>
                                        
-                                       <div className="grid grid-cols-7 gap-1.5 mb-3">
-                                           {dayNames.map(day => (
-                                               <div key={day} className="h-7 flex items-center justify-center text-xs font-bold text-[#0F766E]">{day}</div>
-                                           ))}
-                                       </div>
-                                       
-                                       <div className="grid grid-cols-7 gap-1.5 mb-4">
-                                           {renderCalendar()}
-                                       </div>
-                                       
-                                       {/* INFORMACIÓN DEL DÍA SELECCIONADO */}
-                                       <div className="mt-2 max-h-32 overflow-y-auto pr-1 space-y-2">
-                                           {citasDelDiaSeleccionado.length > 0 ? (
-                                               citasDelDiaSeleccionado.map((cita, index) => (
-                                                   <div key={index} className="bg-gradient-to-r from-teal-50 to-cyan-50 rounded-xl p-3 border border-[#14B8A6]/20">
-                                                       <div className="flex items-center justify-between mb-1">
-                                                           <p className="text-[10px] font-black text-[#0F766E] uppercase tracking-wider flex items-center gap-1">
-                                                               📅 {cita.hora}
-                                                           </p>
-                                                           <span className="text-[8px] font-bold bg-white px-1.5 py-0.5 rounded text-slate-500 border border-slate-100">
-                                                               {cita.modalidad}
-                                                           </span>
-                                                       </div>
-                                                       <p className="text-xs font-bold text-[#113130] truncate">
-                                                           {cita.paciente}
-                                                       </p>
-                                                   </div>
-                                               ))
-                                           ) : (
-                                               <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 text-center">
-                                                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                                       Día Libre
-                                                   </p>
-                                                   <p className="text-xs text-slate-500 mt-1">No hay citas programadas.</p>
-                                               </div>
-                                           )}
-                                       </div>
-                                       <button onClick={() => setShowCalendar(false)} className="w-full mt-4 py-2 text-xs font-bold bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-lg transition-colors">Cerrar</button>
+                                       <button onClick={handleNextMonth} className="p-1.5 hover:bg-teal-50 rounded-lg transition-colors">
+                                           <svg className="w-4 h-4 text-[#113130]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
+                                           </svg>
+                                       </button>
                                    </div>
-                               )}
-                           </div>
-                           
-                           <CampanaAlertas />
+                                   
+                                   <div className="grid grid-cols-7 gap-1.5 mb-3">
+                                       {dayNames.map(day => (
+                                           <div key={day} className="h-7 flex items-center justify-center text-xs font-bold text-[#0F766E]">{day}</div>
+                                       ))}
+                                   </div>
+                                   
+                                   <div className="grid grid-cols-7 gap-1.5 mb-4">
+                                       {renderCalendar()}
+                                   </div>
+                                   
+                                   {/* INFORMACIÓN DEL DÍA SELECCIONADO */}
+                                   <div className="mt-2 max-h-32 overflow-y-auto pr-1 space-y-2">
+                                       {citasDelDiaSeleccionado.length > 0 ? (
+                                           citasDelDiaSeleccionado.map((cita, index) => (
+                                               <div key={index} className="bg-gradient-to-r from-teal-50 to-cyan-50 rounded-xl p-3 border border-[#14B8A6]/20">
+                                                   <div className="flex items-center justify-between mb-1">
+                                                       <p className="text-[10px] font-black text-[#0F766E] uppercase tracking-wider flex items-center gap-1">
+                                                           📅 {cita.hora}
+                                                       </p>
+                                                       <span className="text-[8px] font-bold bg-white px-1.5 py-0.5 rounded text-slate-500 border border-slate-100">
+                                                           {cita.modalidad}
+                                                       </span>
+                                                   </div>
+                                                   <p className="text-xs font-bold text-[#113130] truncate">
+                                                       {cita.paciente}
+                                                   </p>
+                                               </div>
+                                           ))
+                                       ) : (
+                                           <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 text-center">
+                                               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                                   Día Libre
+                                               </p>
+                                               <p className="text-xs text-slate-500 mt-1">No hay citas programadas.</p>
+                                           </div>
+                                       )}
+                                   </div>
+                                   <button onClick={() => setShowCalendar(false)} className="w-full mt-4 py-2 text-xs font-bold bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-lg transition-colors">Cerrar</button>
+                               </div>
+                           )}
                        </div>
+                       
+                       <CampanaAlertas />
+                   </div>
 
-                       <div className="hidden sm:block h-6 w-px bg-teal-200/50 mx-1"></div>
+                   <div className="hidden sm:block h-6 w-px bg-teal-200/50 mx-1"></div>
 
                    {/* ================= PERFIL DE USUARIO ================= */}
                    <div className="relative z-40">
@@ -521,7 +516,7 @@ export default function Interface({ onLogout }) {
                        </button>
 
                        {isProfileMenuOpen && (
-                           <div className="absolute top-full right-0 mt-2 w-56 bg-white border border-teal-100/60 rounded-xl shadow-lg overflow-hidden animate-fade-in p-4 z-50">
+                           <div className="absolute top-full left-1/2 -translate-x-1/2 sm:translate-x-0 sm:left-auto sm:right-0 mt-3 w-56 bg-white border border-teal-100/60 rounded-xl shadow-lg overflow-hidden animate-fade-in p-4 z-50">
                                <div className="mb-3">
                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Correo Registrado</p>
                                    <p className="text-xs font-medium text-[#113130] truncate">

@@ -131,7 +131,7 @@ const CampanaAlertas = () => {
             
             {/* DROPDOWN */}
             {isOpen && (
-                <div className="absolute right-0 mt-3 w-80 bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden z-50 animate-fade-in">
+              <div className="absolute top-full left-1/2 -translate-x-1/2 sm:translate-x-0 sm:left-auto sm:right-0 mt-3 w-[310px] sm:w-80 bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden z-50 animate-fade-in">
                     <div className="bg-[#113130] p-4 flex justify-between items-center">
                         <h3 className="text-xs font-black text-white uppercase tracking-widest">
                             {view === 'alertas' ? 'Próximas Citas' : 'Configurar radar'}
