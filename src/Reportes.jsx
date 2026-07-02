@@ -148,7 +148,9 @@ const Reportes = () => {
                 return {
                     id: rep.id,
                     paciente_id: pacienteAsociado ? pacienteAsociado.id : null,
-                    serialNumber: pacienteAsociado ? `CD-${String(pacienteAsociado.id).padStart(4, '0')}` : `CD-0000`,
+                    serialNumber: pacienteAsociado && pacienteAsociado.folio_visual 
+                    ? `CD-${String(pacienteAsociado.folio_visual).padStart(4, '0')}` 
+                    : `CD-0000`,
                     patientName: pacienteAsociado ? pacienteAsociado.nombre : "Paciente Desconocido",
                     date: new Date(rep.fecha_generacion).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }),
                     
