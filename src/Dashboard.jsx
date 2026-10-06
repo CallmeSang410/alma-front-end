@@ -7,7 +7,7 @@ import api from './api'; // Importás tu instancia configurada
 
 const Dashboard = ({ onNavigateToReportes }) => {
     // ================= ESTADOS =================
-    // ✅ Como debe quedar
+    const nombrePsicologo = localStorage.getItem('userName') || 'Administrador';
     const [pacientesInactivos, setPacientesInactivos] = useState([]);
    
    // Estado para abrir/cerrar la ventana flotante
@@ -176,7 +176,8 @@ const Dashboard = ({ onNavigateToReportes }) => {
                 {/* CABECERA */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
-                        <h1 className="text-2xl sm:text-3xl font-black text-[#113130] tracking-tight">Bienvenido, Dr. Administrador</h1>
+                        <h1 className="text-3xl font-black text-[#113130] tracking-tight mb-1">
+                        Bienvenido, {nombrePsicologo}</h1>
                         <p className="text-slate-500 text-sm mt-1">Resumen de tu jornada clínica y estado del consultorio.</p>
                     </div>
                 </div>
