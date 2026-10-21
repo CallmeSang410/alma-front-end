@@ -125,3 +125,25 @@ body {
 
 /* Para que se vea bien en Modo Oscuro */
 .modo-oscuro .tarjeta-ia { background: #2e1065; color: #e9d5ff; border-left-color: #a78bfa; }
+
+/* =========================================
+   3. NAVEGACIÓN POR TECLADO (FOCUS VISIBLE)
+   ========================================= */
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible,
+[role="combobox"]:focus-visible,
+[role="option"]:focus-visible,
+[tabindex="0"]:focus-visible {
+  outline: 2px solid #0F766E !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.22) !important;
+  transition: box-shadow 0.15s ease, outline 0.15s ease;
+}
+
+aside nav button:focus-visible,
+aside button:focus-visible {
+  outline: 2px solid #5EEAD4 !important;
+  outline-offset: -2px !important;
+  box-shadow: 0 0 0 3px rgba(94, 234, 212, 0.35) !important;
+}

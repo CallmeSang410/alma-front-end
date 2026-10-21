@@ -1,19 +1,92 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import './Citas.css';
 import { useAlerta, AlertaProvider } from './AlertaContext.jsx';
 import api from './api'; // Importás tu instancia configurada 
+import useKeyboardShortcuts from './hooks/useKeyboardShortcuts';
+import FocusTrap from './components/FocusTrap';
 
 // ================= COMPONENTES VISUALES PREMIUM =================
 
 // 1. Selector Simple (Para Estado y Modalidad)
 const SelectorPremium = ({ valor, opciones, alCambiar, placeholder, conError }) => {
     const [abierto, setAbierto] = useState(false);
+    const [indiceActivo, setIndiceActivo] = useState(-1);
+    const dropdownRef = useRef(null);
+
+    useEffect(() => {
+        if (abierto) {
+            const idx = opciones.findIndex(o => o.valor === valor);
+            setIndiceActivo(idx >= 0 ? idx : 0);
+        }
+    }, [abierto, valor, opciones]);
+
+    useEffect(() => {
+        if (!abierto) return;
+        const handleOutside = (e) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+                setAbierto(false);
+            }
+        };
+        document.addEventListener('mousedown', handleOutside);
+        document.addEventListener('focusin', handleOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleOutside);
+            document.removeEventListener('focusin', handleOutside);
+        };
+    }, [abierto]);
+
+    const manejarTeclado = (e) => {
+        if (!abierto) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                e.stopPropagation();
+                setAbierto(true);
+            }
+            return;
+        }
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            e.stopPropagation();
+            setIndiceActivo(prev => (prev + 1) % opciones.length);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            e.stopPropagation();
+            setIndiceActivo(prev => (prev - 1 + opciones.length) % opciones.length);
+        } else if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            e.stopPropagation();
+            if (indiceActivo >= 0 && opciones[indiceActivo]) {
+                alCambiar(opciones[indiceActivo].valor);
+            }
+            setAbierto(false);
+        } else if (e.key === 'Escape' || e.key === 'Tab' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            setAbierto(false);
+        }
+    };
+
     return (
-        <div className="relative">
+        <div
+            ref={dropdownRef}
+            data-dropdown-open={abierto ? 'true' : undefined}
+            className="relative"
+            onBlur={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget)) {
+                    setAbierto(false);
+                }
+            }}
+        >
             <div 
+                tabIndex={0}
+                role="combobox"
+                aria-expanded={abierto}
                 onClick={() => setAbierto(!abierto)}
-                className={`w-full rounded-2xl px-5 py-4 text-sm font-bold cursor-pointer flex justify-between items-center transition-all ${conError ? 'bg-rose-50 border-rose-400 text-rose-700 border' : 'bg-slate-50 border-slate-200 text-[#113130] hover:border-[#0F766E]/40 border'} ${abierto ? 'ring-2 ring-[#0F766E]/30 border-[#0F766E] bg-white' : ''}`}
+                onKeyDown={manejarTeclado}
+                className={`w-full rounded-2xl px-5 py-4 text-sm font-bold cursor-pointer flex justify-between items-center transition-all focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-[#0F766E] focus:bg-white ${conError ? 'bg-rose-50 border-rose-400 text-rose-700 border' : 'bg-slate-50 border-slate-200 text-[#113130] hover:border-[#0F766E]/40 border'} ${abierto ? 'ring-2 ring-[#0F766E]/30 border-[#0F766E] bg-white' : ''}`}
             >
                 <span className={!valor ? 'text-slate-400' : ''}>
                     {valor ? opciones.find(o => o.valor === valor)?.etiqueta : placeholder}
@@ -23,12 +96,15 @@ const SelectorPremium = ({ valor, opciones, alCambiar, placeholder, conError }) 
             {abierto && (
                 <>
                     <div className="fixed inset-0 z-40" onClick={() => setAbierto(false)}></div>
-                    <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-2xl shadow-xl overflow-hidden animate-fade-in">
-                        {opciones.map((opt) => (
+                    <div role="listbox" className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-2xl shadow-xl overflow-hidden animate-fade-in">
+                        {opciones.map((opt, idx) => (
                             <div 
                                 key={opt.valor}
+                                role="option"
+                                aria-selected={valor === opt.valor}
+                                onMouseEnter={() => setIndiceActivo(idx)}
                                 onClick={() => { alCambiar(opt.valor); setAbierto(false); }}
-                                className={`px-5 py-3.5 cursor-pointer text-sm font-bold transition-colors flex justify-between items-center ${valor === opt.valor ? 'bg-teal-50 text-[#0F766E]' : 'text-slate-500 hover:bg-slate-50 hover:text-[#113130]'}`}
+                                className={`px-5 py-3.5 cursor-pointer text-sm font-bold transition-colors flex justify-between items-center ${idx === indiceActivo ? 'bg-teal-50 text-[#0F766E]' : valor === opt.valor ? 'bg-teal-50/60 text-[#0F766E]' : 'text-slate-500 hover:bg-slate-50 hover:text-[#113130]'}`}
                             >
                                 {opt.etiqueta}
                                 {valor === opt.valor && <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>}
@@ -45,14 +121,89 @@ const SelectorPremium = ({ valor, opciones, alCambiar, placeholder, conError }) 
 const BuscadorPacientesPremium = ({ valor, pacientes, alCambiar, conError }) => {
     const [abierto, setAbierto] = useState(false);
     const [busqueda, setBusqueda] = useState('');
+    const [indiceActivo, setIndiceActivo] = useState(0);
+    const dropdownRef = useRef(null);
     
     const pacienteSeleccionado = pacientes.find(p => String(p.id) === String(valor));
+    const filtrados = pacientes.filter(p => p.nombre.toLowerCase().includes(busqueda.toLowerCase()) || (p.telefono && p.telefono.includes(busqueda)));
+
+    useEffect(() => {
+        setIndiceActivo(0);
+    }, [busqueda, abierto]);
+
+    useEffect(() => {
+        if (!abierto) return;
+        const handleOutside = (e) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+                setAbierto(false);
+            }
+        };
+        document.addEventListener('mousedown', handleOutside);
+        document.addEventListener('focusin', handleOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleOutside);
+            document.removeEventListener('focusin', handleOutside);
+        };
+    }, [abierto]);
+
+    const manejarTecladoInput = (e) => {
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            e.stopPropagation();
+            if (filtrados.length > 0) {
+                setIndiceActivo(prev => (prev + 1) % filtrados.length);
+            }
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            e.stopPropagation();
+            if (filtrados.length > 0) {
+                setIndiceActivo(prev => (prev - 1 + filtrados.length) % filtrados.length);
+            }
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            e.stopPropagation();
+            if (filtrados[indiceActivo]) {
+                alCambiar(filtrados[indiceActivo].id);
+                setAbierto(false);
+                setBusqueda('');
+            }
+        } else if (e.key === 'Escape' || e.key === 'Tab') {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            setAbierto(false);
+        }
+    };
 
     return (
-        <div className="relative">
+        <div
+            ref={dropdownRef}
+            data-dropdown-open={abierto ? 'true' : undefined}
+            className="relative"
+            onBlur={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget)) {
+                    setAbierto(false);
+                }
+            }}
+        >
             <div 
+                tabIndex={0}
+                role="combobox"
+                aria-expanded={abierto}
                 onClick={() => setAbierto(!abierto)}
-                className={`w-full rounded-2xl px-5 py-4 text-sm font-bold cursor-pointer flex justify-between items-center transition-all ${conError ? 'bg-rose-50 border-rose-400 text-rose-700 border' : 'bg-slate-50 border-slate-200 text-[#113130] hover:border-[#0F766E]/40 border'} ${abierto ? 'ring-2 ring-[#0F766E]/30 border-[#0F766E] bg-white' : ''}`}
+                onKeyDown={(e) => {
+                    if (!abierto && (e.key === 'Enter' || e.key === ' ')) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setAbierto(true);
+                    } else if (abierto && e.key === 'Escape') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setAbierto(false);
+                    }
+                }}
+                className={`w-full rounded-2xl px-5 py-4 text-sm font-bold cursor-pointer flex justify-between items-center transition-all focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-[#0F766E] focus:bg-white ${conError ? 'bg-rose-50 border-rose-400 text-rose-700 border' : 'bg-slate-50 border-slate-200 text-[#113130] hover:border-[#0F766E]/40 border'} ${abierto ? 'ring-2 ring-[#0F766E]/30 border-[#0F766E] bg-white' : ''}`}
             >
                 <span className={!pacienteSeleccionado ? 'text-slate-400' : 'truncate max-w-[85%]'}>
                     {pacienteSeleccionado ? `${pacienteSeleccionado.nombre} ${pacienteSeleccionado.telefono ? `- ${pacienteSeleccionado.telefono}` : ''}` : 'Seleccione o busque un paciente...'}
@@ -68,25 +219,29 @@ const BuscadorPacientesPremium = ({ valor, pacientes, alCambiar, conError }) => 
                             <svg className="absolute left-6 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                             <input 
                                 type="text" 
-                                placeholder="Buscar por nombre o teléfono..." 
+                                placeholder="Buscar por nombre o teléfono... (↑↓ y Enter)" 
                                 value={busqueda}
                                 onChange={(e) => setBusqueda(e.target.value)}
+                                onKeyDown={manejarTecladoInput}
                                 autoFocus
                                 className="w-full pl-9 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 focus:ring-[#0F766E]/30"
                             />
                         </div>
-                        <div className="overflow-y-auto hide-scrollbar flex-1">
-                            {pacientes.filter(p => p.nombre.toLowerCase().includes(busqueda.toLowerCase()) || (p.telefono && p.telefono.includes(busqueda))).map(p => (
+                        <div role="listbox" className="overflow-y-auto hide-scrollbar flex-1">
+                            {filtrados.map((p, idx) => (
                                 <div 
                                     key={p.id}
+                                    role="option"
+                                    aria-selected={String(valor) === String(p.id)}
+                                    onMouseEnter={() => setIndiceActivo(idx)}
                                     onClick={() => { alCambiar(p.id); setAbierto(false); setBusqueda(''); }}
-                                    className={`px-5 py-3 cursor-pointer text-sm transition-colors flex flex-col border-l-4 ${String(valor) === String(p.id) ? 'bg-teal-50 border-[#0F766E]' : 'hover:bg-slate-50 border-transparent'}`}
+                                    className={`px-5 py-3 cursor-pointer text-sm transition-colors flex flex-col border-l-4 ${idx === indiceActivo ? 'bg-teal-50 border-[#0F766E]' : String(valor) === String(p.id) ? 'bg-teal-50/60 border-[#0F766E]' : 'hover:bg-slate-50 border-transparent'}`}
                                 >
-                                    <span className={`font-bold ${String(valor) === String(p.id) ? 'text-[#0F766E]' : 'text-[#113130]'}`}>{p.nombre}</span>
+                                    <span className={`font-bold ${idx === indiceActivo || String(valor) === String(p.id) ? 'text-[#0F766E]' : 'text-[#113130]'}`}>{p.nombre}</span>
                                     {p.telefono && <span className="text-[11px] font-black tracking-widest text-slate-400 mt-0.5">{p.telefono}</span>}
                                 </div>
                             ))}
-                            {pacientes.filter(p => p.nombre.toLowerCase().includes(busqueda.toLowerCase()) || (p.telefono && p.telefono.includes(busqueda))).length === 0 && (
+                            {filtrados.length === 0 && (
                                 <div className="p-6 text-center text-sm font-bold text-slate-400 flex flex-col items-center gap-2">
                                     No se encontró ningún paciente 🔍
                                 </div>
@@ -103,6 +258,7 @@ const BuscadorPacientesPremium = ({ valor, pacientes, alCambiar, conError }) => 
 const DatePickerPremium = ({ valor, alCambiar, conError }) => {
     const [abierto, setAbierto] = useState(false);
     const [fechaVista, setFechaVista] = useState(new Date());
+    const dropdownRef = useRef(null);
 
     useEffect(() => {
         if (abierto && valor) {
@@ -112,6 +268,21 @@ const DatePickerPremium = ({ valor, alCambiar, conError }) => {
             setFechaVista(new Date());
         }
     }, [abierto, valor]);
+
+    useEffect(() => {
+        if (!abierto) return;
+        const handleOutside = (e) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+                setAbierto(false);
+            }
+        };
+        document.addEventListener('mousedown', handleOutside);
+        document.addEventListener('focusin', handleOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleOutside);
+            document.removeEventListener('focusin', handleOutside);
+        };
+    }, [abierto]);
 
     const formatearFechaDisplay = (fechaStr) => {
         if (!fechaStr) return 'Seleccionar fecha...';
@@ -128,8 +299,34 @@ const DatePickerPremium = ({ valor, alCambiar, conError }) => {
     const mesesNombres = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
     return (
-        <div className="relative">
-            <div onClick={() => setAbierto(!abierto)} className={`w-full rounded-2xl px-5 py-4 text-sm font-bold cursor-pointer flex justify-between items-center transition-all ${conError ? 'bg-rose-50 border-rose-400 text-rose-700 border' : 'bg-slate-50 border-slate-200 text-[#113130] hover:border-[#0F766E]/40 border'} ${abierto ? 'ring-2 ring-[#0F766E]/30 border-[#0F766E] bg-white' : ''}`}>
+        <div
+            ref={dropdownRef}
+            data-dropdown-open={abierto ? 'true' : undefined}
+            className="relative"
+            onBlur={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget)) {
+                    setAbierto(false);
+                }
+            }}
+        >
+            <div 
+                tabIndex={0}
+                role="button"
+                aria-expanded={abierto}
+                onClick={() => setAbierto(!abierto)} 
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setAbierto(!abierto);
+                    } else if (e.key === 'Escape' && abierto) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setAbierto(false);
+                    }
+                }}
+                className={`w-full rounded-2xl px-5 py-4 text-sm font-bold cursor-pointer flex justify-between items-center transition-all focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-[#0F766E] focus:bg-white ${conError ? 'bg-rose-50 border-rose-400 text-rose-700 border' : 'bg-slate-50 border-slate-200 text-[#113130] hover:border-[#0F766E]/40 border'} ${abierto ? 'ring-2 ring-[#0F766E]/30 border-[#0F766E] bg-white' : ''}`}
+            >
                 <span className={!valor ? 'text-slate-400' : ''}>
                     {formatearFechaDisplay(valor)}
                 </span>
@@ -139,16 +336,25 @@ const DatePickerPremium = ({ valor, alCambiar, conError }) => {
             {abierto && (
                 <>
                     <div className="fixed inset-0 z-40" onClick={() => setAbierto(false)}></div>
-                    <div className="absolute z-50 w-full sm:w-80 mt-2 bg-white border border-slate-100 rounded-[2rem] shadow-2xl p-6 animate-fade-in left-0">
+                    <div 
+                        onKeyDown={(e) => {
+                            if (e.key === 'Escape') {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setAbierto(false);
+                            }
+                        }}
+                        className="absolute z-50 w-full sm:w-80 mt-2 bg-white border border-slate-100 rounded-[2rem] shadow-2xl p-6 animate-fade-in left-0"
+                    >
                         {/* Header Mes/Año */}
                         <div className="flex justify-between items-center mb-6">
-                            <button type="button" onClick={() => setFechaVista(new Date(fechaVista.getFullYear(), fechaVista.getMonth() - 1, 1))} className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors">
+                            <button type="button" onClick={() => setFechaVista(new Date(fechaVista.getFullYear(), fechaVista.getMonth() - 1, 1))} className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors focus:outline-none focus:ring-2 focus:ring-[#0F766E]">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15 19l-7-7 7-7" /></svg>
                             </button>
                             <span className="text-[13px] font-black uppercase tracking-widest text-[#113130]">
                                 {mesesNombres[fechaVista.getMonth()]} {fechaVista.getFullYear()}
                             </span>
-                            <button type="button" onClick={() => setFechaVista(new Date(fechaVista.getFullYear(), fechaVista.getMonth() + 1, 1))} className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors">
+                            <button type="button" onClick={() => setFechaVista(new Date(fechaVista.getFullYear(), fechaVista.getMonth() + 1, 1))} className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors focus:outline-none focus:ring-2 focus:ring-[#0F766E]">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 5l7 7-7 7" /></svg>
                             </button>
                         </div>
@@ -173,7 +379,7 @@ const DatePickerPremium = ({ valor, alCambiar, conError }) => {
                                         key={d}
                                         type="button"
                                         onClick={() => { alCambiar(fechaStr); setAbierto(false); }}
-                                        className={`aspect-square flex items-center justify-center text-xs font-bold rounded-xl transition-all 
+                                        className={`aspect-square flex items-center justify-center text-xs font-bold rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-[#0F766E]
                                             ${seleccionado ? 'bg-[#0F766E] text-white shadow-md shadow-teal-900/20' : 
                                             hoy ? 'border-2 border-[#0F766E] text-[#0F766E] bg-teal-50/50' : 'hover:bg-slate-100 text-slate-600'}`}
                                     >
@@ -192,14 +398,56 @@ const DatePickerPremium = ({ valor, alCambiar, conError }) => {
 // 4. 🌟 NUEVO: Reloj Premium Custom (Dos columnas)
 const TimePickerPremium = ({ valor, alCambiar, conError }) => {
     const [abierto, setAbierto] = useState(false);
+    const dropdownRef = useRef(null);
     const horas = Array.from({length: 24}, (_, i) => String(i).padStart(2, '0'));
     const minutos = Array.from({length: 60}, (_, i) => String(i).padStart(2, '0'));
 
     const [hSelect, mSelect] = valor ? valor.split(':') : ['--', '--'];
 
+    useEffect(() => {
+        if (!abierto) return;
+        const handleOutside = (e) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+                setAbierto(false);
+            }
+        };
+        document.addEventListener('mousedown', handleOutside);
+        document.addEventListener('focusin', handleOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleOutside);
+            document.removeEventListener('focusin', handleOutside);
+        };
+    }, [abierto]);
+
     return (
-        <div className="relative">
-            <div onClick={() => setAbierto(!abierto)} className={`w-full rounded-2xl px-5 py-4 text-sm font-bold cursor-pointer flex justify-between items-center transition-all ${conError ? 'bg-rose-50 border-rose-400 text-rose-700 border' : 'bg-slate-50 border-slate-200 text-[#113130] hover:border-[#0F766E]/40 border'} ${abierto ? 'ring-2 ring-[#0F766E]/30 border-[#0F766E] bg-white' : ''}`}>
+        <div
+            ref={dropdownRef}
+            data-dropdown-open={abierto ? 'true' : undefined}
+            className="relative"
+            onBlur={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget)) {
+                    setAbierto(false);
+                }
+            }}
+        >
+            <div 
+                tabIndex={0}
+                role="button"
+                aria-expanded={abierto}
+                onClick={() => setAbierto(!abierto)} 
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setAbierto(!abierto);
+                    } else if (e.key === 'Escape' && abierto) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setAbierto(false);
+                    }
+                }}
+                className={`w-full rounded-2xl px-5 py-4 text-sm font-bold cursor-pointer flex justify-between items-center transition-all focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-[#0F766E] focus:bg-white ${conError ? 'bg-rose-50 border-rose-400 text-rose-700 border' : 'bg-slate-50 border-slate-200 text-[#113130] hover:border-[#0F766E]/40 border'} ${abierto ? 'ring-2 ring-[#0F766E]/30 border-[#0F766E] bg-white' : ''}`}
+            >
                 <span className={!valor ? 'text-slate-400' : ''}>
                     {valor ? `${valor} hrs` : '-- : --'}
                 </span>
@@ -209,7 +457,16 @@ const TimePickerPremium = ({ valor, alCambiar, conError }) => {
             {abierto && (
                 <>
                     <div className="fixed inset-0 z-40" onClick={() => setAbierto(false)}></div>
-                    <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-3xl shadow-2xl p-5 animate-fade-in flex gap-6 h-[300px]">
+                    <div 
+                        onKeyDown={(e) => {
+                            if (e.key === 'Escape') {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setAbierto(false);
+                            }
+                        }}
+                        className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-3xl shadow-2xl p-5 animate-fade-in flex gap-6 h-[300px]"
+                    >
                         {/* Columna Horas */}
                         <div className="flex-1 flex flex-col h-full">
                             <span className="text-[10px] font-black text-center text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-100 pb-2">Hora</span>
@@ -222,7 +479,7 @@ const TimePickerPremium = ({ valor, alCambiar, conError }) => {
                                             const newTime = `${h}:${mSelect !== '--' ? mSelect : '00'}`;
                                             alCambiar(newTime);
                                         }}
-                                        className={`py-3 text-sm font-bold rounded-xl transition-colors ${hSelect === h ? 'bg-[#0F766E] text-white shadow-md' : 'hover:bg-slate-50 text-slate-600'}`}
+                                        className={`py-3 text-sm font-bold rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-[#0F766E] ${hSelect === h ? 'bg-[#0F766E] text-white shadow-md' : 'hover:bg-slate-50 text-slate-600'}`}
                                     >
                                         {h}
                                     </button>
@@ -245,7 +502,7 @@ const TimePickerPremium = ({ valor, alCambiar, conError }) => {
                                             alCambiar(newTime);
                                             setAbierto(false); // Cerramos el selector al elegir el minuto
                                         }}
-                                        className={`py-3 text-sm font-bold rounded-xl transition-colors ${mSelect === m ? 'bg-teal-50 text-[#0F766E]' : 'hover:bg-slate-50 text-slate-600'}`}
+                                        className={`py-3 text-sm font-bold rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-[#0F766E] ${mSelect === m ? 'bg-teal-50 text-[#0F766E]' : 'hover:bg-slate-50 text-slate-600'}`}
                                     >
                                         {m}
                                     </button>
@@ -506,6 +763,34 @@ const Citas = () => {
         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
     );
 
+    const searchInputRef = useRef(null);
+
+    useKeyboardShortcuts({
+        'alt+c': () => handleOpenForm(),
+        '/': () => {
+            if (view === 'list') {
+                searchInputRef.current?.focus();
+            }
+        },
+        'ctrl+enter': {
+            allowInInput: true,
+            handler: (e) => {
+                if (view === 'form') {
+                    handleSaveAppointment(e);
+                }
+            }
+        },
+        'escape': {
+            allowInInput: true,
+            handler: () => {
+                if (appointmentToCancel || document.querySelector('[data-modal-root="true"], [data-dropdown-open="true"]')) return;
+                if (view === 'form') {
+                    setView('list');
+                }
+            }
+        }
+    });
+
     // ================= VISTA 1: LISTA DE CITAS =================
     if (view === 'list') {
         return (
@@ -517,7 +802,7 @@ const Citas = () => {
                             <h1 className="text-2xl font-black text-[#113130] tracking-tight">Agenda de Citas</h1>
                             <p className="text-slate-500 text-sm font-medium mt-1">Organiza y filtra tus próximas consultas</p>
                         </div>
-                        <button onClick={() => handleOpenForm()} className="bg-[#0F766E] hover:bg-[#0D9488] text-white px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-lg shadow-teal-900/20 w-full sm:w-auto shrink-0">
+                        <button onClick={() => handleOpenForm()} title="Nueva Cita (Alt + C)" className="bg-[#0F766E] hover:bg-[#0D9488] text-white px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-lg shadow-teal-900/20 w-full sm:w-auto shrink-0">
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg> 
                             Nueva Cita
                         </button>
@@ -526,8 +811,9 @@ const Citas = () => {
                                 <div className="flex flex-col lg:flex-row gap-4 pt-4 border-t border-slate-50">
                 <div className="relative flex-1">
                     <input 
+                        ref={searchInputRef}
                         type="text" 
-                        placeholder="Buscar por paciente o motivo..." 
+                        placeholder="Buscar por paciente o motivo... (/)" 
                         value={searchQuery} 
                         onChange={(e) => setSearchQuery(e.target.value)} 
                         className="w-full pl-11 pr-4 py-3 rounded-xl text-sm bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E] transition-all font-medium" 
@@ -652,17 +938,17 @@ const Citas = () => {
                 {appointmentToCancel && createPortal(
                     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 w-screen h-screen">
                         <div className="absolute inset-0 bg-[#113130]/70 backdrop-blur-md" onClick={() => setAppointmentToCancel(null)} />
-                        <div className="bg-white rounded-[2rem] w-full max-w-sm p-8 relative z-10 shadow-2xl animate-fade-in border border-rose-100/50 text-center m-4">
+                        <FocusTrap active={true} onEscape={() => setAppointmentToCancel(null)} className="bg-white rounded-[2rem] w-full max-w-sm p-8 relative z-10 shadow-2xl animate-fade-in border border-rose-100/50 text-center m-4">
                             <div className="mx-auto w-20 h-20 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mb-6 shadow-inner border border-rose-100">
                                 <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                             </div>
                             <h3 className="text-2xl font-black text-[#113130] mb-3">¿Eliminar Cita?</h3>
                             <p className="text-sm text-slate-500 font-medium mb-8 leading-relaxed">Esta acción borrará la cita de la base de datos permanentemente.</p>
                             <div className="flex flex-col sm:flex-row gap-3">
-                                <button onClick={() => setAppointmentToCancel(null)} className="w-full py-3.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-[11px] font-black uppercase tracking-widest transition-colors">Atrás</button>
+                                <button data-autofocus="true" onClick={() => setAppointmentToCancel(null)} className="w-full py-3.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-[11px] font-black uppercase tracking-widest transition-colors">Atrás</button>
                                 <button onClick={confirmCancelAppointment} className="w-full py-3.5 px-4 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-[11px] font-black uppercase tracking-widest shadow-lg shadow-rose-500/30 transition-colors">Sí, Eliminar</button>
                             </div>
-                        </div>
+                        </FocusTrap>
                     </div>, document.body
                 )}
             </div>
@@ -680,7 +966,7 @@ const Citas = () => {
                 <div className="bg-white rounded-[2.5rem] p-6 sm:p-10 shadow-sm border border-slate-100">
                     <div className="mb-8">
                         <h2 className="text-3xl font-black text-[#113130] tracking-tight">{formData.id ? 'Editar Cita' : 'Agendar Cita'}</h2>
-                        <p className="text-sm text-slate-400 font-medium mt-1">Completa los detalles para el calendario.</p>
+                        <p className="text-sm text-slate-400 font-medium mt-1">Completa los detalles para el calendario. (Ctrl + Enter para guardar)</p>
                     </div>
 
                     <form onSubmit={handleSaveAppointment} className="space-y-6" noValidate>

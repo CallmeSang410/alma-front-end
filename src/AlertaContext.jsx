@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import FocusTrap from './components/FocusTrap';
 
 const AlertaContext = createContext();
 
@@ -32,6 +33,19 @@ export const AlertaProvider = ({ children }) => {
         return () => { document.body.style.overflow = 'unset'; };
     }, [alerta.visible]);
 
+    useEffect(() => {
+        if (!alerta.visible) return;
+        const handleKey = (e) => {
+            if (e.key === 'Escape' || e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+                cerrarAlerta();
+            }
+        };
+        window.addEventListener('keydown', handleKey, true);
+        return () => window.removeEventListener('keydown', handleKey, true);
+    }, [alerta.visible]);
+
     return (
         <AlertaContext.Provider value={{ mostrarAlerta }}>
             {children}
@@ -46,7 +60,8 @@ export const AlertaProvider = ({ children }) => {
                     />
                     
                     {/* Tarjeta de la Alerta con Animación de Rebote */}
-                    <div className="bg-white rounded-[2.5rem] w-full max-w-sm p-8 relative z-10 shadow-[0_20px_60px_-15px_rgba(17,49,48,0.3)] border border-slate-50 text-center mx-auto animate-modal">
+                    <FocusTrap active={alerta.visible} onClose={cerrarAlerta} className="w-full max-w-sm relative z-10 mx-auto">
+                    <div className="bg-white rounded-[2.5rem] w-full p-8 shadow-[0_20px_60px_-15px_rgba(17,49,48,0.3)] border border-slate-50 text-center animate-modal">
                         
                         {/* --- ÍCONO DINÁMICO (Con Degradados) --- */}
                         {alerta.tipo === 'exito' ? (
@@ -81,6 +96,7 @@ export const AlertaProvider = ({ children }) => {
                         
                         {/* --- BOTÓN DINÁMICO (Con Degradados y Hover Elegante) --- */}
                         <button 
+                            data-autofocus="true"
                             onClick={cerrarAlerta} 
                             className={`w-full py-4 px-4 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] transition-all duration-300 transform hover:-translate-y-1 ${
                                 alerta.tipo === 'exito' 
@@ -91,6 +107,7 @@ export const AlertaProvider = ({ children }) => {
                             {alerta.tipo === 'exito' ? 'Entendido' : 'Atrás'}
                         </button>
                     </div>
+                    </FocusTrap>
                 </div>,
                 document.body
             )}

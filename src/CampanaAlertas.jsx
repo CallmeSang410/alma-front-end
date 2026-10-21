@@ -13,17 +13,37 @@ const CampanaAlertas = () => {
     // La referencia de la campana
     const campanaRef = useRef(null); 
     
-    // EFECTO CLICK OUTSIDE
+    // EFECTO CLICK/FOCUS OUTSIDE Y TECLA ESCAPE
     useEffect(() => {
-        const handleClickOutside = (event) => {
+        const handleOutside = (event) => {
             if (campanaRef.current && !campanaRef.current.contains(event.target)) {
                 setIsOpen(false); 
             }
         };
 
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
+        const handleKeyDown = (event) => {
+            if (event.key === 'Escape' && isOpen) {
+                event.preventDefault();
+                event.stopPropagation();
+                setIsOpen(false);
+            }
+        };
+
+        const handleToggleEvent = () => {
+            setIsOpen(prev => !prev);
+        };
+
+        document.addEventListener('mousedown', handleOutside);
+        document.addEventListener('focusin', handleOutside);
+        document.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('toggleCampanaAlertas', handleToggleEvent);
+        return () => {
+            document.removeEventListener('mousedown', handleOutside);
+            document.removeEventListener('focusin', handleOutside);
+            document.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('toggleCampanaAlertas', handleToggleEvent);
+        };
+    }, [isOpen]);
 
     // MOTOR REAL: Conexión directa con tu FastAPI mediante AXIOS
     const revisarAlertasReal = async () => {

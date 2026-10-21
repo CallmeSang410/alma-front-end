@@ -1,21 +1,95 @@
-import React, { useState, useEffect, createContext, useContext } from 'react';
+import React, { useState, useEffect, createContext, useContext, useRef } from 'react';
 import HistorialSesiones from './HistorialSesiones'; // Ajustá la ruta si lo guardaste en otra carpeta
 import { createPortal } from 'react-dom';
 import { useAlerta, AlertaProvider } from './AlertaContext.jsx'; // 🌟 1. IMPORTAMOS AMBAS COSAS
 import api from './api'; // Importás tu instancia configurada
-
-
+import useKeyboardShortcuts from './hooks/useKeyboardShortcuts';
+import FocusTrap from './components/FocusTrap';
 
 const SelectorPremium = ({ valor, opciones, alCambiar, placeholder, conError }) => {
     const [abierto, setAbierto] = useState(false);
+    const [indiceActivo, setIndiceActivo] = useState(-1);
+    const dropdownRef = useRef(null);
+
+    useEffect(() => {
+        if (abierto) {
+            const idx = opciones.findIndex(o => o.valor === valor);
+            setIndiceActivo(idx >= 0 ? idx : 0);
+        }
+    }, [abierto, valor, opciones]);
+
+    useEffect(() => {
+        if (!abierto) return;
+        const handleOutside = (e) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+                setAbierto(false);
+            }
+        };
+        document.addEventListener('mousedown', handleOutside);
+        document.addEventListener('focusin', handleOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleOutside);
+            document.removeEventListener('focusin', handleOutside);
+        };
+    }, [abierto]);
+
+    const manejarTeclado = (e) => {
+        if (!abierto) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                e.stopPropagation();
+                setAbierto(true);
+            }
+            return;
+        }
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            e.stopPropagation();
+            const nextIdx = (indiceActivo + 1) % opciones.length;
+            setIndiceActivo(nextIdx);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            e.stopPropagation();
+            const prevIdx = (indiceActivo - 1 + opciones.length) % opciones.length;
+            setIndiceActivo(prevIdx);
+        } else if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            e.stopPropagation();
+            if (indiceActivo >= 0 && opciones[indiceActivo]) {
+                alCambiar(opciones[indiceActivo].valor);
+            }
+            setAbierto(false);
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation();
+            setAbierto(false);
+        } else if (e.key === 'Tab' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+            setAbierto(false);
+        }
+    };
+
     return (
-        <div className="relative">
+        <div
+            ref={dropdownRef}
+            data-dropdown-open={abierto ? 'true' : undefined}
+            onBlur={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget)) {
+                    setAbierto(false);
+                }
+            }}
+            className="relative"
+        >
             {/* El "Botón" que muestra la opción elegida */}
             <div 
+                tabIndex={0}
+                role="combobox"
+                aria-expanded={abierto}
                 onClick={() => setAbierto(!abierto)}
-                className={`w-full rounded-2xl px-5 py-4 text-sm font-bold cursor-pointer flex justify-between items-center transition-all ${conError ? 'bg-rose-50 border-rose-400 text-rose-700 border' : 'bg-slate-50 border-slate-200 text-[#113130] hover:border-[#0F766E]/40 border'} ${abierto ? 'ring-2 ring-[#0F766E]/30 border-[#0F766E] bg-white' : ''}`}
+                onKeyDown={manejarTeclado}
+                className={`w-full rounded-2xl px-5 py-4 text-sm font-bold cursor-pointer flex justify-between items-center transition-all focus:outline-none focus:ring-2 focus:ring-[#0F766E] focus:border-[#0F766E] focus:bg-white ${conError ? 'bg-rose-50 border-rose-400 text-rose-700 border' : 'bg-slate-50 border-slate-200 text-[#113130] hover:border-[#0F766E]/40 border'} ${abierto ? 'ring-2 ring-[#0F766E] border-[#0F766E] bg-white' : ''}`}
             >
-                <span className={!valor ? 'text-slate-400' : ''}>
+                <span className={!valor ? 'text-slate-400' : 'text-[#113130]'}>
                     {valor ? opciones.find(o => o.valor === valor)?.etiqueta : placeholder}
                 </span>
                 <svg className={`w-5 h-5 text-slate-400 transition-transform duration-300 ${abierto ? 'rotate-180 text-[#0F766E]' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" /></svg>
@@ -25,12 +99,19 @@ const SelectorPremium = ({ valor, opciones, alCambiar, placeholder, conError }) 
             {abierto && (
                 <>
                     <div className="fixed inset-0 z-40" onClick={() => setAbierto(false)}></div>
-                    <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-2xl shadow-xl overflow-hidden animate-fade-in">
-                        {opciones.map((opt) => (
+                    <div role="listbox" className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-2xl shadow-xl overflow-hidden animate-fade-in">
+                        {opciones.map((opt, idx) => (
                             <div 
                                 key={opt.valor}
-                                onClick={() => { alCambiar(opt.valor); setAbierto(false); }}
-                                className={`px-5 py-3.5 cursor-pointer text-sm font-bold transition-colors flex justify-between items-center ${valor === opt.valor ? 'bg-teal-50 text-[#0F766E]' : 'text-slate-500 hover:bg-slate-50 hover:text-[#113130]'}`}
+                                role="option"
+                                aria-selected={valor === opt.valor}
+                                onMouseEnter={() => setIndiceActivo(idx)}
+                                onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    alCambiar(opt.valor);
+                                    setAbierto(false);
+                                }}
+                                className={`px-5 py-3.5 cursor-pointer text-sm font-bold transition-colors flex justify-between items-center ${idx === indiceActivo ? 'bg-teal-50 text-[#0F766E]' : valor === opt.valor ? 'bg-teal-50/60 text-[#0F766E]' : 'text-slate-500 hover:bg-slate-50 hover:text-[#113130]'}`}
                             >
                                 {opt.etiqueta}
                                 {valor === opt.valor && <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>}
@@ -61,6 +142,8 @@ const Pacientes = ({ onNavigateToReportes }) => {
     const [patientToDelete, setPatientToDelete] = useState(null);
     const [formErrors, setFormErrors] = useState({}); 
     const [formData, setFormData] = useState({ id: null, name: '', phone: '', email: '', age: '', status: 'Activo', sexo: '' });
+    const searchInputRef = useRef(null);
+    const nameInputRef = useRef(null);
 
     // 🌟 ESTADOS NUEVOS PARA CITAS Y REPORTES
     const [todasLasCitas, setTodasLasCitas] = useState([]);
@@ -354,6 +437,39 @@ const Pacientes = ({ onNavigateToReportes }) => {
         await cargarEventosPaciente(patient.id); 
     };
 
+    useEffect(() => {
+        if (view === 'form') {
+            setTimeout(() => nameInputRef.current?.focus(), 60);
+        }
+    }, [view]);
+
+    useKeyboardShortcuts({
+        'alt+n': () => handleOpenForm(),
+        '/': () => {
+            if (view === 'list') {
+                searchInputRef.current?.focus();
+            }
+        },
+        'ctrl+enter': {
+            allowInInput: true,
+            handler: (e) => {
+                if (view === 'form') {
+                    handleSavePatient(e);
+                }
+            }
+        },
+        'escape': {
+            allowInInput: true,
+            handler: () => {
+                if (patientToDelete || isNoteModalOpen || showDeleteTimelineModal) return;
+                if (document.querySelector('[data-modal-root="true"], [data-dropdown-open="true"]')) return;
+                if (view === 'form' || view === 'details') {
+                    setView('list');
+                }
+            }
+        }
+    });
+
     const filteredPatients = patients.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
     
     const getTrendInfo = (status) => {
@@ -377,10 +493,10 @@ const Pacientes = ({ onNavigateToReportes }) => {
                     </div>
                     <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
                         <div className="relative w-full sm:w-64">
-                            <input type="text" placeholder="Buscar por nombre o diagnóstico..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-11 pr-4 py-3.5 rounded-2xl text-sm bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E] transition-all font-medium" />
+                            <input ref={searchInputRef} type="text" placeholder="Buscar por nombre o diagnóstico... (/)" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-11 pr-4 py-3.5 rounded-2xl text-sm bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E] transition-all font-medium" />
                             <svg className="w-5 h-5 text-slate-400 absolute left-4 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                         </div>
-                        <button onClick={() => handleOpenForm()} className="bg-[#0F766E] hover:bg-[#0D9488] text-white px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-lg shadow-teal-900/20 w-full sm:w-auto">
+                        <button onClick={() => handleOpenForm()} title="Nuevo Paciente (Alt + N)" className="bg-[#0F766E] hover:bg-[#0D9488] text-white px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-lg shadow-teal-900/20 w-full sm:w-auto">
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg> Nuevo
                         </button>
                     </div>
@@ -397,7 +513,18 @@ const Pacientes = ({ onNavigateToReportes }) => {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {filteredPatients.map(patient => (
-                            <div key={patient.id} className="bg-white rounded-[2rem] p-7 shadow-sm border border-slate-100 hover:shadow-md transition-all group flex flex-col justify-between">
+                            <div 
+                                key={patient.id} 
+                                tabIndex={0}
+                                role="button"
+                                onKeyDown={(e) => {
+                                    if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+                                        e.preventDefault();
+                                        handleViewDetails(patient);
+                                    }
+                                }}
+                                className="bg-white rounded-[2rem] p-7 shadow-sm border border-slate-100 hover:shadow-md transition-all group flex flex-col justify-between cursor-pointer"
+                            >
                                 <div>
                                     <div className="flex justify-between items-start mb-5">
                                         <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-teal-50 to-emerald-50 text-[#0F766E] flex items-center justify-center font-black text-xl border border-teal-100 shadow-sm">{patient.name.charAt(0)}</div>
@@ -676,14 +803,14 @@ const Pacientes = ({ onNavigateToReportes }) => {
                 {patientToDelete && createPortal(
                     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
                         <div className="absolute inset-0 bg-[#113130]/70 backdrop-blur-md" onClick={() => setPatientToDelete(null)}></div>
-                        <div className="bg-white rounded-[2rem] w-full max-w-sm p-8 relative z-10 text-center shadow-2xl border border-slate-100">
+                        <FocusTrap active={true} onEscape={() => setPatientToDelete(null)} className="bg-white rounded-[2rem] w-full max-w-sm p-8 relative z-10 text-center shadow-2xl border border-slate-100">
                             <h3 className="text-2xl font-black text-[#113130] mb-3">¿Eliminar Expediente?</h3>
                             <p className="text-sm text-slate-500 mb-8">Esta acción es permanente en HorizonFlow.</p>
                             <div className="flex gap-3">
-                                <button onClick={() => setPatientToDelete(null)} className="w-full py-3.5 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-xl text-[11px] font-black uppercase tracking-widest transition-colors">Cancelar</button>
+                                <button data-autofocus="true" onClick={() => setPatientToDelete(null)} className="w-full py-3.5 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-xl text-[11px] font-black uppercase tracking-widest transition-colors">Cancelar</button>
                                 <button onClick={confirmDeletePatient} className="w-full py-3.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-[11px] font-black uppercase tracking-widest transition-colors shadow-md shadow-rose-900/20">Sí, Eliminar</button>
                             </div>
-                        </div>
+                        </FocusTrap>
                     </div>, document.body
                 )}
 
@@ -692,7 +819,7 @@ const Pacientes = ({ onNavigateToReportes }) => {
                     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
                         <div className="absolute inset-0 bg-[#113130]/60 backdrop-blur-sm" onClick={() => setIsNoteModalOpen(false)}></div>
                         
-                        <div className="bg-white rounded-[2rem] w-full max-w-md relative z-10 shadow-2xl p-6 md:p-8 animate-fade-in">
+                        <FocusTrap active={true} onEscape={() => setIsNoteModalOpen(false)} className="bg-white rounded-[2rem] w-full max-w-md relative z-10 shadow-2xl p-6 md:p-8 animate-fade-in">
                             
                             {!isTimelineEditMode && selectedNote.titulo ? (
                                 /* --- MODO LECTURA --- */
@@ -704,7 +831,7 @@ const Pacientes = ({ onNavigateToReportes }) => {
                                     <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 mb-8">
                                         <p className="text-sm font-medium text-slate-600 leading-relaxed whitespace-pre-wrap">{selectedNote.contenido}</p>
                                     </div>
-                                    <button onClick={() => setIsNoteModalOpen(false)} className="w-full py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors">Cerrar Detalles</button>
+                                    <button data-autofocus="true" onClick={() => setIsNoteModalOpen(false)} className="w-full py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors">Cerrar Detalles</button>
                                 </div>
                             ) : (
                                 /* --- MODO EDICIÓN --- */
@@ -712,6 +839,7 @@ const Pacientes = ({ onNavigateToReportes }) => {
                                     <h3 className="text-xl font-black text-[#113130] mb-6">{selectedNote.titulo ? 'Modificar Nota' : 'Nueva Nota'}</h3>
                                     <div className="space-y-5">
                                         <input 
+                                            data-autofocus="true"
                                             type="text" 
                                             value={selectedNote.titulo || ''} 
                                             onChange={(e) => setSelectedNote({...selectedNote, titulo: e.target.value})} 
@@ -733,7 +861,7 @@ const Pacientes = ({ onNavigateToReportes }) => {
                                     </div>
                                 </div>
                             )}
-                        </div>
+                        </FocusTrap>
                     </div>, 
                     document.body
                 )}
@@ -752,13 +880,14 @@ const Pacientes = ({ onNavigateToReportes }) => {
                 <div className="bg-white rounded-[2.5rem] p-6 sm:p-10 shadow-sm border border-slate-100">
                     <div className="mb-10">
                         <h2 className="text-3xl font-black text-[#113130] tracking-tight">{formData.id ? 'Editar Expediente' : 'Nuevo Paciente'}</h2>
-                        <p className="text-sm text-slate-400 font-medium mt-1">Completa la información básica para el directorio clínico.</p>
+                        <p className="text-sm text-slate-400 font-medium mt-1">Completa la información básica para el directorio clínico. (Ctrl + Enter para guardar)</p>
                     </div>
                     <form onSubmit={handleSavePatient} className="space-y-6" noValidate>
                         <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-6">
                             <div>
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nombre Completo <span className="text-rose-500">*</span></label>
                                 <input 
+                                    ref={nameInputRef}
                                     type="text" 
                                     required
                                     value={formData.name} 

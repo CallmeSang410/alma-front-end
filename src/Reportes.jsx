@@ -1,8 +1,9 @@
-import React, { useState, useEffect, createContext, useContext } from 'react';
+import React, { useState, useEffect, createContext, useContext, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import './Reportes.css';
 import { useAlerta, AlertaProvider } from './AlertaContext.jsx'; // 🌟 Importación del sistema nativo
 import api from './api'; // Importás tu instancia de axios que configuramos antes
+import useKeyboardShortcuts from './hooks/useKeyboardShortcuts';
 
 // --- COMPONENTE TRADUCTOR DE MARKDOWN ---
 const TextoFormateadoIA = ({ texto }) => {
@@ -47,7 +48,7 @@ const TextoFormateadoIA = ({ texto }) => {
     );
 };
 
-const Reportes = () => {
+const Reportes = ({ citaInicial }) => {
     // 🛡️ ESCUDO ANTI-PANTALLA BLANCA
     const contextoAlerta = useAlerta();
     const mostrarAlerta = contextoAlerta ? contextoAlerta.mostrarAlerta : (tipo, titulo, mensaje) => {
@@ -59,6 +60,7 @@ const Reportes = () => {
     const [view, setView] = useState('list'); 
     const [searchQuery, setSearchQuery] = useState('');
     const [activeReport, setActiveReport] = useState(null);
+    const searchInputRef = useRef(null);
 
     // ================= 2. ESTADOS DE BASE DE DATOS =================
     const [pastReports, setPastReports] = useState([]);
@@ -94,10 +96,15 @@ const Reportes = () => {
     // ================= 5. ESTADOS PARA EL BUSCADOR DE CITAS =================
     const [busquedaCita, setBusquedaCita] = useState('');
     const [mostrarListaCitas, setMostrarListaCitas] = useState(false);
+    const [indiceCitaActiva, setIndiceCitaActiva] = useState(0);
 
     const citasFiltradas = availableAppointments.filter(cita => 
         cita.labelVisual.toLowerCase().includes(busquedaCita.toLowerCase())
     );
+
+    useEffect(() => {
+        setIndiceCitaActiva(0);
+    }, [busquedaCita, mostrarListaCitas]);
 
     // ================= 6. LÓGICA DE SEGUIMIENTO E INSTRUMENTOS =================
     const availableTests = ["BDI-II (Depresión)", "GAD-7 (Ansiedad)", "MMPI-2", "Test de Rorschach", "Test de Bender", "Test de la Figura Humana", "Escala de Estrés Percibido", "Otros"];
@@ -172,8 +179,25 @@ const Reportes = () => {
                 };
             });
 
-            setPastReports(reportesFormateados.reverse());
+            const listaReversa = reportesFormateados.reverse();
+            setPastReports(listaReversa);
             setAvailableAppointments(citasConNombre);
+
+            if (citaInicial) {
+                const repExistente = listaReversa.find(r => String(r.fullData?.cita_id) === String(citaInicial));
+                if (repExistente) {
+                    setActiveReport(repExistente);
+                    setView('reportDetail');
+                } else {
+                    const citaPendiente = citasConNombre.find(c => String(c.id) === String(citaInicial));
+                    if (citaPendiente) {
+                        setFormData(prev => ({ ...prev, cita_id: citaPendiente.id, reason: citaPendiente.motivo || '' }));
+                        setBusquedaCita(citaPendiente.labelVisual);
+                        setStep(1);
+                        setView('wizard');
+                    }
+                }
+            }
 
         } catch (error) {
             console.error("Error al cargar datos:", error);
@@ -182,7 +206,7 @@ const Reportes = () => {
 
     useEffect(() => {
         cargarDatos();
-    }, []);
+    }, [citaInicial]);
 
     const toggleTest = (test) => {
         setFormErrors({...formErrors, testsUsed: false}); 
@@ -460,6 +484,60 @@ const Reportes = () => {
         return paciente;
     };
 
+    useKeyboardShortcuts({
+        'alt+r': {
+            allowInInput: true,
+            handler: () => {
+                setView('wizard');
+                setStep(1);
+                setFormData(initialFormState);
+                setModoManual(false);
+            }
+        },
+        '/': () => {
+            if (view === 'list') {
+                searchInputRef.current?.focus();
+            }
+        },
+        'ctrl+arrowright': {
+            allowInInput: true,
+            handler: () => {
+                if (view === 'wizard' && !isAnalyzing) handleNextStep();
+            }
+        },
+        'ctrl+arrowleft': {
+            allowInInput: true,
+            handler: () => {
+                if (view === 'wizard' && !isAnalyzing) handlePrevStep();
+            }
+        },
+        'ctrl+shift+a': {
+            allowInInput: true,
+            handler: () => {
+                if (view === 'wizard' && step === 2 && !isAnalyzing) generarAnalisisIA();
+            }
+        },
+        'ctrl+enter': {
+            allowInInput: true,
+            handler: () => {
+                if (view === 'wizard' && !isAnalyzing) handleNextStep();
+            }
+        },
+        'escape': {
+            allowInInput: true,
+            handler: () => {
+                if (mostrarListaCitas) {
+                    setMostrarListaCitas(false);
+                    return;
+                }
+                if (document.querySelector('[data-modal-root="true"], [data-dropdown-open="true"]')) return;
+                if ((view === 'wizard' && !isAnalyzing) || view === 'reportDetail') {
+                    setView('list');
+                }
+            }
+        }
+    });
+
     // ================= VISTA 1: LISTADO DE REPORTES =================
     if (view === 'list') {
         const filteredReports = pastReports.filter(r => 
@@ -476,14 +554,14 @@ const Reportes = () => {
                         <h1 className="text-3xl font-black text-[#113130] tracking-tight">Evaluaciones y Reportes</h1>
                         <p className="text-slate-500 text-sm font-medium mt-1">Sistematiza tus diagnósticos con el procesamiento de HorizonFlow.</p>
                     </div>
-                    <button onClick={() => { setView('wizard'); setStep(1); setFormData(initialFormState); setModoManual(false); }} className="relative z-10 bg-gradient-to-r from-[#0F766E] to-[#0D9488] hover:to-teal-500 text-white px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-3 transition-all shadow-xl shadow-teal-900/20 w-full md:w-auto">
+                    <button onClick={() => { setView('wizard'); setStep(1); setFormData(initialFormState); setModoManual(false); }} title="Atajo: Alt + R" className="relative z-10 bg-gradient-to-r from-[#0F766E] to-[#0D9488] hover:to-teal-500 text-white px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-3 transition-all shadow-xl shadow-teal-900/20 w-full md:w-auto">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg> 
                         Iniciar Evaluación
                     </button>
                 </div>
 
                 <div className="relative w-full">
-                    <input type="text" placeholder="Buscar por paciente, diagnóstico o Folio (Ej. CD-0001)..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-12 pr-4 py-4 rounded-2xl text-sm bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E] transition-all font-medium shadow-sm" />
+                    <input ref={searchInputRef} type="text" placeholder="Buscar por paciente, diagnóstico o Folio (Ej. CD-0001)... (Presiona /)" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-12 pr-4 py-4 rounded-2xl text-sm bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E] transition-all font-medium shadow-sm" />
                     <svg className="w-5 h-5 text-slate-400 absolute left-4 top-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                 </div>
 
@@ -498,7 +576,21 @@ const Reportes = () => {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                         {filteredReports.map(report => (
-                            <div key={report.id} onClick={() => { setActiveReport(report); setView('reportDetail'); }} className="bg-white rounded-[2rem] p-7 shadow-sm border border-slate-100 hover:shadow-xl hover:shadow-teal-900/5 hover:-translate-y-1 transition-all cursor-pointer group flex flex-col justify-between">
+                            <div
+                                key={report.id}
+                                tabIndex={0}
+                                role="button"
+                                aria-label={`Ver informe de ${report.patientName}, folio ${report.serialNumber}`}
+                                onClick={() => { setActiveReport(report); setView('reportDetail'); }}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        setActiveReport(report);
+                                        setView('reportDetail');
+                                    }
+                                }}
+                                className="bg-white rounded-[2rem] p-7 shadow-sm border border-slate-100 hover:shadow-xl hover:shadow-teal-900/5 hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-[#0F766E] transition-all cursor-pointer group flex flex-col justify-between"
+                            >
                                 <div>
                                     <div className="flex justify-between items-start mb-5">
                                         <div className="w-12 h-12 rounded-xl bg-rose-50 text-rose-500 flex items-center justify-center group-hover:bg-rose-500 group-hover:text-white transition-colors shadow-sm shrink-0">
@@ -521,7 +613,7 @@ const Reportes = () => {
                                     <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1.5 rounded-md truncate max-w-[150px] ${getBadgeStyle(report.nextStep)}`}>
                                         {report.nextStep}
                                     </span>
-                                    <span className="text-[#0F766E] font-bold text-xs flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity transform translate-x-[-10px] group-hover:translate-x-0">
+                                    <span className="text-[#0F766E] font-bold text-xs flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity transform translate-x-[-10px] group-hover:translate-x-0 group-focus:translate-x-0">
                                         Ver Informe <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" /></svg>
                                     </span>
                                 </div>
@@ -569,7 +661,15 @@ const Reportes = () => {
 
                     {step === 1 && (
                         <div className="space-y-6 animate-fade-in">
-                            <div className="relative animate-fade-in z-50">
+                            <div
+                                data-dropdown-open={mostrarListaCitas ? 'true' : undefined}
+                                onBlur={(e) => {
+                                    if (!e.currentTarget.contains(e.relatedTarget)) {
+                                        setMostrarListaCitas(false);
+                                    }
+                                }}
+                                className="relative animate-fade-in z-50"
+                            >
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
                                     Cita Pendiente <span className="text-rose-500">*</span>
                                 </label>
@@ -580,15 +680,42 @@ const Reportes = () => {
                                     </div>
                                     <input 
                                         type="text"
+                                        autoFocus
                                         value={busquedaCita}
                                         onChange={(e) => {
                                             setBusquedaCita(e.target.value);
                                             setMostrarListaCitas(true);
+                                            setIndiceCitaActiva(0);
                                             if (e.target.value === '') {
                                                 setFormData({...formData, cita_id: ''});
                                             }
                                         }}
                                         onClick={() => setMostrarListaCitas(true)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'ArrowDown') {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                if (!mostrarListaCitas) setMostrarListaCitas(true);
+                                                else setIndiceCitaActiva(prev => Math.min(prev + 1, Math.max(0, citasFiltradas.length - 1)));
+                                            } else if (e.key === 'ArrowUp') {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                setIndiceCitaActiva(prev => Math.max(prev - 1, 0));
+                                            } else if (e.key === 'Enter' && mostrarListaCitas && citasFiltradas[indiceCitaActiva]) {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                const cita = citasFiltradas[indiceCitaActiva];
+                                                setFormData({...formData, cita_id: cita.id});
+                                                setBusquedaCita(cita.labelVisual);
+                                                setMostrarListaCitas(false);
+                                            } else if ((e.key === 'Escape' || e.key === 'Tab') && mostrarListaCitas) {
+                                                if (e.key === 'Escape') {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                }
+                                                setMostrarListaCitas(false);
+                                            }
+                                        }}
                                         placeholder="Buscar paciente o fecha..."
                                         className={`w-full rounded-2xl pl-11 pr-10 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.cita_id ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-white border-slate-200 focus:ring-[#0F766E] border'}`}
                                     />
@@ -612,15 +739,16 @@ const Reportes = () => {
                                     <div className="absolute w-full mt-2 bg-white border border-slate-100 rounded-xl shadow-xl max-h-60 overflow-y-auto z-50 animate-fade-in">
                                         {citasFiltradas.length > 0 ? (
                                             <ul className="py-2">
-                                                {citasFiltradas.map((cita) => (
+                                                {citasFiltradas.map((cita, idx) => (
                                                     <li 
                                                         key={cita.id}
-                                                        onClick={() => {
+                                                        onMouseDown={(e) => {
+                                                            e.preventDefault();
                                                             setFormData({...formData, cita_id: cita.id});
                                                             setBusquedaCita(cita.labelVisual);
                                                             setMostrarListaCitas(false);
                                                         }}
-                                                        className="px-5 py-3 hover:bg-teal-50 cursor-pointer transition-colors border-b border-slate-50 last:border-0 flex flex-col"
+                                                        className={`px-5 py-3 cursor-pointer transition-colors border-b border-slate-50 last:border-0 flex flex-col ${idx === indiceCitaActiva ? 'bg-teal-50' : 'hover:bg-teal-50'}`}
                                                     >
                                                         <span className="text-sm font-bold text-[#113130]">
                                                             {cita.labelVisual.split(' - ')[0]}
@@ -660,14 +788,26 @@ const Reportes = () => {
                         <div className="space-y-8 animate-fade-in">
                             <div>
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Notas de Entrevista Psicológica</label>
-                                <textarea value={formData.interviewNotes} onChange={(e) => setFormData({...formData, interviewNotes: e.target.value})} placeholder="Registra las observaciones clínicas, afecto, lenguaje, pensamiento..." rows="5" className={`w-full rounded-2xl px-5 py-4 text-sm font-medium text-[#113130] focus:outline-none focus:ring-2 transition-all resize-none ${formErrors.interviewNotes ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-slate-50 border-slate-200 focus:ring-[#0F766E] border'}`}></textarea>
+                                <textarea autoFocus value={formData.interviewNotes} onChange={(e) => setFormData({...formData, interviewNotes: e.target.value})} placeholder="Registra las observaciones clínicas, afecto, lenguaje, pensamiento..." rows="5" className={`w-full rounded-2xl px-5 py-4 text-sm font-medium text-[#113130] focus:outline-none focus:ring-2 transition-all resize-none ${formErrors.interviewNotes ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-slate-50 border-slate-200 focus:ring-[#0F766E] border'}`}></textarea>
                                 {formErrors.interviewNotes && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Ingresa las notas clínicas de la evaluación</p>}
                             </div>
                             <div>
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Técnicas / Pruebas Psicométricas Aplicadas</label>
                                 <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 p-1 ${formErrors.testsUsed ? 'p-4 border border-rose-400 bg-rose-50 rounded-2xl' : ''}`}>
                                     {availableTests.map((test, idx) => (
-                                        <label key={idx} className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${formData.testsUsed.includes(test) ? 'bg-[#0F766E] border-[#0F766E] text-white shadow-md' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
+                                        <label
+                                            key={idx}
+                                            tabIndex={0}
+                                            role="checkbox"
+                                            aria-checked={formData.testsUsed.includes(test)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' || e.key === ' ') {
+                                                    e.preventDefault();
+                                                    toggleTest(test);
+                                                }
+                                            }}
+                                            className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-[#0F766E] ${formData.testsUsed.includes(test) ? 'bg-[#0F766E] border-[#0F766E] text-white shadow-md' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                                        >
                                             <input type="checkbox" className="hidden" checked={formData.testsUsed.includes(test)} onChange={() => toggleTest(test)} />
                                             <div className={`w-4 h-4 rounded shadow-inner flex items-center justify-center shrink-0 ${formData.testsUsed.includes(test) ? 'bg-white' : 'bg-slate-100 border border-slate-300'}`}>
                                                 {formData.testsUsed.includes(test) && <svg className="w-3 h-3 text-[#0F766E]" fill="none" stroke="currentColor" strokeWidth="4" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"></path></svg>}
@@ -879,7 +1019,19 @@ const Reportes = () => {
                                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Plan de Acción Directo</label>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                                         {['Tratamiento Terapéutico', 'Seguimiento Semanal', 'Seguimiento Quincenal', 'Seguimiento Mensual', 'Alta Médica'].map((option) => (
-                                            <label key={option} className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${formData.nextStep === option ? 'bg-white border-[#0F766E] text-[#0F766E] shadow-sm' : 'bg-white border-transparent text-slate-500 hover:border-slate-300'}`}>
+                                            <label
+                                                key={option}
+                                                tabIndex={0}
+                                                role="radio"
+                                                aria-checked={formData.nextStep === option}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' || e.key === ' ') {
+                                                        e.preventDefault();
+                                                        setFormData({...formData, nextStep: option, otherNextStepDescription: option !== 'Otros' ? '' : formData.otherNextStepDescription});
+                                                    }
+                                                }}
+                                                className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-[#0F766E] ${formData.nextStep === option ? 'bg-white border-[#0F766E] text-[#0F766E] shadow-sm' : 'bg-white border-transparent text-slate-500 hover:border-slate-300'}`}
+                                            >
                                                 <input type="radio" name="nextStep" className="hidden" checked={formData.nextStep === option} onChange={() => setFormData({...formData, nextStep: option, otherNextStepDescription: option !== 'Otros' ? '' : formData.otherNextStepDescription})} />
                                                 <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${formData.nextStep === option ? 'border-[#0F766E]' : 'border-slate-300'}`}>
                                                     {formData.nextStep === option && <div className="w-2 h-2 rounded-full bg-[#0F766E]"></div>}
@@ -893,7 +1045,19 @@ const Reportes = () => {
                                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Derivaciones y Otras Acciones</label>
                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                         {['Derivación', 'Interconsulta', 'Otros'].map((option) => (
-                                            <label key={option} className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${formData.nextStep === option ? 'bg-white border-[#0F766E] text-[#0F766E] shadow-sm' : 'bg-white border-transparent text-slate-500 hover:border-slate-300'}`}>
+                                            <label
+                                                key={option}
+                                                tabIndex={0}
+                                                role="radio"
+                                                aria-checked={formData.nextStep === option}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' || e.key === ' ') {
+                                                        e.preventDefault();
+                                                        setFormData({...formData, nextStep: option, otherNextStepDescription: option !== 'Otros' ? '' : formData.otherNextStepDescription});
+                                                    }
+                                                }}
+                                                className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-[#0F766E] ${formData.nextStep === option ? 'bg-white border-[#0F766E] text-[#0F766E] shadow-sm' : 'bg-white border-transparent text-slate-500 hover:border-slate-300'}`}
+                                            >
                                                 <input type="radio" name="nextStep" className="hidden" checked={formData.nextStep === option} onChange={() => setFormData({...formData, nextStep: option, otherNextStepDescription: option !== 'Otros' ? '' : formData.otherNextStepDescription})} />
                                                 <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${formData.nextStep === option ? 'border-[#0F766E]' : 'border-slate-300'}`}>
                                                     {formData.nextStep === option && <div className="w-2 h-2 rounded-full bg-[#0F766E]"></div>}

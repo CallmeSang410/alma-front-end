@@ -11,6 +11,10 @@ import CampanaAlertas from './CampanaAlertas';
 import Experiencia from './Experiencia';
 import Ajustes from './Ajustes'; 
 import api from './api';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { useSpatialNavigation } from './hooks/useSpatialNavigation';
+import FocusTrap from './components/FocusTrap';
+import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
 
 // =========================================================
 // 🌟 ESCUDO ANTI-PANTALLA BLANCA (ERROR BOUNDARY) 🌟
@@ -100,6 +104,9 @@ export default function Interface({ onLogout }) {
     const [langMenuOpen, setLangMenuOpen] = useState(false);
     const [citaParaReporte, setCitaParaReporte] = useState(null);
     const calendarioRef = useRef(null);
+    const profileMenuRef = useRef(null);
+    const shellRef = useRef(null);
+    const chatInputRef = useRef(null);
     const correoActivo = localStorage.getItem('userEmail') || 'usuario@gmail.com';
 
     const irAReportesDesdeAlerta = (citaId) => {
@@ -118,26 +125,80 @@ export default function Interface({ onLogout }) {
     const [searchQuery, setSearchQuery] = useState("");
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [showCalendar, setShowCalendar] = useState(false);
-    const [perfilNombre, setPerfilNombre] = useState(localStorage.getItem('hf_nombre_clinica') || 'Usuario Activo');
-    const [perfilEmail, setPerfilEmail] = useState(localStorage.getItem('hf_email') || '');
+    const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+    const [perfilNombre, setPerfilNombre] = useState(localStorage.getItem('userName') || localStorage.getItem('hf_nombre_clinica') || 'Dr. Especialista');
+    const [perfilEmail, setPerfilEmail] = useState(localStorage.getItem('userEmail') || localStorage.getItem('hf_email') || '');
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+
+    const nombreMostrado = (!perfilNombre || ['Psicólogo', 'Psicologo', 'Usuario Activo', 'Administrador'].includes(perfilNombre.trim()))
+        ? 'Dr. Especialista'
+        : perfilNombre;
     
     const [diaSeleccionado, setDiaSeleccionado] = useState(new Date().getDate());
     const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
     const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
     const [citasGlobales, setCitasGlobales] = useState([]);
 
+    // Activar navegación espacial 2D con flechas direccionales en toda la interfaz
+    useSpatialNavigation(shellRef, true);
+
+    // Atajos de teclado globales
+    useKeyboardShortcuts({
+        'alt+1': () => setActiveTab('dashboard'),
+        'alt+2': () => setActiveTab('pacientes'),
+        'alt+3': () => setActiveTab('citas'),
+        'alt+4': () => { setCitaParaReporte(null); setActiveTab('reportes'); },
+        'alt+5': () => setActiveTab('experiencia'),
+        'alt+6': () => setActiveTab('settings'),
+        'ctrl+j': { allowInInput: true, handler: () => setIsChatOpen(prev => !prev) },
+        'alt+b': () => window.dispatchEvent(new Event('toggleCampanaAlertas')),
+        'alt+m': () => window.dispatchEvent(new Event('toggleCampanaAlertas')),
+        '?': () => setShowShortcutsModal(prev => !prev),
+        '/': () => {
+            const searchInput = document.querySelector('input[placeholder*="Buscar"], input[type="search"]');
+            if (searchInput) {
+                searchInput.focus();
+                searchInput.select?.();
+            }
+        },
+        'escape': {
+            allowInInput: true,
+            handler: () => {
+                if (showShortcutsModal) { setShowShortcutsModal(false); return; }
+                if (showLogoutModal) { setShowLogoutModal(false); return; }
+                if (isChatOpen) { setIsChatOpen(false); return; }
+                if (showCalendar) { setShowCalendar(false); return; }
+                if (isProfileMenuOpen) { setIsProfileMenuOpen(false); return; }
+                if (sidebarOpen) { setSidebarOpen(false); return; }
+                if (document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+                    document.activeElement.blur();
+                }
+                window.dispatchEvent(new Event('globalEscape'));
+            }
+        }
+    });
+
     useEffect(() => {
-        const handleClickOutside = (event) => {
+        if (isChatOpen && chatInputRef.current) {
+            setTimeout(() => chatInputRef.current?.focus({ preventScroll: true }), 60);
+        }
+    }, [isChatOpen]);
+
+    useEffect(() => {
+        const handleOutside = (event) => {
             if (calendarioRef.current && !calendarioRef.current.contains(event.target)) {
                 setShowCalendar(false); 
             }
+            if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
+                setIsProfileMenuOpen(false);
+            }
         };
         
-        document.addEventListener('mousedown', handleClickOutside);
+        document.addEventListener('mousedown', handleOutside);
+        document.addEventListener('focusin', handleOutside);
         
         const actualizarPerfil = () => {
-            setPerfilNombre(localStorage.getItem('userName') || 'Usuario Activo');
+            setPerfilNombre(localStorage.getItem('userName') || 'Dr. Especialista');
             setPerfilEmail(localStorage.getItem('userEmail') || '');
         };
         
@@ -146,7 +207,8 @@ export default function Interface({ onLogout }) {
         window.addEventListener('perfilActualizado', actualizarPerfil);
         return () => {
             window.removeEventListener('perfilActualizado', actualizarPerfil);
-            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('mousedown', handleOutside);
+            document.removeEventListener('focusin', handleOutside);
         };
     }, []);
 
@@ -256,7 +318,8 @@ export default function Interface({ onLogout }) {
             const isBusy = tieneCitas(day);
 
             days.push(
-                <div 
+                <button 
+                    type="button"
                     key={day} 
                     onClick={() => setDiaSeleccionado(day)} 
                     className={`relative h-8 flex flex-col items-center justify-center text-xs font-semibold rounded-lg cursor-pointer transition-all ${
@@ -269,7 +332,7 @@ export default function Interface({ onLogout }) {
                     {isBusy && !isSelected && (
                         <span className="absolute bottom-1 w-1 h-1 bg-rose-500 rounded-full"></span>
                     )}
-                </div>
+                </button>
             );
         }
         return days;
@@ -338,7 +401,7 @@ export default function Interface({ onLogout }) {
     };
 
    return (
-       <div className="min-h-screen font-sans bg-[#F4F8F8] print:bg-white text-[#113130] flex flex-col lg:flex-row antialiased relative">
+       <div ref={shellRef} className="min-h-screen font-sans bg-[#F4F8F8] print:bg-white text-[#113130] flex flex-col lg:flex-row antialiased relative">
        
        <div className="lg:hidden flex items-center justify-between p-4 bg-[#0F766E] text-white shadow-md relative py-6 print:hidden">
            <div className="w-10 h-10 invisible" />
@@ -432,9 +495,29 @@ export default function Interface({ onLogout }) {
                <div className="flex flex-wrap items-center justify-center sm:justify-end gap-3 sm:gap-4 w-full md:w-auto mt-4 md:mt-0">
                    <div className="flex items-center gap-3 sm:gap-4 z-50 static">
                        
+                       {/* BOTÓN GUÍA DE TECLADO (?) */}
+                       <button
+                           type="button"
+                           onClick={() => setShowShortcutsModal(true)}
+                           title="Guía de Navegación por Teclado (?)"
+                           className="p-2.5 bg-white rounded-xl shadow-xs border border-teal-100/40 hover:bg-teal-50/50 transition-colors text-[#0F766E] font-black text-xs flex items-center gap-1.5"
+                       >
+                           <kbd className="px-1.5 py-0.5 bg-teal-50 border border-teal-200 rounded text-[10px] font-mono text-[#0F766E]">?</kbd>
+                           <span className="hidden xl:inline text-[10px] uppercase tracking-wider text-slate-600">Teclado</span>
+                       </button>
+
                        {/* CALENDARIO */}
-                       <div className="static" ref={calendarioRef}>
+                       <div
+                           className="static"
+                           ref={calendarioRef}
+                           onBlur={(e) => {
+                               if (!e.currentTarget.contains(e.relatedTarget)) {
+                                   setShowCalendar(false);
+                               }
+                           }}
+                       >
                            <button 
+                               type="button"
                                onClick={() => setShowCalendar(!showCalendar)}
                                className="relative p-2.5 bg-white rounded-xl shadow-xs border border-teal-100/40 hover:bg-teal-50/50 transition-colors"
                            >
@@ -519,41 +602,109 @@ export default function Interface({ onLogout }) {
 
                    <div className="hidden sm:block h-6 w-px bg-teal-200/50 mx-1"></div>
 
-                   <div className="static z-40">
+                   <div
+                       className="static z-40"
+                       ref={profileMenuRef}
+                       onBlur={(e) => {
+                           if (!e.currentTarget.contains(e.relatedTarget)) {
+                               setIsProfileMenuOpen(false);
+                           }
+                       }}
+                   >
                        <button 
+                           type="button"
+                           aria-expanded={isProfileMenuOpen}
+                           aria-haspopup="menu"
                            onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-                           className={`flex items-center gap-3 px-3.5 py-1.5 rounded-full shadow-xs border transition-all text-left ${isProfileMenuOpen ? 'bg-teal-50 border-[#0F766E]/30' : 'bg-white border-teal-100/40 hover:bg-teal-50/50'}`}
+                           className={`flex items-center gap-3 pl-2.5 pr-3.5 py-1.5 rounded-2xl shadow-xs border transition-all text-left group ${isProfileMenuOpen ? 'bg-teal-50/80 border-[#0F766E]/40 ring-2 ring-[#0F766E]/15' : 'bg-white border-teal-100/60 hover:bg-teal-50/40 hover:border-[#0F766E]/30'}`}
                        >
-                           <div className="w-7 h-7 rounded-full bg-[#0D9488] text-white flex items-center justify-center font-black text-xs uppercase shadow-inner">
-                               {perfilNombre.charAt(0)}
+                           <div className="relative shrink-0">
+                               <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#0F766E] to-[#0D9488] text-white flex items-center justify-center font-black text-xs uppercase shadow-sm">
+                                   {nombreMostrado.charAt(0)}
+                               </div>
+                               <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full"></span>
                            </div>
                            <div className="overflow-hidden">
-                               <h4 className="text-xs font-extrabold text-[#113130] truncate max-w-[120px] sm:max-w-none">{perfilNombre}</h4>
-                               <p className="text-[9px] text-[#0D9488] font-bold uppercase tracking-wider">Administrador</p>
+                               <h4 className="text-xs font-black text-[#113130] truncate max-w-[130px] sm:max-w-[160px] leading-tight">
+                                   {nombreMostrado}
+                               </h4>
+                               <p className="text-[9px] text-[#0F766E] font-bold uppercase tracking-widest mt-0.5 flex items-center gap-1">
+                                   Especialista Clínico
+                               </p>
                            </div>
+                           <svg className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ml-0.5 shrink-0 ${isProfileMenuOpen ? 'rotate-180 text-[#0F766E]' : 'group-hover:text-[#0F766E]'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />
+                           </svg>
                        </button>
 
-                       {/* 🌟 FIX: CENTRADO EN MÓVIL, ALINEADO A LA DERECHA EN PC */}
                        {isProfileMenuOpen && (
-                           <div className="absolute top-[100%] left-0 right-0 mx-auto sm:mx-0 sm:left-auto sm:right-8 mt-2 w-56 bg-white border border-teal-100/60 rounded-xl shadow-lg overflow-hidden animate-fade-in p-4 z-50">
-                               <div className="mb-3">
-                                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Correo Registrado</p>
-                                   <p className="text-xs font-medium text-[#113130] truncate">
-                                       {perfilEmail ? perfilEmail : <span className="text-slate-400 italic">No configurado</span>}
-                                   </p>
+                           <div
+                               role="menu"
+                               className="absolute top-[100%] left-0 right-0 mx-auto sm:mx-0 sm:left-auto sm:right-8 mt-2 w-64 bg-white border border-slate-100 rounded-2xl shadow-2xl overflow-hidden animate-fade-in z-50"
+                           >
+                               <div className="bg-gradient-to-br from-[#113130] to-[#0F766E] p-4 text-white">
+                                   <div className="flex items-center gap-3">
+                                       <div className="w-10 h-10 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center font-black text-sm uppercase shrink-0">
+                                           {nombreMostrado.charAt(0)}
+                                       </div>
+                                       <div className="overflow-hidden">
+                                           <p className="text-xs font-black truncate">{nombreMostrado}</p>
+                                           <span className="inline-block text-[9px] font-black uppercase tracking-widest text-teal-200 bg-white/10 px-2 py-0.5 rounded-md mt-0.5">
+                                               Dirección Clínica · ALMA
+                                           </span>
+                                       </div>
+                                   </div>
+                                   <div className="mt-3 pt-2.5 border-t border-white/10">
+                                       <p className="text-[9px] font-bold text-teal-200/70 uppercase tracking-widest">Cuenta Activa</p>
+                                       <p className="text-[11px] font-medium text-white/95 truncate mt-0.5">
+                                           {perfilEmail || correoActivo}
+                                       </p>
+                                   </div>
                                </div>
-                               <div className="flex justify-end border-t border-slate-100 pt-3">
+
+                               <div className="p-2 space-y-1 bg-white">
                                    <button 
+                                       type="button"
+                                       role="menuitem"
                                        onClick={() => { setIsProfileMenuOpen(false); setActiveTab('settings'); }}
-                                       className="p-1.5 text-slate-400 hover:text-[#0F766E] hover:bg-teal-50 rounded-lg transition-colors flex items-center gap-1.5"
-                                       title="Configurar Perfil"
+                                       className="w-full px-3 py-2.5 text-left text-xs font-bold text-[#113130] hover:text-[#0F766E] hover:bg-teal-50/70 rounded-xl transition-colors flex items-center justify-between group"
                                    >
-                                       <span className="text-[10px] font-bold uppercase tracking-wider">Editar</span>
-                                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066-1.543.94-3.31-.826-2.37-2.37 1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35 1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                       </svg>
+                                       <span className="flex items-center gap-2.5">
+                                           <svg className="w-4 h-4 text-slate-400 group-hover:text-[#0F766E]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066-1.543.94-3.31-.826-2.37-2.37 1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35 1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                           </svg>
+                                           Mi Perfil y Consultorio
+                                       </span>
+                                       <kbd className="text-[9px] font-mono text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200">Alt+6</kbd>
                                    </button>
+
+                                   <button 
+                                       type="button"
+                                       role="menuitem"
+                                       onClick={() => { setIsProfileMenuOpen(false); setShowShortcutsModal(true); }}
+                                       className="w-full px-3 py-2.5 text-left text-xs font-bold text-[#113130] hover:text-[#0F766E] hover:bg-teal-50/70 rounded-xl transition-colors flex items-center justify-between group"
+                                   >
+                                       <span className="flex items-center gap-2.5">
+                                           <svg className="w-4 h-4 text-slate-400 group-hover:text-[#0F766E]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                                           </svg>
+                                           Atajos de Teclado
+                                       </span>
+                                       <kbd className="text-[9px] font-mono text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200">?</kbd>
+                                   </button>
+
+                                   <div className="border-t border-slate-100 my-1 pt-1">
+                                       <button 
+                                           type="button"
+                                           role="menuitem"
+                                           onClick={() => { setIsProfileMenuOpen(false); setShowLogoutModal(true); }}
+                                           className="w-full px-3 py-2.5 text-left text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-xl transition-colors flex items-center gap-2.5"
+                                       >
+                                           <IconLogout />
+                                           Cerrar Sesión Segura
+                                       </button>
+                                   </div>
                                </div>
                            </div>
                        )}
@@ -561,11 +712,11 @@ export default function Interface({ onLogout }) {
                </div>
            </header>
 
-           <div className="flex-1 p-6 lg:p-8 animate-fade-in print:p-0">
+           <main data-main-content="true" className="flex-1 p-6 lg:p-8 animate-fade-in print:p-0">
                <ErrorBoundary key={activeTab}>
                    {renderContent()}
                </ErrorBoundary>
-           </div>
+           </main>
        </div>
 
        {/* ================= MODAL DE LOGOUT SEGURO ================= */}
@@ -575,7 +726,7 @@ export default function Interface({ onLogout }) {
                    className="absolute inset-0 bg-[#113130]/50 backdrop-blur-xs transition-opacity duration-300"
                    onClick={() => setShowLogoutModal(false)}
                />
-               <div className="relative bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-teal-100/30 text-center space-y-4 animate-fade-in">
+               <FocusTrap active={true} onClose={() => setShowLogoutModal(false)} className="relative bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-teal-100/30 text-center space-y-4 animate-fade-in">
                    <div className="mx-auto w-12 h-12 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center text-lg font-bold">
                        ⚠️
                    </div>
@@ -587,15 +738,18 @@ export default function Interface({ onLogout }) {
                    </p>
                    </div>
                    <div className="flex gap-3 pt-2">
-                       <button onClick={() => setShowLogoutModal(false)} className="flex-1 py-2.5 px-4 bg-slate-50 hover:bg-slate-100 rounded-xl text-xs font-bold uppercase tracking-wider text-slate-500 transition-colors">Cancelar</button>
+                       <button data-autofocus="true" onClick={() => setShowLogoutModal(false)} className="flex-1 py-2.5 px-4 bg-slate-50 hover:bg-slate-100 rounded-xl text-xs font-bold uppercase tracking-wider text-slate-500 transition-colors">Cancelar</button>
                        <button onClick={() => { setShowLogoutModal(false); onLogout(); }} className="flex-1 py-2.5 px-4 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-md shadow-rose-500/20 transition-colors">Cerrar Sesión</button>
                    </div>
-               </div>
+               </FocusTrap>
            </div>
        )}
        
        <button 
+           type="button"
+           data-floating-fab="true"
            onClick={() => setIsChatOpen(true)}
+           title="Asistente ALMA (Ctrl + J)"
            className="fixed bottom-6 right-6 lg:bottom-10 lg:right-10 w-14 h-14 bg-[#0F766E] text-white rounded-full shadow-2xl flex items-center justify-center hover:bg-[#0D9488] transition-transform hover:scale-105 z-[60] focus:outline-none print:hidden"
        >
            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
@@ -609,64 +763,81 @@ export default function Interface({ onLogout }) {
            ></div>
        )}
 
-       <div className={`fixed top-0 right-0 h-full w-full sm:w-[400px] bg-white shadow-2xl z-[80] transform transition-transform duration-300 ease-in-out flex flex-col print:hidden ${isChatOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-           <div className="bg-slate-50 p-5 border-b border-slate-100 flex items-center justify-between">
-               <div className="flex items-center gap-3">
-                   <div className="w-10 h-10 rounded-full bg-[#0F766E]/10 flex items-center justify-center text-[#0F766E] shadow-sm border border-teal-100">
-                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                   </div>
-                   <div>
-                       <h3 className="font-black text-[#113130] text-sm">Soporte ALMA</h3>
-                       <div className="flex items-center gap-1.5 mt-0.5">
-                           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                           <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Asistente en línea</p>
+       <FocusTrap
+           active={isChatOpen}
+           onClose={() => setIsChatOpen(false)}
+           className={`fixed top-0 right-0 h-full w-full sm:w-[400px] bg-white shadow-2xl z-[80] transform transition-transform duration-300 ease-in-out flex flex-col print:hidden ${isChatOpen ? 'translate-x-0 visible pointer-events-auto' : 'translate-x-full invisible pointer-events-none'}`}
+       >
+           <div aria-hidden={!isChatOpen} className="flex flex-col h-full w-full">
+               <div className="bg-slate-50 p-5 border-b border-slate-100 flex items-center justify-between">
+                   <div className="flex items-center gap-3">
+                       <div className="w-10 h-10 rounded-full bg-[#0F766E]/10 flex items-center justify-center text-[#0F766E] shadow-sm border border-teal-100">
+                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                       </div>
+                       <div>
+                           <h3 className="font-black text-[#113130] text-sm">Soporte ALMA</h3>
+                           <div className="flex items-center gap-1.5 mt-0.5">
+                               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                               <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Asistente en línea · Ctrl+J / Esc</p>
+                           </div>
                        </div>
                    </div>
-               </div>
-               <button onClick={() => setIsChatOpen(false)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
-                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-               </button>
-           </div>
-
-           <div className="flex-1 p-5 bg-white flex flex-col gap-4 overflow-y-auto">
-               {mensajesChat.map((msg, idx) => (
-                   <div key={idx} className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                       <div className={`p-3.5 text-xs font-medium leading-relaxed max-w-[85%] shadow-sm whitespace-pre-wrap ${msg.role === 'user' ? 'bg-[#0F766E] rounded-2xl rounded-tr-sm text-white shadow-md' : 'bg-slate-50 rounded-2xl rounded-tl-sm border border-slate-100 text-slate-600'}`}>
-                           {msg.role === 'user' ? msg.parts[0].text : formatearTextoChat(msg.parts[0].text)}
-                       </div>
-                   </div>
-               ))}
-               {cargandoChat && (
-                   <div className="flex gap-2 justify-start">
-                       <div className="bg-slate-50 p-3.5 rounded-2xl rounded-tl-sm border border-slate-100 text-slate-400 flex items-center gap-1">
-                           <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></span>
-                           <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></span>
-                           <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
-                       </div>
-                   </div>
-               )}
-           </div>
-
-           <div className="p-5 border-t border-slate-100 bg-slate-50">
-               <form onSubmit={handleEnviarMensaje} className="relative">
-                   <input 
-                       type="text" 
-                       value={chatInput}
-                       onChange={(e) => setChatInput(e.target.value)}
-                       disabled={cargandoChat}
-                       placeholder="Escribe tu pregunta..." 
-                       className="w-full text-xs font-medium pl-4 pr-12 py-3.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-[#0F766E] focus:ring-1 focus:ring-[#0F766E] transition-all shadow-sm disabled:bg-slate-100" 
-                   />
-                   <button 
-                       type="submit"
-                       disabled={cargandoChat || !chatInput.trim()}
-                       className="absolute right-2 top-2 p-1.5 bg-[#0F766E] text-white rounded-lg hover:bg-[#0D9488] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                   >
-                       <svg className="w-4 h-4 transform rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                   <button type="button" onClick={() => setIsChatOpen(false)} title="Cerrar Asistente (Esc)" className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
                    </button>
-               </form>
+               </div>
+
+               <div data-modal-scroll="true" className="flex-1 p-5 bg-white flex flex-col gap-4 overflow-y-auto">
+                   {mensajesChat.map((msg, idx) => (
+                       <div key={idx} className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                           <div className={`p-3.5 text-xs font-medium leading-relaxed max-w-[85%] shadow-sm whitespace-pre-wrap ${msg.role === 'user' ? 'bg-[#0F766E] rounded-2xl rounded-tr-sm text-white shadow-md' : 'bg-slate-50 rounded-2xl rounded-tl-sm border border-slate-100 text-slate-600'}`}>
+                               {msg.role === 'user' ? msg.parts[0].text : formatearTextoChat(msg.parts[0].text)}
+                           </div>
+                       </div>
+                   ))}
+                   {cargandoChat && (
+                       <div className="flex gap-2 justify-start">
+                           <div className="bg-slate-50 p-3.5 rounded-2xl rounded-tl-sm border border-slate-100 text-slate-400 flex items-center gap-1">
+                               <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></span>
+                               <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></span>
+                               <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+                           </div>
+                       </div>
+                   )}
+               </div>
+
+               <div className="p-5 border-t border-slate-100 bg-slate-50">
+                   <form onSubmit={handleEnviarMensaje} className="relative">
+                       <input 
+                           ref={chatInputRef}
+                           data-autofocus="true"
+                           type="text" 
+                           value={chatInput}
+                           onChange={(e) => setChatInput(e.target.value)}
+                           onKeyDown={(e) => {
+                               if (e.key === 'Escape') {
+                                   e.preventDefault();
+                                   e.stopPropagation();
+                                   setIsChatOpen(false);
+                               }
+                           }}
+                           disabled={cargandoChat}
+                           placeholder="Escribe tu pregunta... (Esc para cerrar)" 
+                           className="w-full text-xs font-medium pl-4 pr-12 py-3.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-[#0F766E] focus:ring-1 focus:ring-[#0F766E] transition-all shadow-sm disabled:bg-slate-100" 
+                       />
+                       <button 
+                           type="submit"
+                           disabled={cargandoChat || !chatInput.trim()}
+                           className="absolute right-2 top-2 p-1.5 bg-[#0F766E] text-white rounded-lg hover:bg-[#0D9488] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                       >
+                           <svg className="w-4 h-4 transform rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                       </button>
+                   </form>
+               </div>
            </div>
-       </div>
+       </FocusTrap>
+
+       <KeyboardShortcutsModal isOpen={showShortcutsModal} onClose={() => setShowShortcutsModal(false)} />
        
    </div>
    );

@@ -2,12 +2,16 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Clock, FileText, DollarSign, UserCheck, UserPlus, FileWarning, CalendarX, PieChart, X, CheckCircle2 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import api from './api'; // Importás tu instancia configurada
+import FocusTrap from './components/FocusTrap';
 
 
 
 const Dashboard = ({ onNavigateToReportes }) => {
     // ================= ESTADOS =================
-    const nombrePsicologo = localStorage.getItem('userName') || 'Administrador';
+    const rawNombre = localStorage.getItem('userName') || 'Dr. Especialista';
+    const nombrePsicologo = ['Psicólogo', 'Psicologo', 'Usuario Activo', 'Administrador'].includes(rawNombre.trim())
+        ? 'Dr. Especialista'
+        : rawNombre;
     const [pacientesInactivos, setPacientesInactivos] = useState([]);
    
    // Estado para abrir/cerrar la ventana flotante
@@ -184,8 +188,14 @@ const Dashboard = ({ onNavigateToReportes }) => {
 
                 {/* ================= KPIs CLÍNICOS (Top) ================= */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                    {clinicaStats.map((stat, index) => (
-                        <div key={index} className={`p-6 rounded-[1.5rem] shadow-sm border transition-shadow flex flex-col justify-between h-full ${stat.isAlert ? 'bg-rose-50/30 border-rose-100' : 'bg-white border-slate-100 hover:shadow-md'}`}>
+                    {clinicaStats.map((stat, index) => {
+                        const isButtonDisabled = stat.isAlert && datosKpi.expedientes?.pendientes === 0;
+                        return (
+                        <div
+                            key={index}
+                            tabIndex={isButtonDisabled ? 0 : undefined}
+                            className={`p-6 rounded-[1.5rem] shadow-sm border transition-all flex flex-col justify-between h-full focus:outline-none focus:ring-2 focus:ring-[#0F766E] ${stat.isAlert ? 'bg-rose-50/30 border-rose-100' : 'bg-white border-slate-100 hover:shadow-md'}`}
+                        >
                             <div className="flex justify-between items-start">
                                 <div className="flex flex-col">
                                     <p className={`text-[11px] font-bold uppercase tracking-wider mb-2 ${stat.isAlert ? 'text-rose-600' : 'text-slate-500'}`}>{stat.title}</p>
@@ -216,14 +226,15 @@ const Dashboard = ({ onNavigateToReportes }) => {
 
                                {stat.actionButton && (
                         <button 
+                            type="button"
                             onClick={stat.onActionClick}
-                            disabled={stat.isAlert && datosKpi.expedientes?.pendientes === 0}
+                            disabled={isButtonDisabled}
                             className={`mt-4 w-full py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2 text-white shadow-md ${
                                 stat.isAlert 
-                                    ? (datosKpi.expedientes?.pendientes === 0 
+                                    ? (isButtonDisabled 
                                         ? 'bg-rose-300 shadow-none cursor-not-allowed' 
                                         : 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20')
-                                    : (stat.buttonColorOverride || 'bg-slate-800 hover:bg-slate-900') // 👈 Usa el color personalizado (Teal) o un gris oscuro por defecto
+                                    : (stat.buttonColorOverride || 'bg-slate-800 hover:bg-slate-900')
                             }`}
                         >
                             {stat.actionButton}
@@ -231,7 +242,8 @@ const Dashboard = ({ onNavigateToReportes }) => {
                     )}
                             </div>
                         </div>
-                    ))}
+                        );
+                    })}
                 </div>
 
                {/* ================= SALUD DEL CONSULTORIO (Métricas de Negocio) ================= */}
@@ -242,7 +254,11 @@ const Dashboard = ({ onNavigateToReportes }) => {
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             {businessStats.map((biz, idx) => (
-                                <div key={idx} className="bg-white/10 backdrop-blur-sm border border-white/10 rounded-2xl p-5 flex flex-col justify-between hover:bg-white/15 transition-colors">
+                                <div
+                                    key={idx}
+                                    tabIndex={0}
+                                    className="bg-white/10 backdrop-blur-sm border border-white/10 rounded-2xl p-5 flex flex-col justify-between hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-teal-400 transition-all"
+                                >
                                     <div className="flex items-center justify-between mb-4">
                                         <div className={`p-2.5 rounded-xl ${biz.bg} ${biz.color}`}>
                                             {biz.icon}
@@ -251,8 +267,6 @@ const Dashboard = ({ onNavigateToReportes }) => {
                                     </div>
                                     <div>
                                         <p className="text-[11px] font-bold text-teal-100 uppercase tracking-wider">{biz.title}</p>
-                                        
-                                        {/* 🌟 AQUÍ EL CAMBIO MAGICO: Usamos el biz.trendColor dinámico */}
                                         <p className={`text-xs mt-1 font-medium ${biz.trendColor}`}>{biz.trend}</p>
                                     </div>
                                 </div>
@@ -261,7 +275,10 @@ const Dashboard = ({ onNavigateToReportes }) => {
                     </div>
 
                 {/* ================= LÍNEA DE TIEMPO HORIZONTAL DE CITAS ================= */}
-                <div className="bg-white p-6 rounded-[1.5rem] shadow-sm border border-slate-100 overflow-hidden relative">
+                <div
+                    tabIndex={!citasHoy || citasHoy.length === 0 ? 0 : undefined}
+                    className="bg-white p-6 rounded-[1.5rem] shadow-sm border border-slate-100 overflow-hidden relative focus:outline-none focus:ring-2 focus:ring-[#0F766E]"
+                >
                     <div className="flex justify-between items-center mb-6">
                         <div>
                             <h2 className="text-lg font-black text-[#113130]">Agenda del Día</h2>
@@ -289,7 +306,18 @@ const Dashboard = ({ onNavigateToReportes }) => {
                                         </div>
                                         
                                         {/* Tarjeta */}
-                                        <div className={`p-4 rounded-2xl border transition-all duration-300 shadow-xs group-hover:shadow-sm ${cardBg}`}>
+                                        <div 
+                                            tabIndex={0}
+                                            role="button"
+                                            onClick={() => onNavigateToReportes && onNavigateToReportes(cita.id)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' || e.key === ' ') {
+                                                    e.preventDefault();
+                                                    if (onNavigateToReportes) onNavigateToReportes(cita.id);
+                                                }
+                                            }}
+                                            className={`p-4 rounded-2xl border transition-all duration-300 shadow-xs group-hover:shadow-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#0F766E] ${cardBg}`}
+                                        >
                                             <div className="flex justify-between items-start mb-3">
                                                 <h4 className="font-bold text-[#113130] text-sm truncate pr-2">{cita.paciente}</h4>
                                                 <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md shrink-0 ${
@@ -315,7 +343,7 @@ const Dashboard = ({ onNavigateToReportes }) => {
 <div className="flex flex-col gap-6 h-fit">
 
     {/* ======================= TARJETA 1: MOTIVOS DE CONSULTA ======================= */}
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 sm:p-6"> 
+    <div tabIndex={0} className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 sm:p-6 focus:outline-none focus:ring-2 focus:ring-[#0F766E] transition-all"> 
         <div className="flex justify-between items-center mb-6">
             <div>
                 <h2 className="text-lg font-black text-[#113130] flex items-center gap-2">
@@ -352,7 +380,7 @@ const Dashboard = ({ onNavigateToReportes }) => {
 
 
     {/* ======================= TARJETA 2: PACIENTES INACTIVOS ======================= */}
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 sm:p-6 h-fit">
+    <div tabIndex={0} className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 sm:p-6 h-fit focus:outline-none focus:ring-2 focus:ring-[#0F766E] transition-all">
         <div className="flex justify-between items-center mb-6">
             <div>
                 <h2 className="text-lg font-black text-[#113130] flex items-center gap-2">
@@ -377,6 +405,7 @@ const Dashboard = ({ onNavigateToReportes }) => {
                             </p>
                         </div>
                         <button 
+                            type="button"
                             onClick={() => descartarAviso(patient.id)}
                             className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
                             title="Descartar aviso"
@@ -405,7 +434,7 @@ const Dashboard = ({ onNavigateToReportes }) => {
                 <div className="absolute inset-0 bg-[#113130]/80 transition-opacity" onClick={() => setModalReportesAbierto(false)} />
                 
                 {/* Tarjeta del Modal */}
-                <div className="bg-white rounded-[2rem] w-full max-w-lg p-6 sm:p-8 relative z-10 shadow-2xl animate-fade-in border border-rose-100">
+                <FocusTrap active={true} onClose={() => setModalReportesAbierto(false)} className="bg-white rounded-[2rem] w-full max-w-lg p-6 sm:p-8 relative z-10 shadow-2xl animate-fade-in border border-rose-100">
                     
                     <div className="flex justify-between items-center mb-6">
                         <div>
@@ -415,13 +444,13 @@ const Dashboard = ({ onNavigateToReportes }) => {
                             </h3>
                             <p className="text-sm text-slate-500 font-medium mt-1">Sesiones que pasaron hace más de 24 horas.</p>
                         </div>
-                        <button onClick={() => setModalReportesAbierto(false)} className="p-2 bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-500 rounded-xl transition-colors">
+                        <button type="button" onClick={() => setModalReportesAbierto(false)} className="p-2 bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-500 rounded-xl transition-colors">
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
                     </div>
 
-                    <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2 scrollbar-thin">
-                        {datosKpi.expedientes.lista?.map((cita) => (
+                    <div data-modal-scroll="true" className="space-y-3 max-h-[60vh] overflow-y-auto pr-2 scrollbar-thin">
+                        {datosKpi.expedientes.lista?.map((cita, idx) => (
                             <div key={cita.cita_id} className="p-4 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-rose-50/30 hover:border-rose-100 transition-colors flex justify-between items-center gap-4">
                                 <div className="truncate">
                                     <h4 className="text-sm font-black text-[#113130] truncate">{cita.paciente_nombre}</h4>
@@ -431,14 +460,12 @@ const Dashboard = ({ onNavigateToReportes }) => {
                                     </div>
                                 </div>
                                <button 
+                                    type="button"
+                                    data-autofocus={idx === 0 ? "true" : undefined}
                                     onClick={() => {
-                                        setModalReportesAbierto(false); // 1. Cerramos el modal para que no estorbe
-                                        
-                                        // 2. Disparamos la función que nos pasará el componente padre
+                                        setModalReportesAbierto(false);
                                         if (onNavigateToReportes) {
                                             onNavigateToReportes(cita.cita_id); 
-                                        } else {
-                                            console.warn("Falta conectar la navegación en el App.jsx");
                                         }
                                     }}
                                     className="shrink-0 bg-rose-600 hover:bg-rose-700 text-white px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md shadow-rose-600/20 transition-colors"
@@ -448,14 +475,13 @@ const Dashboard = ({ onNavigateToReportes }) => {
                             </div>
                         ))}
                     </div>
-                </div>
+                </FocusTrap>
             </div>, document.body
         )}
        {/* ================= MODAL DE HISTORIAL DE PACIENTES (Cero Blur, Cero Lag) ================= */}
 {modalHistorialAbierto && createPortal(
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 p-4">
-        {/* Le quitamos el blur y las transiciones pesadas, ahora es un pop-up directo */}
-        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden border border-slate-100 animate-fade-in">
+        <FocusTrap active={true} onClose={() => setModalHistorialAbierto(false)} className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden border border-slate-100 animate-fade-in">
             
             {/* Header del modal */}
             <div className="bg-[#113130] p-5 flex justify-between items-center text-white">
@@ -464,6 +490,7 @@ const Dashboard = ({ onNavigateToReportes }) => {
                     <p className="text-teal-100/70 text-xs">Nuevos pacientes por mes</p>
                 </div>
                 <button 
+                    type="button"
                     onClick={() => setModalHistorialAbierto(false)}
                     className="p-2 hover:bg-white/10 rounded-full transition-colors"
                 >
@@ -471,8 +498,8 @@ const Dashboard = ({ onNavigateToReportes }) => {
                 </button>
             </div>
 
-            {/* Lista de meses (Usando la memoria rápida que ya creamos) */}
-            <div className="p-5 max-h-[60vh] overflow-y-auto">
+            {/* Lista de meses */}
+            <div data-modal-scroll="true" className="p-5 max-h-[60vh] overflow-y-auto">
                 {historialOrdenado.length === 0 ? (
                     <div className="text-center py-6 text-slate-400">
                         <UserCheck className="mx-auto mb-2 opacity-50" size={32} />
@@ -501,13 +528,14 @@ const Dashboard = ({ onNavigateToReportes }) => {
             {/* Footer */}
             <div className="p-4 border-t border-slate-100 bg-slate-50 text-center">
                 <button 
+                    data-autofocus="true"
                     onClick={() => setModalHistorialAbierto(false)}
                     className="text-sm font-bold text-slate-500 hover:text-[#113130] transition-colors"
                 >
                     Cerrar ventana
                 </button>
             </div>
-        </div>
+        </FocusTrap>
     </div>,
     document.body
 )}
