@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { GoogleOAuthProvider, googleLogout } from '@react-oauth/google';
 import Login from './Login';
 import Interface from './Interface';
 // ✅ PONÉ ESTA (asegurate de usar el nombre correcto del archivo de Dervin):
 import Formulario from './Formulario';
 
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+
 export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(localStorage.getItem('token')));
 
 
 useEffect(() => {
@@ -25,6 +28,16 @@ const tamanoFuente = localStorage.getItem('hf_tamano_fuente') || 'normal';
   };
 
   const handleLogout = () => {
+    try {
+      googleLogout();
+    } catch (e) {
+      // Ignorar si no había sesión activa de Google
+    }
+    localStorage.removeItem('token');
+    localStorage.removeItem('userEmail');
+    localStorage.removeItem('userName');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('clinicInviteCode');
     setIsAuthenticated(false);
   };
 
@@ -37,14 +50,16 @@ const tamanoFuente = localStorage.getItem('hf_tamano_fuente') || 'normal';
   };
 
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* 🌐 RUTA PÚBLICA: Ahora apunta al componente de Dervin */}
-        <Route path="/feedback/:psicologoId" element={<Formulario />} />
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID || 'GOOGLE_CLIENT_ID_NOT_CONFIGURED'}>
+      <BrowserRouter>
+        <Routes>
+          {/* 🌐 RUTA PÚBLICA: Ahora apunta al componente de Dervin */}
+          <Route path="/feedback/:psicologoId" element={<Formulario />} />
 
-        {/* 🔒 RUTA PRIVADA: Tu dashboard */}
-        <Route path="/*" element={<AplicacionPrivada />} />
-      </Routes>
-    </BrowserRouter>
+          {/* 🔒 RUTA PRIVADA: Tu dashboard */}
+          <Route path="/*" element={<AplicacionPrivada />} />
+        </Routes>
+      </BrowserRouter>
+    </GoogleOAuthProvider>
   );
 }

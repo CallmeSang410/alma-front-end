@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { GoogleLogin } from '@react-oauth/google';
 import './Ajustes.css';
 import { useAlerta, AlertaProvider } from './AlertaContext.jsx'; // 🌟 Importamos las alertas
 import api from './api'; // Importás tu instancia configurada
@@ -23,6 +24,7 @@ const Ajustes = () => {
     // 🛡️ ESCUDO ANTI-CHOQUES PARA ALERTAS
     const contextoAlerta = useAlerta();
     const mostrarAlerta = contextoAlerta ? contextoAlerta.mostrarAlerta : (t, tit, msj) => alert(`${tit}: ${msj}`);
+    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
     // --- LÓGICA DEL TEMA GLOBAL ---
     const [temaActual, setTemaActual] = useState(() => {
@@ -58,14 +60,91 @@ const Ajustes = () => {
         // 🌟 Usamos la misma llave exacta que guardamos en el Login: 'userEmail'
         email: localStorage.getItem('userEmail') || 'usuario@gmail.com', 
         
-        rol: 'Administrador Clínico',
+        rol: localStorage.getItem('userRole') || 'Administrador Clínico',
         
         // 🌟 Usamos la misma llave exacta del nombre/rol: 'userName'
         nombreClinica: localStorage.getItem('userName') || 'HorizonFlow Central', 
+        codigoInvitacion: localStorage.getItem('clinicInviteCode') || '',
+        tienePasswordManual: true,
         
         passwordActual: '',
         passwordNueva: ''
     });
+
+    // Sincronizar datos reales del usuario y código de invitación desde el backend al montar
+    useEffect(() => {
+        const cargarPerfilServidor = async () => {
+            try {
+                const res = await api.get('/usuarios/me');
+                const data = res.data;
+                if (data) {
+                    setPerfilData(prev => ({
+                        ...prev,
+                        email: data.email || prev.email,
+                        rol: data.rol || prev.rol,
+                        nombreClinica: data.nombre_clinica || prev.nombreClinica,
+                        codigoInvitacion: data.codigo_invitacion || prev.codigoInvitacion,
+                        tienePasswordManual: data.tiene_password_manual !== undefined ? data.tiene_password_manual : true
+                    }));
+                    if (data.email) localStorage.setItem('userEmail', data.email);
+                    if (data.nombre_clinica) localStorage.setItem('userName', data.nombre_clinica);
+                    if (data.codigo_invitacion) localStorage.setItem('clinicInviteCode', data.codigo_invitacion);
+                    if (data.rol) localStorage.setItem('userRole', data.rol);
+                    window.dispatchEvent(new Event('perfilActualizado'));
+                }
+            } catch (err) {
+                console.error('Error sincronizando perfil desde /usuarios/me:', err);
+            }
+        };
+        cargarPerfilServidor();
+    }, []);
+
+    const handleVincularGoogle = async (credentialResponse) => {
+        if (!credentialResponse?.credential) {
+            mostrarAlerta('error', 'Error de Google', 'No se recibió la credencial de Google.');
+            return;
+        }
+        setIsSaving(true);
+        try {
+            const res = await api.put('/usuarios/vincular-google', {
+                credential: credentialResponse.credential
+            });
+            const data = res.data;
+            const nuevoEmail = data.email || perfilData.email;
+            const nuevoNombreClinica = data.nombre_clinica || perfilData.nombreClinica;
+            const nuevoCodigo = data.codigo_invitacion || perfilData.codigoInvitacion;
+
+            localStorage.setItem('userEmail', nuevoEmail);
+            if (nuevoNombreClinica) localStorage.setItem('userName', nuevoNombreClinica);
+            if (nuevoCodigo) localStorage.setItem('clinicInviteCode', nuevoCodigo);
+
+            setPerfilData(prev => ({
+                ...prev,
+                email: nuevoEmail,
+                nombreClinica: nuevoNombreClinica,
+                codigoInvitacion: nuevoCodigo
+            }));
+
+            window.dispatchEvent(new Event('perfilActualizado'));
+            mostrarAlerta(
+                'exito',
+                '¡Cuenta Vinculada a Google!',
+                data.mensaje || `Tu cuenta ahora está vinculada a ${nuevoEmail} conservando todos tus pacientes.`
+            );
+        } catch (error) {
+            console.error('Error vinculando cuenta con Google:', error);
+            const errorMsg = error.response?.data?.detail || 'No se pudo vincular la cuenta de Google.';
+            mostrarAlerta('error', 'Error al Vincular', errorMsg);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleCopiarCodigo = () => {
+        if (!perfilData.codigoInvitacion) return;
+        navigator.clipboard.writeText(perfilData.codigoInvitacion);
+        mostrarAlerta('exito', 'Código Copiado', `El código ${perfilData.codigoInvitacion} se copió al portapapeles. Compártelo con tu equipo.`);
+    };
 
     // MOCK DATA: Preferencias Globales
     const [preferenciasData, setPreferenciasData] = useState({
@@ -99,12 +178,11 @@ const Ajustes = () => {
                 // Si Axios pasa a esta línea, es porque fue un éxito rotundo (2xx)
                 if (perfilData.passwordNueva) {
                     mostrarAlerta('exito', 'Perfil Actualizado', 'Tu nombre y contraseña han sido guardados en el servidor.');
+                    setPerfilData(prev => ({...prev, tienePasswordManual: true, passwordActual: '', passwordNueva: ''}));
                 } else {
                     mostrarAlerta('exito', 'Perfil Actualizado', 'El nombre de tu clínica ha sido actualizado.');
+                    setPerfilData(prev => ({...prev, passwordActual: '', passwordNueva: ''}));
                 }
-                
-                // Limpiamos las contraseñas del formulario por seguridad
-                setPerfilData({...perfilData, passwordActual: '', passwordNueva: ''});
                 
             } catch (error) {
                 console.error("Error actualizando perfil:", error);
@@ -140,45 +218,111 @@ const Ajustes = () => {
         <form onSubmit={handleSave} className="space-y-6 animate-fade-in-up">
             <div>
                 <h3 className="text-lg font-black text-[#113130]">Mi Perfil y Clínica</h3>
-                <p className="text-xs text-slate-500 mt-1">Actualiza tus credenciales y el nombre público de tu consultorio.</p>
+                <p className="text-xs text-slate-500 mt-1">Actualiza tus credenciales, vincula tu cuenta real de Gmail y comparte el código de invitación de tu clínica.</p>
             </div>
             
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-[#0F766E] text-white flex items-center justify-center text-xl font-black shadow-inner">{perfilData.nombreClinica ? perfilData.nombreClinica.charAt(0) : 'U'}</div>
-                <div>
-                    <p className="text-sm font-bold text-[#113130]">{perfilData.nombreClinica || 'Usuario Activo'}</p>
-                    <p className="text-xs text-[#0F766E] font-medium uppercase tracking-wider">{perfilData.rol}</p>
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-[#0F766E] text-white flex items-center justify-center text-xl font-black shadow-inner shrink-0">{perfilData.nombreClinica ? perfilData.nombreClinica.charAt(0) : 'U'}</div>
+                    <div>
+                        <p className="text-sm font-bold text-[#113130]">{perfilData.nombreClinica || 'Usuario Activo'}</p>
+                        <p className="text-xs text-[#0F766E] font-medium uppercase tracking-wider">{perfilData.rol}</p>
+                    </div>
                 </div>
+
+                {/* Código de Invitación para Multi-Usuario por Clínica */}
+                {perfilData.codigoInvitacion && (
+                    <div className="bg-white px-4 py-2.5 rounded-xl border border-teal-100 shadow-xs flex items-center justify-between sm:justify-end gap-3">
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Código de Invitación de Clínica</p>
+                            <p className="text-sm font-mono font-black text-[#0F766E] tracking-wider">{perfilData.codigoInvitacion}</p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={handleCopiarCodigo}
+                            className="px-3 py-1.5 bg-teal-50 hover:bg-teal-100 text-[#0F766E] rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors"
+                        >
+                            Copiar
+                        </button>
+                    </div>
+                )}
             </div>
 
             <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Correo Electrónico</label>
-                        <input type="email" value={perfilData.email} onChange={(e) => setPerfilData({...perfilData, email: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-[#113130] focus:outline-none focus:border-[#0F766E] focus:ring-1 focus:ring-[#0F766E] transition-all bg-white" />
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                            Correo Electrónico Activo
+                        </label>
+                        <input
+                            type="email"
+                            value={perfilData.email}
+                            readOnly
+                            title="Para cambiar o migrar tu correo, utiliza el botón de Vincular con Google debajo."
+                            className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-600 bg-slate-100/80 cursor-not-allowed font-medium focus:outline-none"
+                        />
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nombre Comercial / Clínica</label>
                         <input type="text" value={perfilData.nombreClinica} onChange={(e) => setPerfilData({...perfilData, nombreClinica: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-[#113130] focus:outline-none focus:border-[#0F766E] focus:ring-1 focus:ring-[#0F766E] transition-all bg-white" />
                     </div>
                 </div>
+
+                {/* Tarjeta de Migración / Vinculación con Google OAuth 2.0 */}
+                <div className="bg-teal-50/40 border border-teal-100 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                        <p className="text-xs font-black text-[#113130] flex items-center gap-2">
+                            <svg className="w-4 h-4 text-[#0F766E]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                            </svg>
+                            Vincular o Migrar a tu cuenta real de Google (Gmail)
+                        </p>
+                        <p className="text-[11px] text-slate-500 leading-relaxed">
+                            Si te registraste originalmente con un correo provisional, vincula aquí tu Gmail real. Conservarás intactos todos tus pacientes, citas y reportes.
+                        </p>
+                    </div>
+                    <div className="shrink-0">
+                        {googleClientId ? (
+                            <GoogleLogin
+                                onSuccess={handleVincularGoogle}
+                                onError={() => mostrarAlerta('error', 'Cancelado', 'No se completó la vinculación con Google.')}
+                                theme="outline"
+                                size="medium"
+                                shape="pill"
+                                text="continue_with"
+                                locale="es"
+                            />
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={() => mostrarAlerta('error', 'Falta Client ID', 'Configura VITE_GOOGLE_CLIENT_ID en tu archivo .env para vincular con Google.')}
+                                className="px-4 py-2.5 bg-white hover:bg-slate-50 text-[#113130] border border-slate-200 rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-2"
+                            >
+                                Vincular con Google
+                            </button>
+                        )}
+                    </div>
+                </div>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                     <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Contraseña Actual</label>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                            Contraseña Actual {!perfilData.tienePasswordManual && <span className="text-[10px] text-[#0F766E] font-normal">(No requerida para primera contraseña)</span>}
+                        </label>
                         <input 
                             type="password" 
-                            placeholder="••••••••" 
+                            placeholder={perfilData.tienePasswordManual ? "••••••••" : "Cuenta vinculada con Google"} 
                             value={perfilData.passwordActual} 
+                            disabled={!perfilData.tienePasswordManual}
                             onChange={(e) => setPerfilData({...perfilData, passwordActual: e.target.value})}
-                            className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-[#113130] focus:outline-none focus:border-[#0F766E] focus:ring-1 focus:ring-[#0F766E] transition-all bg-white" 
+                            className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-[#113130] focus:outline-none focus:border-[#0F766E] focus:ring-1 focus:ring-[#0F766E] transition-all bg-white disabled:bg-slate-100 disabled:cursor-not-allowed" 
                         />
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nueva Contraseña</label>
                         <input 
                             type="password" 
-                            placeholder="••••••••" 
+                            placeholder="Mínimo 8 caracteres" 
                             value={perfilData.passwordNueva}
                             onChange={(e) => setPerfilData({...perfilData, passwordNueva: e.target.value})}
                             className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-[#113130] focus:outline-none focus:border-[#0F766E] focus:ring-1 focus:ring-[#0F766E] transition-all bg-white" 
