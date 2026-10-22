@@ -266,8 +266,8 @@ const procesarRecuperacion = async () => {
         <div className="bg-white rounded-[2rem] shadow-2xl border border-teal-100/30 overflow-hidden grid grid-cols-1 md:grid-cols-2 min-h-96">
           
           {/* ================= COLUMNA IZQUIERDA: FORMULARIO ================= */}
-          <div className="flex flex-col justify-center p-8 md:p-12 animate-fade-in relative z-10">
-            <div className="space-y-8">
+          <div className="flex flex-col justify-center p-6 sm:p-8 md:p-12 min-w-0 overflow-hidden animate-fade-in relative z-10">
+            <div className="space-y-8 w-full min-w-0">
               
               {/* Encabezado */}
               <div className="space-y-2">
@@ -631,16 +631,16 @@ const procesarRecuperacion = async () => {
               </form>
 
               {/* ================= DIVISOR Y BOTÓN GOOGLE OAUTH 2.0 ================= */}
-              <div className="space-y-4 pt-1">
-                <div className="relative flex items-center justify-center">
-                  <div className="border-t border-slate-200 w-full"></div>
-                  <span className="bg-white px-4 text-[10px] font-black uppercase tracking-widest text-slate-400 shrink-0">
+              <div className="w-full space-y-4 pt-1 overflow-hidden">
+                <div className="relative flex items-center justify-center w-full overflow-hidden">
+                  <div className="border-t border-slate-200 flex-1"></div>
+                  <span className="bg-white px-2 sm:px-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">
                     {activeTab === 'login' ? 'O continúa con Gmail' : 'Verificación obligatoria con Gmail'}
                   </span>
-                  <div className="border-t border-slate-200 w-full"></div>
+                  <div className="border-t border-slate-200 flex-1"></div>
                 </div>
 
-                <div className="flex justify-center w-full">
+                <div className="w-full flex justify-center overflow-hidden px-2">
                   {activeTab === 'signup' && !signupListoParaGoogle ? (
                     <button
                       type="button"
@@ -655,9 +655,9 @@ const procesarRecuperacion = async () => {
                             : 'Ingresa el código de invitación de tu clínica y acepta los términos antes de continuar con Google.'
                         );
                       }}
-                      className="w-full h-12 bg-white hover:bg-slate-50 text-[#113130] border border-slate-200 rounded-full text-xs font-bold tracking-wide shadow-xs transition-all duration-200 flex items-center justify-center gap-3 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/30"
+                      className="w-full max-w-xs h-12 bg-white hover:bg-slate-50 text-[#113130] border border-slate-200 rounded-full text-xs font-bold tracking-wide shadow-xs transition-all duration-150 flex items-center justify-center gap-3 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/30"
                     >
-                      <svg className="w-5 h-5" viewBox="0 0 24 24" aria-hidden="true">
+                      <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
                         <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z" />
                         <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.96H1.29v3.14C3.26 21.3 7.31 24 12 24z" />
                         <path fill="#FBBC05" d="M5.28 14.24c-.24-.72-.38-1.49-.38-2.24s.14-1.52.38-2.24V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.99-3.14z" />
@@ -666,14 +666,13 @@ const procesarRecuperacion = async () => {
                       <span>Registrarse con Google</span>
                     </button>
                   ) : googleClientId ? (
-                    <div className="w-full flex justify-center">
+                    <div className="w-full flex justify-center overflow-hidden px-2">
                       <GoogleLogin
                         onSuccess={handleGoogleSuccess}
                         onError={handleGoogleError}
                         theme="outline"
                         size="large"
                         shape="pill"
-                        width="360"
                         text={activeTab === 'login' ? 'continue_with' : 'signup_with'}
                         locale="es"
                       />

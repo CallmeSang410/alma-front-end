@@ -403,16 +403,16 @@ export default function Interface({ onLogout }) {
    return (
        <div ref={shellRef} className="flex flex-col lg:flex-row h-screen w-full overflow-hidden font-sans bg-[#f8fafc] print:bg-white print:h-auto print:overflow-visible text-[#113130] antialiased relative">
        
-       <div className="lg:hidden flex items-center justify-between p-4 bg-[#0F766E] text-white shadow-md relative py-6 shrink-0 print:hidden">
+       <div className="lg:hidden flex items-center justify-between h-16 px-4 bg-[#0F766E] text-white shadow-md relative shrink-0 print:hidden">
            <div className="w-10 h-10 invisible" />
-           <div className="flex items-center justify-center flex-1">
-               <img src={logoEmpresa} alt="HorizonFlow logo" className="w-48 h-auto object-contain transform scale-110" />
+           <div className="flex items-center justify-center flex-1 h-full overflow-hidden">
+               <img src={logoEmpresa} alt="HorizonFlow logo" className="h-11 w-auto max-w-[160px] object-contain" />
            </div>
            <button 
                onClick={() => setSidebarOpen(!sidebarOpen)}
                className="p-2 hover:bg-white/10 rounded-lg transition-colors focus:outline-none z-10"
            >
-               <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
                </svg>
            </button>
@@ -475,7 +475,7 @@ export default function Interface({ onLogout }) {
        
       <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden flex flex-col bg-[#f8fafc] print:bg-white print:overflow-visible print:h-auto print:min-h-0 print:block">
            
-           <header className="px-6 lg:px-8 py-5 bg-white flex flex-col md:flex-row items-center justify-between gap-4 border-b border-teal-100/30 print:hidden sticky top-0 z-20 shadow-sm">
+           <header className="px-4 sm:px-6 lg:px-8 py-3.5 md:py-5 bg-white flex flex-col md:flex-row items-center justify-between gap-3 md:gap-4 border-b border-teal-100/30 print:hidden relative md:sticky md:top-0 z-20 shadow-sm shrink-0">
                
                <div className="flex items-center gap-3 w-full md:w-auto animate-fade-in-up">
                    <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center text-[#0F766E] shadow-sm border border-teal-100 shrink-0">
@@ -492,7 +492,7 @@ export default function Interface({ onLogout }) {
                </div>
 
                {/* 🌟 LADO DERECHO: TOTALMENTE FIXEADO PARA MÓVIL Y ESCRITORIO */}
-               <div className="flex flex-wrap items-center justify-center sm:justify-end gap-3 sm:gap-4 w-full md:w-auto mt-4 md:mt-0">
+               <div className="flex flex-wrap items-center justify-center sm:justify-end gap-3 sm:gap-4 w-full md:w-auto mt-1 md:mt-0">
                    <div className="flex items-center gap-3 sm:gap-4 z-50 static">
                        
                        {/* BOTÓN GUÍA DE TECLADO (?) */}

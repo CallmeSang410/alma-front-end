@@ -279,7 +279,7 @@ const Ajustes = () => {
                             Si te registraste originalmente con un correo provisional, vincula aquí tu Gmail real. Conservarás intactos todos tus pacientes, citas y reportes.
                         </p>
                     </div>
-                    <div className="shrink-0">
+                    <div className="w-full sm:w-auto flex justify-center overflow-hidden shrink-0">
                         {googleClientId ? (
                             <GoogleLogin
                                 onSuccess={handleVincularGoogle}
