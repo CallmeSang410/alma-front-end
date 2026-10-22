@@ -2,9 +2,16 @@
 /* =========================================
   1. ESTILOS BASE Y MODO CLARO (POR DEFECTO)
   ========================================= */
+html, body, #root {
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+
 body { 
   margin: 0; 
-  background-color: #f0f2f5; 
+  background-color: #f8fafc; 
   font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
 }
 

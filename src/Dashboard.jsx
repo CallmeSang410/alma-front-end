@@ -301,7 +301,7 @@ const Dashboard = ({ onNavigateToReportes }) => {
                                     <div key={cita.id} className="relative z-10 w-64 flex flex-col gap-4 group">
                                         {/* Punto y Hora */}
                                         <div className="flex items-center gap-3 bg-white pr-3 w-fit">
-                                            <div className={`w-5 h-5 rounded-full border-4 ring-4 ring-white transition-colors duration-300 ${colorDot}`}></div>
+                                            <div className={`w-5 h-5 rounded-full border-4 ring-4 ring-white transition-colors duration-150 ${colorDot}`}></div>
                                             <span className={`text-sm font-black transition-colors ${isEnCurso ? 'text-[#0F766E]' : 'text-slate-600 group-hover:text-[#113130]'}`}>{cita.hora}</span>
                                         </div>
                                         
@@ -316,7 +316,7 @@ const Dashboard = ({ onNavigateToReportes }) => {
                                                     if (onNavigateToReportes) onNavigateToReportes(cita.id);
                                                 }
                                             }}
-                                            className={`p-4 rounded-2xl border transition-all duration-300 shadow-xs group-hover:shadow-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#0F766E] ${cardBg}`}
+                                            className={`p-4 rounded-2xl border transition-all duration-150 shadow-xs group-hover:shadow-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#0F766E] ${cardBg}`}
                                         >
                                             <div className="flex justify-between items-start mb-3">
                                                 <h4 className="font-bold text-[#113130] text-sm truncate pr-2">{cita.paciente}</h4>
@@ -367,7 +367,7 @@ const Dashboard = ({ onNavigateToReportes }) => {
                         </div>
                         <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
                             <div
-                                className={`h-full rounded-full ${item.color} transition-all duration-1000 ease-out`}
+                                className={`h-full rounded-full ${item.color} transition-all duration-200 ease-out`}
                                 style={{ width: `${item.porcentaje}%` }}
                             ></div>
                         </div>

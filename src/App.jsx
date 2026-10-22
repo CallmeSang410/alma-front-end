@@ -1,33 +1,48 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { GoogleOAuthProvider, googleLogout } from '@react-oauth/google';
 import Login from './Login';
 import Interface from './Interface';
 // ✅ PONÉ ESTA (asegurate de usar el nombre correcto del archivo de Dervin):
 import Formulario from './Formulario';
+import api from './api';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
-export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(localStorage.getItem('token')));
+function verificarTokenAlmacenado() {
+  const token = localStorage.getItem('token');
+  if (!token) return false;
 
+  try {
+    const partes = token.split('.');
+    if (partes.length !== 3) throw new Error('Formato JWT inválido');
 
-useEffect(() => {
-const tamanoFuente = localStorage.getItem('hf_tamano_fuente') || 'normal';
-    if (tamanoFuente === 'small') {
-        document.documentElement.style.fontSize = '14px';
-    } else if (tamanoFuente === 'large') {
-        document.documentElement.style.fontSize = '18px';
-    } else {
-        document.documentElement.style.fontSize = '16px';
+    const base64 = partes[1].replace(/-/g, '+').replace(/_/g, '/');
+    const payload = JSON.parse(window.atob(base64));
+
+    if (!payload || !payload.usuario_id) {
+      throw new Error('Payload sin usuario_id');
     }
-  }, []);
 
-  const handleLogin = () => {
-    setIsAuthenticated(true);
-  };
+    if (payload.exp && payload.exp * 1000 <= Date.now()) {
+      throw new Error('Token expirado');
+    }
 
-  const handleLogout = () => {
+    return true;
+  } catch (err) {
+    localStorage.removeItem('token');
+    localStorage.removeItem('userEmail');
+    localStorage.removeItem('userName');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('clinicInviteCode');
+    return false;
+  }
+}
+
+export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(() => verificarTokenAlmacenado());
+
+  const handleLogout = useCallback(() => {
     try {
       googleLogout();
     } catch (e) {
@@ -39,6 +54,37 @@ const tamanoFuente = localStorage.getItem('hf_tamano_fuente') || 'normal';
     localStorage.removeItem('userRole');
     localStorage.removeItem('clinicInviteCode');
     setIsAuthenticated(false);
+  }, []);
+
+  useEffect(() => {
+    const tamanoFuente = localStorage.getItem('hf_tamano_fuente') || 'normal';
+    if (tamanoFuente === 'small') {
+      document.documentElement.style.fontSize = '14px';
+    } else if (tamanoFuente === 'large') {
+      document.documentElement.style.fontSize = '18px';
+    } else {
+      document.documentElement.style.fontSize = '16px';
+    }
+  }, []);
+
+  useEffect(() => {
+    const onSesionExpirada = () => handleLogout();
+    window.addEventListener('sesionExpirada', onSesionExpirada);
+    return () => window.removeEventListener('sesionExpirada', onSesionExpirada);
+  }, [handleLogout]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    // Verificación rápida contra el servidor; si el token fue revocado o es inválido, el interceptor 401 redirige de inmediato
+    api.get('/usuarios/me').catch((err) => {
+      if (err.response?.status === 401) {
+        handleLogout();
+      }
+    });
+  }, [isAuthenticated, handleLogout]);
+
+  const handleLogin = () => {
+    setIsAuthenticated(true);
   };
 
   // 🌟 Agrupamos tu lógica original en esta constante

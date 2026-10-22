@@ -341,7 +341,7 @@ const Experiencia = () => {
     const total = estadisticas.total_evaluaciones;
 
     return (
-        <div className="max-w-[1400px] mx-auto font-sans pb-16 bg-[#F4F8F8] min-h-screen px-4 pt-3 pb-16 sm:px-6 sm:pt-4 lg:px-8 lg:pt-5">
+        <div className="w-full max-w-[1400px] mx-auto font-sans pb-16 bg-[#f8fafc] min-h-screen px-4 pt-3 pb-16 sm:px-6 sm:pt-4 lg:px-8 lg:pt-5">
             
             {/* --- CABECERA --- */}
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-5 gap-4 animate-fade-in-up">

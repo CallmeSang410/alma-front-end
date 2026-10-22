@@ -7,7 +7,7 @@
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -16,14 +16,14 @@
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.3s ease-in-out;
+  animation: fadeIn 0.15s ease-out;
 }
 
 /* Transiciones suaves en inputs y botones */
 input,
 select,
 button {
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
 }
 
 input:focus,

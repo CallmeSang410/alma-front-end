@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import logoEmpresa from './assets/logo.png';
 // 🌟 1. IMPORTAMOS AMBAS COSAS (EL HOOK Y EL PROVIDER)
 import { useAlerta, AlertaProvider } from './AlertaContext.jsx';
-import api from './api'; // Importás tu instancia configurada
+import api, { BASE_URL } from './api'; // Importás tu instancia configurada
 
 // 🌟 2. LE QUITAMOS EL "export default" A ESTA LÍNEA (lo haremos al final)
 function Login({ onLoginSuccess }) {
@@ -28,13 +28,24 @@ function Login({ onLoginSuccess }) {
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [termsType, setTermsType] = useState('terms'); 
 
+  // Precalentamiento silencioso (Warm-up) del backend en Render al montar Login
+  useEffect(() => {
+    fetch(`${BASE_URL}/health`, {
+      method: 'GET',
+      mode: 'cors',
+      cache: 'no-store'
+    }).catch(() => {
+      // Silencioso en segundo plano para despertar instancia y establecer TLS
+    });
+  }, []);
+
   const cssStyles = `
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
+      from { opacity: 0; transform: translateY(6px); }
       to { opacity: 1; transform: translateY(0); }
     }
-    .animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
-    input, select, button { transition: all 0.2s ease; }
+    .animate-fade-in { animation: fadeIn 0.15s ease-out; }
+    input, select, button { transition: all 0.15s ease; }
     input:focus, select:focus { box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12); }
     button[type="submit"], button[type="button"] { will-change: transform, box-shadow; }
     button[type="submit"]:active, button[type="button"]:active { transform: scale(0.98); }
@@ -601,14 +612,14 @@ const procesarRecuperacion = async () => {
                     <button
                       type="submit"
                       disabled={isLoading}
-                      className="relative w-full h-14 mt-8 bg-[#0F766E] hover:bg-[#0D9488] text-white rounded-[1.25rem] text-xs font-black uppercase tracking-[0.2em] shadow-lg shadow-teal-900/20 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/40 disabled:opacity-80 disabled:cursor-not-allowed flex items-center justify-center overflow-hidden"
+                      className="relative w-full h-14 mt-8 bg-[#0F766E] hover:bg-[#0D9488] text-white rounded-[1.25rem] text-xs font-black uppercase tracking-[0.2em] shadow-lg shadow-teal-900/20 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/40 disabled:opacity-80 disabled:cursor-not-allowed flex items-center justify-center overflow-hidden"
                     >
-                      <span className={`transition-all duration-300 ${isLoading ? 'opacity-0 transform translate-y-4' : 'opacity-100 transform translate-y-0'}`}>
+                      <span className={`transition-all duration-150 ${isLoading ? 'opacity-0 transform translate-y-4' : 'opacity-100 transform translate-y-0'}`}>
                         Ingresar a la plataforma
                       </span>
                       
                       {/* Spinner (Loading State) */}
-                      <div className={`absolute inset-0 flex items-center justify-center transition-all duration-300 ${isLoading ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform -translate-y-4'}`}>
+                      <div className={`absolute inset-0 flex items-center justify-center transition-all duration-150 ${isLoading ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform -translate-y-4'}`}>
                         <svg className="w-6 h-6 animate-spin text-white" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>

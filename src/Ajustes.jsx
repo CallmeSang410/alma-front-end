@@ -210,9 +210,7 @@ const Ajustes = () => {
             mostrarAlerta('exito', 'Apariencia Guardada', 'Se ha actualizado el tamaño del texto general.');
         }
 
-        setTimeout(() => {
-            setIsSaving(false);
-        }, 800);
+        setIsSaving(false);
     };
     const renderPerfil = () => (
         <form onSubmit={handleSave} className="space-y-6 animate-fade-in-up">
@@ -393,12 +391,12 @@ const Ajustes = () => {
                     <p className="text-xs text-slate-500 mt-1">La paleta de HorizonFlow se mantiene fija en su color original. Aquí puedes ajustar el tamaño del texto para mayor comodidad.</p>
                 </div>
 
-                <div className={`${previewBoxClass} p-6 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center min-h-[140px] text-center transition-all duration-300`}>
+                <div className={`${previewBoxClass} p-6 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center min-h-[140px] text-center transition-all duration-150`}>
                     <span className={`${previewBadgeClass} text-[10px] font-black uppercase tracking-widest mb-3 px-3 py-1 rounded-full shadow-sm border`}>Vista Previa</span>
-                    <h2 className={`${getPreviewTextSizeClass()} font-sans font-black ${previewTitleClass} transition-all duration-300 ease-in-out`}>
+                    <h2 className={`${getPreviewTextSizeClass()} font-sans font-black ${previewTitleClass} transition-all duration-150 ease-in-out`}>
                         HorizonFlow
                     </h2>
-                    <p className={`${getPreviewDescSizeClass()} font-sans ${previewDescClass} mt-2 max-w-sm transition-all duration-300 ease-in-out leading-relaxed`}>
+                    <p className={`${getPreviewDescSizeClass()} font-sans ${previewDescClass} mt-2 max-w-sm transition-all duration-150 ease-in-out leading-relaxed`}>
                         El diagnóstico temprano y el tratamiento adecuado son fundamentales para el bienestar emocional del paciente.
                     </p>
                 </div>
@@ -532,7 +530,7 @@ const Ajustes = () => {
     );
 
     return (
-        <div className="max-w-6xl mx-auto font-sans pb-16">
+        <div className="w-full max-w-6xl mx-auto font-sans pb-16">
             <div className="mb-8 animate-fade-in-up">
                 <h1 className="text-2xl sm:text-3xl font-black text-[#113130] tracking-tight">Ajustes del Sistema</h1>
                 <p className="text-sm text-slate-500 font-medium mt-1">Gestiona tu perfil, apariencia y configuración global.</p>
@@ -566,7 +564,7 @@ const Ajustes = () => {
                 </aside>
 
                 {/* Área de Contenido Dinámico */}
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                     <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-100 min-h-[500px]">
                         {activeTab === 'perfil' && renderPerfil()}
                         {activeTab === 'alertas' && renderAlertas()}

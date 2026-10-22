@@ -401,9 +401,9 @@ export default function Interface({ onLogout }) {
     };
 
    return (
-       <div ref={shellRef} className="min-h-screen font-sans bg-[#F4F8F8] print:bg-white text-[#113130] flex flex-col lg:flex-row antialiased relative">
+       <div ref={shellRef} className="flex flex-col lg:flex-row h-screen w-full overflow-hidden font-sans bg-[#f8fafc] print:bg-white print:h-auto print:overflow-visible text-[#113130] antialiased relative">
        
-       <div className="lg:hidden flex items-center justify-between p-4 bg-[#0F766E] text-white shadow-md relative py-6 print:hidden">
+       <div className="lg:hidden flex items-center justify-between p-4 bg-[#0F766E] text-white shadow-md relative py-6 shrink-0 print:hidden">
            <div className="w-10 h-10 invisible" />
            <div className="flex items-center justify-center flex-1">
                <img src={logoEmpresa} alt="HorizonFlow logo" className="w-48 h-auto object-contain transform scale-110" />
@@ -418,7 +418,7 @@ export default function Interface({ onLogout }) {
            </button>
        </div>
 
-       <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#0F766E] text-white flex flex-col justify-between transform lg:transform-none lg:opacity-100 lg:sticky lg:top-0 lg:h-screen transition-all duration-300 ease-out shrink-0 shadow-xl lg:shadow-none print:hidden ${sidebarOpen ? 'translate-x-0 opacity-100' : '-translate-x-full lg:translate-x-0'}`}>
+       <aside className={`fixed inset-y-0 left-0 z-50 lg:static lg:z-20 w-64 flex-shrink-0 shrink-0 bg-[#0F766E] text-white flex flex-col justify-between transform lg:transform-none lg:opacity-100 lg:h-screen transition-all duration-200 ease-out shadow-xl lg:shadow-none print:hidden ${sidebarOpen ? 'translate-x-0 opacity-100' : '-translate-x-full lg:translate-x-0'}`}>
            <div className="flex flex-col">
                <div className="w-full pt-8 pb-4 px-2 flex flex-col items-center relative">
                    <img 
@@ -445,9 +445,9 @@ export default function Interface({ onLogout }) {
                                    setActiveTab(item.id); 
                                    setSidebarOpen(false); 
                                }}
-                               className={`w-full flex items-center gap-4 px-5 py-3 text-xs font-bold uppercase tracking-wider nav-button transition-transform duration-300 ${activo ? 'active-nav-curve text-[#0F766E] font-black' : 'text-teal-100/75 hover:text-white hover:translate-x-1.5'}`}
+                               className={`w-full flex items-center gap-4 px-5 py-3 text-xs font-bold uppercase tracking-wider nav-button transition-transform duration-200 ${activo ? 'active-nav-curve text-[#0F766E] font-black' : 'text-teal-100/75 hover:text-white hover:translate-x-1.5'}`}
                            >
-                               <span className={`transition-colors duration-200 ${activo ? 'text-[#0F766E]' : 'text-teal-200'}`}>{item.icon}</span>
+                               <span className={`transition-colors duration-150 ${activo ? 'text-[#0F766E]' : 'text-teal-200'}`}>{item.icon}</span>
                                <span>{item.label}</span>
                            </button>
                        );
@@ -473,7 +473,7 @@ export default function Interface({ onLogout }) {
            ></div>
        )}
        
-      <div className="flex-1 flex flex-col min-h-screen overflow-x-hidden bg-[#F4F8F8] print:bg-white print:overflow-visible print:h-auto print:min-h-0 print:block">
+      <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden flex flex-col bg-[#f8fafc] print:bg-white print:overflow-visible print:h-auto print:min-h-0 print:block">
            
            <header className="px-6 lg:px-8 py-5 bg-white flex flex-col md:flex-row items-center justify-between gap-4 border-b border-teal-100/30 print:hidden sticky top-0 z-20 shadow-sm">
                
@@ -712,7 +712,7 @@ export default function Interface({ onLogout }) {
                </div>
            </header>
 
-           <main data-main-content="true" className="flex-1 p-6 lg:p-8 animate-fade-in print:p-0">
+           <main data-main-content="true" className="flex-1 w-full min-w-0 p-6 lg:p-8 animate-fade-in print:p-0">
                <ErrorBoundary key={activeTab}>
                    {renderContent()}
                </ErrorBoundary>

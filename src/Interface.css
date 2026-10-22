@@ -26,18 +26,18 @@
 /* Curva superior */
 .nav-button::before {
   top: -24px;
-  background: radial-gradient(circle at top left, transparent 23.5px, #F4F8F8 24px);
+  background: radial-gradient(circle at top left, transparent 23.5px, #f8fafc 24px);
 }
 
 /* Curva inferior */
 .nav-button::after {
   bottom: -24px;
-  background: radial-gradient(circle at bottom left, transparent 23.5px, #F4F8F8 24px);
+  background: radial-gradient(circle at bottom left, transparent 23.5px, #f8fafc 24px);
 }
 
 /* Cuando el botón está activo, mostramos el fondo y las curvas suavemente */
 .active-nav-curve {
-  background-color: #F4F8F8;
+  background-color: #f8fafc;
   color: #0F766E !important;
 }
 
@@ -48,12 +48,12 @@
 
 /* Animación sutil de desvanecimiento */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: fadeIn 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* Barra de desplazamiento (Scrollbar) personalizada */
