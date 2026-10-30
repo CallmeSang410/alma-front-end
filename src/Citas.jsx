@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import './Citas.css';
 import { useAlerta, AlertaProvider } from './AlertaContext.jsx';
@@ -8,6 +8,10 @@ import FocusTrap from './components/FocusTrap';
 
 // ================= COMPONENTES VISUALES PREMIUM =================
 
+const ErrorIcon = () => (
+    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+);
+
 // 1. Selector Simple (Para Estado y Modalidad)
 const SelectorPremium = ({ valor, opciones, alCambiar, placeholder, conError }) => {
     const [abierto, setAbierto] = useState(false);
@@ -16,8 +20,11 @@ const SelectorPremium = ({ valor, opciones, alCambiar, placeholder, conError }) 
 
     useEffect(() => {
         if (abierto) {
-            const idx = opciones.findIndex(o => o.valor === valor);
-            setIndiceActivo(idx >= 0 ? idx : 0);
+            const timer = setTimeout(() => {
+                const idx = opciones.findIndex(o => o.valor === valor);
+                setIndiceActivo(idx >= 0 ? idx : 0);
+            }, 0);
+            return () => clearTimeout(timer);
         }
     }, [abierto, valor, opciones]);
 
@@ -128,7 +135,10 @@ const BuscadorPacientesPremium = ({ valor, pacientes, alCambiar, conError }) => 
     const filtrados = pacientes.filter(p => p.nombre.toLowerCase().includes(busqueda.toLowerCase()) || (p.telefono && p.telefono.includes(busqueda)));
 
     useEffect(() => {
-        setIndiceActivo(0);
+        const timer = setTimeout(() => {
+            setIndiceActivo(0);
+        }, 0);
+        return () => clearTimeout(timer);
     }, [busqueda, abierto]);
 
     useEffect(() => {
@@ -261,12 +271,16 @@ const DatePickerPremium = ({ valor, alCambiar, conError }) => {
     const dropdownRef = useRef(null);
 
     useEffect(() => {
-        if (abierto && valor) {
-            const [y, m, d] = valor.split('-');
-            setFechaVista(new Date(y, m - 1, d));
-        } else if (abierto && !valor) {
-            setFechaVista(new Date());
-        }
+        if (!abierto) return;
+        const timer = setTimeout(() => {
+            if (valor) {
+                const [y, m, d] = valor.split('-');
+                setFechaVista(new Date(y, m - 1, d));
+            } else {
+                setFechaVista(new Date());
+            }
+        }, 0);
+        return () => clearTimeout(timer);
     }, [abierto, valor]);
 
     useEffect(() => {
@@ -613,7 +627,35 @@ const Citas = () => {
     };
 
     useEffect(() => {
-        cargarDatos();
+        let isMounted = true;
+        Promise.all([api.get('/pacientes'), api.get('/citas')])
+            .then(([resPacientes, resCitas]) => {
+                if (!isMounted) return;
+                const pacientesDB = resPacientes.data;
+                const citasDB = resCitas.data;
+                setPatientsList(pacientesDB);
+                const citasFormateadas = citasDB.map(cita => {
+                    const paciente = pacientesDB.find(p => p.id === cita.paciente_id);
+                    const [fecha, horaFull] = cita.fecha_cita.split('T');
+                    const hora = horaFull ? horaFull.substring(0, 5) : "00:00";
+                    return {
+                        id: cita.id,
+                        paciente_id: cita.paciente_id,
+                        patientName: paciente ? paciente.nombre : "Paciente Eliminado/Desconocido",
+                        patientPhone: paciente ? paciente.telefono : "",
+                        date: fecha,
+                        time: hora,
+                        reason: cita.motivo,
+                        status: cita.estado || "Pendiente",
+                        atention: cita.modalidad || "Presencial",
+                        tarifa: cita.tarifa || ''
+                    };
+                });
+                window.dispatchEvent(new Event('citasActualizadas'));
+                setAppointments(citasFormateadas);
+            })
+            .catch(err => console.error("Error al cargar los datos:", err));
+        return () => { isMounted = false; };
     }, []);
 
     const handleOpenForm = (appointment = null) => {
@@ -759,9 +801,6 @@ const Citas = () => {
         }
     };
 
-    const ErrorIcon = () => (
-        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-    );
 
     const searchInputRef = useRef(null);
 

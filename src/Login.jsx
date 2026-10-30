@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import logoEmpresa from './assets/logo.png';

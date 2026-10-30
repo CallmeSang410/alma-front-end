@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { GoogleLogin } from '@react-oauth/google';
 import './Ajustes.css';
 import { useAlerta, AlertaProvider } from './AlertaContext.jsx'; // 🌟 Importamos las alertas
@@ -27,7 +27,7 @@ const Ajustes = () => {
     const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
     // --- LÓGICA DEL TEMA GLOBAL ---
-    const [temaActual, setTemaActual] = useState(() => {
+    const [temaActual] = useState(() => {
         const temaGuardado = localStorage.getItem('temaHorizon');
         return temaGuardado ? temaGuardado : 'light';
     });
@@ -42,6 +42,11 @@ const Ajustes = () => {
         localStorage.setItem('temaHorizon', temaActual); 
     }, [temaActual]);
 
+    const [preferenciasData, setPreferenciasData] = useState({
+        anticipacion_alerta: parseInt(localStorage.getItem('hf_alerta_horas')) || 24,
+        tamanoFuente: localStorage.getItem('hf_tamano_fuente') || 'normal' 
+    });
+
     useEffect(() => {
         const sincronizarDesdeCampana = () => {
             const horas = parseInt(localStorage.getItem('hf_alerta_horas')) || 24;
@@ -51,7 +56,6 @@ const Ajustes = () => {
         window.addEventListener('configuracionAlertasActualizada', sincronizarDesdeCampana);
         return () => window.removeEventListener('configuracionAlertasActualizada', sincronizarDesdeCampana);
     }, []);
-
     const [activeTab, setActiveTab] = useState('perfil'); 
     const [isSaving, setIsSaving] = useState(false);
 
@@ -145,12 +149,6 @@ const Ajustes = () => {
         navigator.clipboard.writeText(perfilData.codigoInvitacion);
         mostrarAlerta('exito', 'Código Copiado', `El código ${perfilData.codigoInvitacion} se copió al portapapeles. Compártelo con tu equipo.`);
     };
-
-    // MOCK DATA: Preferencias Globales
-    const [preferenciasData, setPreferenciasData] = useState({
-        anticipacion_alerta: parseInt(localStorage.getItem('hf_alerta_horas')) || 24,
-        tamanoFuente: localStorage.getItem('hf_tamano_fuente') || 'normal' 
-    });
 
     const [reporteBug, setReporteBug] = useState({ asunto: '', descripcion: '' });
 

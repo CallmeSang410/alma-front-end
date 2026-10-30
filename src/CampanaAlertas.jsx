@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'; 
+import { useState, useEffect, useRef, useCallback } from 'react'; 
 import api from './api'; // Importás tu instancia configurada
 
 const CampanaAlertas = () => {
@@ -46,7 +46,7 @@ const CampanaAlertas = () => {
     }, [isOpen]);
 
     // MOTOR REAL: Conexión directa con tu FastAPI mediante AXIOS
-    const revisarAlertasReal = async () => {
+    const revisarAlertasReal = useCallback(async () => {
         try {
             const token = localStorage.getItem('token');
             const res = await api.get(`/citas/alertas-activas?horas=${horasAnticipacion}`, {
@@ -62,12 +62,7 @@ const CampanaAlertas = () => {
                 const diferenciaHoras = Math.floor(diferenciaMs / (1000 * 60 * 60));
                 const diferenciaMinutos = Math.floor((diferenciaMs % (1000 * 60 * 60)) / (1000 * 60));
 
-                let textoTiempo = '';
-                if (diferenciaHoras > 0) {
-                    textoTiempo = `${diferenciaHoras}h ${diferenciaMinutos}m`;
-                } else {
-                    textoTiempo = `${diferenciaMinutos} min`;
-                }
+                const textoTiempo = diferenciaHoras > 0 ? `${diferenciaHoras}h ${diferenciaMinutos}m` : `${diferenciaMinutos} min`;
 
                 return {
                     id: cita.id,
@@ -85,10 +80,31 @@ const CampanaAlertas = () => {
         } catch (error) {
             console.error("Error cargando alertas reales del backend:", error);
         }
-    };
+    }, [horasAnticipacion]);
 
     useEffect(() => {
-        revisarAlertasReal();
+        let isMounted = true;
+        api.get(`/citas/alertas-activas?horas=${horasAnticipacion}`).then(res => {
+            if (!isMounted) return;
+            const ahora = new Date();
+            const alertasProcesadas = res.data.map(cita => {
+                const fechaCita = new Date(cita.fecha_cita);
+                const diferenciaMs = fechaCita - ahora;
+                const diferenciaHoras = Math.floor(diferenciaMs / (1000 * 60 * 60));
+                const diferenciaMinutos = Math.floor((diferenciaMs % (1000 * 60 * 60)) / (1000 * 60));
+                const textoTiempo = diferenciaHoras > 0 ? `${diferenciaHoras}h ${diferenciaMinutos}m` : `${diferenciaMinutos} min`;
+                return {
+                    id: cita.id,
+                    patientName: cita.paciente ? cita.paciente.nombre : "Paciente",
+                    date: fechaCita.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }),
+                    time: fechaCita.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+                    reason: cita.motivo_consulta || "Consulta General",
+                    timeLeft: textoTiempo,
+                    horasFaltantes: diferenciaHoras
+                };
+            });
+            setAlertas(alertasProcesadas);
+        }).catch(err => console.error("Error cargando alertas:", err));
 
         const sincronizarDesdeAjustes = () => {
             const nuevasHoras = parseInt(localStorage.getItem('hf_alerta_horas')) || 24;
@@ -105,11 +121,12 @@ const CampanaAlertas = () => {
         const intervalo = setInterval(revisarAlertasReal, 60000); 
         
         return () => {
+            isMounted = false;
             clearInterval(intervalo);
             window.removeEventListener('actualizarRadarCitas', escucharCambios);
             window.removeEventListener('configuracionAlertasActualizada', sincronizarDesdeAjustes);
         };
-    }, [horasAnticipacion]);
+    }, [revisarAlertasReal, horasAnticipacion]);
 
     const cambiarConfiguracion = (horas) => {
         setHorasAnticipacion(horas);

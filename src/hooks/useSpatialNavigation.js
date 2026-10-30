@@ -204,7 +204,7 @@ export function useSpatialNavigation(containerRef, enabled = true) {
             }
 
             const aligned = directionalCandidates.filter(c => c.overlapsPerpendicular);
-            let winner = null;
+            let winner;
 
             if (aligned.length > 0) {
                 aligned.sort((a, b) => {

@@ -1,6 +1,8 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import { createContext, useState, useContext, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import FocusTrap from './components/FocusTrap';
+
+/* eslint-disable react-refresh/only-export-components */
 
 const AlertaContext = createContext();
 

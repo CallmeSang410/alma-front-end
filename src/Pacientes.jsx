@@ -1,10 +1,14 @@
-import React, { useState, useEffect, createContext, useContext, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import HistorialSesiones from './HistorialSesiones'; // Ajustá la ruta si lo guardaste en otra carpeta
 import { createPortal } from 'react-dom';
 import { useAlerta, AlertaProvider } from './AlertaContext.jsx'; // 🌟 1. IMPORTAMOS AMBAS COSAS
 import api from './api'; // Importás tu instancia configurada
 import useKeyboardShortcuts from './hooks/useKeyboardShortcuts';
 import FocusTrap from './components/FocusTrap';
+
+const ErrorIcon = () => (
+    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+);
 
 const SelectorPremium = ({ valor, opciones, alCambiar, placeholder, conError }) => {
     const [abierto, setAbierto] = useState(false);
@@ -13,8 +17,11 @@ const SelectorPremium = ({ valor, opciones, alCambiar, placeholder, conError }) 
 
     useEffect(() => {
         if (abierto) {
-            const idx = opciones.findIndex(o => o.valor === valor);
-            setIndiceActivo(idx >= 0 ? idx : 0);
+            const timer = setTimeout(() => {
+                const idx = opciones.findIndex(o => o.valor === valor);
+                setIndiceActivo(idx >= 0 ? idx : 0);
+            }, 0);
+            return () => clearTimeout(timer);
         }
     }, [abierto, valor, opciones]);
 
@@ -145,9 +152,6 @@ const Pacientes = ({ onNavigateToReportes }) => {
     const searchInputRef = useRef(null);
     const nameInputRef = useRef(null);
 
-    // 🌟 ESTADOS NUEVOS PARA CITAS Y REPORTES
-    const [todasLasCitas, setTodasLasCitas] = useState([]);
-    const [todosLosReportes, setTodosLosReportes] = useState([]);
 
     // ================= ESTADOS DE LA LÍNEA DE TIEMPO INTERACTIVA =================
     const [activeTimeline, setActiveTimeline] = useState('estado');
@@ -159,7 +163,7 @@ const Pacientes = ({ onNavigateToReportes }) => {
     const [noteStageId, setNoteStageId] = useState(null);
     
     // Modal para borrar toda la línea
-    const [showDeleteTimelineModal, setShowDeleteTimelineModal] = useState(false);
+    const [showDeleteTimelineModal] = useState(false);
 
     // 🌟 REEMPLAZO DE MOCK DATA POR DATOS REALES DE BASE DE DATOS
     const [timelineEvents, setTimelineEvents] = useState([]);
@@ -264,41 +268,26 @@ const Pacientes = ({ onNavigateToReportes }) => {
         setIsTimelineEditMode(!isTimelineEditMode);
     };
     const [patients, setPatients] = useState([]);
-
-    // 🌟 NUEVA VERSIÓN PURIFICADA CON AXIOS
     const obtenerDatosCompletos = async () => {
         try {
-            // Ya no necesitas meter el token a mano, api.js lo hace por vos
-            const [resPacientes, resCitas, resReportes] = await Promise.all([
-                api.get('/pacientes'),
-                api.get('/citas'),
-                api.get('/reportes')
-            ]);
-
-            // Axios guarda todo directo en ".data"
-            const pacientesFormateados = resPacientes.data.map(p => ({
-                id: p.id, 
-                name: p.nombre,
-                phone: p.telefono || 'Sin teléfono',
-                email: p.email || 'Sin correo',
-                age: p.edad,
-                status: p.estado || 'Activo',
-                sexo: p.sexo, 
-                timeline: [], 
-                reports: [] 
+            const resPacientes = await api.get("/pacientes");
+            const formateados = resPacientes.data.map(p => ({
+                id: p.id, name: p.nombre, phone: p.telefono || "Sin teléfono", email: p.email || "Sin correo", age: p.edad, status: p.estado || "Activo", sexo: p.sexo, timeline: [], reports: []
             }));
-            
-            setPatients(pacientesFormateados);
-            setTodasLasCitas(resCitas.data);
-            setTodosLosReportes(resReportes.data);
-
-        } catch (error) {
-            console.error("Error al cargar datos completos:", error);
-        }
+            setPatients(formateados);
+        } catch (error) { console.error("Error al cargar datos:", error); }
     };
 
     useEffect(() => {
-        obtenerDatosCompletos(); // Llamamos a la nueva función
+        let isMounted = true;
+        api.get("/pacientes").then(res => {
+            if (!isMounted) return;
+            const formateados = res.data.map(p => ({
+                id: p.id, name: p.nombre, phone: p.telefono || "Sin teléfono", email: p.email || "Sin correo", age: p.edad, status: p.estado || "Activo", sexo: p.sexo, timeline: [], reports: []
+            }));
+            setPatients(formateados);
+        }).catch(err => console.error("Error al cargar datos:", err));
+        return () => { isMounted = false; };
     }, []);
 
     useEffect(() => {
@@ -357,15 +346,15 @@ const Pacientes = ({ onNavigateToReportes }) => {
     console.log("✅ Validación exitosa. Enviando a FastAPI esta data:", datosParaBackend); 
 
     try {
-        let respuesta;
+        // respuesta
         
         // 3. Peticiones HTTP con Axios (la URL base y el Token ya están en api.js)
         if (formData.id) {
             // PUT a: BASE_URL + /pacientes/ID
-            respuesta = await api.put(`/pacientes/${formData.id}`, datosParaBackend);
+            await api.put(`/pacientes/${formData.id}`, datosParaBackend);
         } else {
             // POST a: BASE_URL + /pacientes
-            respuesta = await api.post('/pacientes', datosParaBackend);
+            await api.post('/pacientes', datosParaBackend);
         }
 
         // 4. Con Axios, si entra aquí es porque el estatus fue exitoso (2xx)
@@ -394,12 +383,6 @@ const Pacientes = ({ onNavigateToReportes }) => {
 };
 
     // 🌟 ================= FILTRO DE REPORTES PARA EL EXPEDIENTE =================
-    let pacienteReportes = [];
-    if (selectedPatient) {
-        const citasDelPaciente = todasLasCitas.filter(cita => cita.paciente_id === selectedPatient.id);
-        const idsCitasPaciente = citasDelPaciente.map(cita => cita.id);
-        pacienteReportes = todosLosReportes.filter(reporte => idsCitasPaciente.includes(reporte.cita_id));
-    }
 
     const handleDeletePatient = (id) => { setPatientToDelete(id); };
 
@@ -472,15 +455,7 @@ const Pacientes = ({ onNavigateToReportes }) => {
 
     const filteredPatients = patients.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
     
-    const getTrendInfo = (status) => {
-        if (status === 'Activo') return { label: 'Tendencia Positiva', gradient: 'from-emerald-400 via-teal-400 to-slate-200', text: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200', ring: 'border-emerald-400', icon: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6' };
-        if (status === 'Pendiente') return { label: 'Tendencia Estable', gradient: 'from-amber-400 via-orange-300 to-slate-200', text: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-200', ring: 'border-amber-400', icon: 'M5 12h14' };
-        return { label: 'Alta Exitosa', gradient: 'from-[#0F766E] via-teal-400 to-slate-200', text: 'text-[#0F766E]', bg: 'bg-teal-50', border: 'border-teal-200', ring: 'border-teal-400', icon: 'M5 13l4 4L19 7' };
-    };
 
-    const ErrorIcon = () => (
-        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-    );
 
     // ================= VISTA 1: DIRECTORIO =================
     if (view === 'list') {

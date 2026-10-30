@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { FileText, AlertCircle, Clock, XCircle, ChevronRight, FileEdit, CalendarDays, Video, MapPin, Loader2 } from 'lucide-react';
 import api from './api'; // Importás tu instancia configurada
 

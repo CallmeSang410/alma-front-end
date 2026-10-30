@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import logo from './assets/logo.png';
 import { useParams } from 'react-router-dom';
 import { useAlerta, AlertaProvider } from './AlertaContext.jsx'; 
@@ -33,6 +33,88 @@ const IconClipboard = () => (
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
     </svg>
 );
+
+const EscalaPuntuacion = ({ valor, onChange }) => {
+    return (
+        <div className="flex justify-between items-center w-full gap-1.5 sm:gap-2 mt-4">
+            {[1, 2, 3, 4, 5].map((num) => {
+                const isSelected = valor === num;
+                return (
+                    <button
+                        key={num}
+                        type="button"
+                        onClick={() => onChange(num)}
+                        className={`flex-1 h-12 rounded-lg text-base font-bold transition-all duration-200 border ${
+                            isSelected 
+                            ? 'bg-[#0F766E] text-white border-[#0F766E] shadow-md transform scale-[1.02]' 
+                            : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-teal-50 hover:border-[#0D9488] hover:text-[#0D9488]'
+                        }`}
+                    >
+                        {num}
+                    </button>
+                );
+            })}
+        </div>
+    );
+};
+
+const OpcionesMultiples = ({ valor, opciones, onChange }) => {
+    return (
+        <div className="flex flex-col gap-2 mt-4">
+            {opciones.map((opcion, idx) => {
+                const isSelected = valor === opcion;
+                return (
+                    <button
+                        key={idx}
+                        type="button"
+                        onClick={() => onChange(opcion)}
+                        className={`w-full text-left px-4 py-3.5 rounded-xl text-sm font-medium transition-all duration-200 border ${
+                            isSelected 
+                            ? 'bg-teal-50 border-[#0F766E] text-[#0F766E] shadow-sm' 
+                            : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-teal-300 hover:bg-white'
+                        }`}
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${isSelected ? 'border-[#0F766E]' : 'border-slate-300'}`}>
+                                {isSelected && <div className="w-2 h-2 rounded-full bg-[#0F766E]"></div>}
+                            </div>
+                            {opcion}
+                        </div>
+                    </button>
+                );
+            })}
+        </div>
+    );
+};
+
+const OpcionesMultiplesCheckbox = ({ valores = [], opciones, onChange }) => {
+    return (
+        <div className="flex flex-col gap-2 mt-4">
+            {opciones.map((opcion, idx) => {
+                const isSelected = valores.includes(opcion);
+                return (
+                    <button
+                        key={idx}
+                        type="button"
+                        onClick={() => onChange(opcion)}
+                        className={`w-full text-left px-4 py-3.5 rounded-xl text-sm font-medium transition-all duration-200 border ${
+                            isSelected 
+                            ? 'bg-teal-50 border-[#0F766E] text-[#0F766E] shadow-sm' 
+                            : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-teal-300 hover:bg-white'
+                        }`}
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition-colors ${isSelected ? 'bg-[#0F766E] border-[#0F766E]' : 'bg-white border-slate-300'}`}>
+                                {isSelected && <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>}
+                            </div>
+                            {opcion}
+                        </div>
+                    </button>
+                );
+            })}
+        </div>
+    );
+};
 
 const FormularioContent = () => {
     const contextoAlerta = useAlerta();
@@ -128,92 +210,7 @@ const FormularioContent = () => {
         }
     };
 
-    const cerrarVentana = () => {
-        window.open('', '_self', '');
-        window.close();
-    };
 
-    const EscalaPuntuacion = ({ preguntaId }) => {
-        return (
-            <div className="flex justify-between items-center w-full gap-1.5 sm:gap-2 mt-4">
-                {[1, 2, 3, 4, 5].map((num) => {
-                    const isSelected = respuestas[preguntaId] === num;
-                    return (
-                        <button
-                            key={num}
-                            type="button"
-                            onClick={() => handleRating(preguntaId, num)}
-                            className={`flex-1 h-12 rounded-lg text-base font-bold transition-all duration-200 border ${
-                                isSelected 
-                                ? 'bg-[#0F766E] text-white border-[#0F766E] shadow-md transform scale-[1.02]' 
-                                : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-teal-50 hover:border-[#0D9488] hover:text-[#0D9488]'
-                            }`}
-                        >
-                            {num}
-                        </button>
-                    );
-                })}
-            </div>
-        );
-    };
-
-    const OpcionesMultiples = ({ preguntaId, opciones }) => {
-        return (
-            <div className="flex flex-col gap-2 mt-4">
-                {opciones.map((opcion, idx) => {
-                    const isSelected = respuestas[preguntaId] === opcion;
-                    return (
-                        <button
-                            key={idx}
-                            type="button"
-                            onClick={() => handleSeleccion(preguntaId, opcion)}
-                            className={`w-full text-left px-4 py-3.5 rounded-xl text-sm font-medium transition-all duration-200 border ${
-                                isSelected 
-                                ? 'bg-teal-50 border-[#0F766E] text-[#0F766E] shadow-sm' 
-                                : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-teal-300 hover:bg-white'
-                            }`}
-                        >
-                            <div className="flex items-center gap-3">
-                                <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${isSelected ? 'border-[#0F766E]' : 'border-slate-300'}`}>
-                                    {isSelected && <div className="w-2 h-2 rounded-full bg-[#0F766E]"></div>}
-                                </div>
-                                {opcion}
-                            </div>
-                        </button>
-                    );
-                })}
-            </div>
-        );
-    };
-
-    const OpcionesMultiplesCheckbox = ({ preguntaId, opciones }) => {
-        return (
-            <div className="flex flex-col gap-2 mt-4">
-                {opciones.map((opcion, idx) => {
-                    const isSelected = respuestas[preguntaId].includes(opcion);
-                    return (
-                        <button
-                            key={idx}
-                            type="button"
-                            onClick={() => handleSeleccionMultiple(preguntaId, opcion)}
-                            className={`w-full text-left px-4 py-3.5 rounded-xl text-sm font-medium transition-all duration-200 border ${
-                                isSelected 
-                                ? 'bg-teal-50 border-[#0F766E] text-[#0F766E] shadow-sm' 
-                                : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-teal-300 hover:bg-white'
-                            }`}
-                        >
-                            <div className="flex items-center gap-3">
-                                <div className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition-colors ${isSelected ? 'bg-[#0F766E] border-[#0F766E]' : 'bg-white border-slate-300'}`}>
-                                    {isSelected && <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>}
-                                </div>
-                                {opcion}
-                            </div>
-                        </button>
-                    );
-                })}
-            </div>
-        );
-    };
 
     if (pasoActual === 3) {
         return (
@@ -327,13 +324,13 @@ const FormularioContent = () => {
                         
                         <div className="mb-8">
                             <label className="block text-sm font-bold text-[#113130] mb-2">1. Indique su nivel de satisfacción general con el servicio brindado por el psicólogo hoy.</label>
-                            <EscalaPuntuacion preguntaId="q1_satisfaccion_general" />
+                            <EscalaPuntuacion valor={respuestas.q1_satisfaccion_general} onChange={(num) => handleRating("q1_satisfaccion_general", num)} />
                         </div>
 
                         <div className="mb-8">
                             <label className="block text-sm font-bold text-[#113130] mb-2">2. ¿La atención brindada por el especialista cumplió con sus expectativas previas a la consulta?</label>
                             <OpcionesMultiples 
-                                preguntaId="q2_cumplimiento_expectativas" 
+                                valor={respuestas.q2_cumplimiento_expectativas} onChange={(opc) => handleSeleccion("q2_cumplimiento_expectativas", opc)} 
                                 opciones={['Superó ampliamente mis expectativas', 'Cumplió totalmente mis expectativas', 'Cumplió parcialmente', 'No cumplió mis expectativas']} 
                             />
                         </div>
@@ -341,7 +338,7 @@ const FormularioContent = () => {
                         <div>
                             <label className="block text-sm font-bold text-[#113130] mb-2">3. ¿El especialista demostró trato respetuoso, empatía y escucha activa durante su intervención?</label>
                             <OpcionesMultiples 
-                                preguntaId="q3_empatia_conexion" 
+                                valor={respuestas.q3_empatia_conexion} onChange={(opc) => handleSeleccion("q3_empatia_conexion", opc)} 
                                 opciones={['Sí, en todo momento', 'La mayor parte del tiempo', 'Solo en algunos momentos', 'No, me sentí poco comprendido(a)']} 
                             />
                         </div>
@@ -354,7 +351,7 @@ const FormularioContent = () => {
                             <label className="block text-sm font-bold text-[#113130] mb-1">4. ¿Qué aspecto(s) valora más de la atención médica recibida el día de hoy?</label>
                             <p className="text-xs text-slate-500 mb-2 font-medium">Puede seleccionar más de una opción.</p>
                             <OpcionesMultiplesCheckbox 
-                                preguntaId="q4_aspectos_valorados" 
+                                valores={respuestas.q4_aspectos_valorados} onChange={(opc) => handleSeleccionMultiple("q4_aspectos_valorados", opc)} 
                                 opciones={[
                                     'La escucha activa y empatía del psicólogo', 
                                     'La claridad de las explicaciones y herramientas brindadas', 
@@ -366,7 +363,7 @@ const FormularioContent = () => {
 
                         <div>
                             <label className="block text-sm font-bold text-[#113130] mb-2">5. Indique su nivel de satisfacción con la comodidad, tranquilidad e higiene de las instalaciones.</label>
-                            <EscalaPuntuacion preguntaId="q5_instalaciones" />
+                            <EscalaPuntuacion valor={respuestas.q5_instalaciones} onChange={(num) => handleRating("q5_instalaciones", num)} />
                         </div>
                     </div>
 
@@ -376,7 +373,7 @@ const FormularioContent = () => {
                         <div className="mb-8">
                             <label className="block text-sm font-bold text-[#113130] mb-2">6. ¿Considera que las explicaciones o pautas abordadas hoy le resultaron claras y útiles para su proceso?</label>
                             <OpcionesMultiples 
-                                preguntaId="q6_claridad_pautas" 
+                                valor={respuestas.q6_claridad_pautas} onChange={(opc) => handleSeleccion("q6_claridad_pautas", opc)} 
                                 opciones={[
                                     'Totalmente claras y fáciles de aplicar', 
                                     'Claras en su mayoría', 
@@ -389,7 +386,7 @@ const FormularioContent = () => {
                         <div className="mb-8">
                             <label className="block text-sm font-bold text-[#113130] mb-2">7. En comparación al inicio de la sesión, ¿cómo describiría su estado de ánimo al finalizar?</label>
                             <OpcionesMultiples 
-                                preguntaId="q7_impacto_animo" 
+                                valor={respuestas.q7_impacto_animo} onChange={(opc) => handleSeleccion("q7_impacto_animo", opc)} 
                                 opciones={['Mucho mejor, me siento con mayor claridad', 'Algo mejor, me siento escuchado(a)', 'Igual que al llegar', 'Peor / Más confundido(a)']} 
                             />
                         </div>
@@ -397,7 +394,7 @@ const FormularioContent = () => {
                         <div className="mb-8">
                             <label className="block text-sm font-bold text-[#113130] mb-2">8. ¿Sintió que el consultorio brindaba el ambiente de confianza y seguridad necesario para expresarse libremente?</label>
                             <OpcionesMultiples 
-                                preguntaId="q8_confianza_seguridad" 
+                                valor={respuestas.q8_confianza_seguridad} onChange={(opc) => handleSeleccion("q8_confianza_seguridad", opc)} 
                                 opciones={[
                                     'Sí, me sentí completamente seguro(a) y en confianza', 
                                     'En su mayor parte me sentí cómodo(a)', 
@@ -410,7 +407,7 @@ const FormularioContent = () => {
                         <div>
                             <label className="block text-sm font-bold text-[#113130] mb-2">9. ¿Qué tan probable es que recomiende a este especialista a un familiar o amigo que necesite apoyo psicológico?</label>
                             <OpcionesMultiples 
-                                preguntaId="q9_indice_recomendacion" 
+                                valor={respuestas.q9_indice_recomendacion} onChange={(opc) => handleSeleccion("q9_indice_recomendacion", opc)} 
                                 opciones={['Definitivamente lo recomendaría', 'Probablemente lo recomendaría', 'Poco probable', 'Definitivamente no lo recomendaría']} 
                             />
                         </div>

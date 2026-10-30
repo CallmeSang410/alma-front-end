@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Clock, FileText, DollarSign, UserCheck, UserPlus, FileWarning, CalendarX, PieChart, X, CheckCircle2 } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Clock, FileText, UserCheck, FileWarning, CalendarX, PieChart, X, CheckCircle2 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import api from './api'; // Importás tu instancia configurada
 import FocusTrap from './components/FocusTrap';

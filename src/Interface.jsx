@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, Component } from 'react';
+import { useState, useRef, useEffect, Component } from 'react';
 import './i18n'
 import { useTranslation } from 'react-i18next';
 import './Interface.css';
@@ -100,8 +100,7 @@ const IconLogout = () => (
 );
 
 export default function Interface({ onLogout }) {
-    const { t, i18n } = useTranslation();
-    const [langMenuOpen, setLangMenuOpen] = useState(false);
+    const { t } = useTranslation();
     const [citaParaReporte, setCitaParaReporte] = useState(null);
     const calendarioRef = useRef(null);
     const profileMenuRef = useRef(null);
@@ -114,15 +113,11 @@ export default function Interface({ onLogout }) {
         setActiveTab('reportes');
     };
 
-    const changeLanguage = (lng) => {
-        i18n.changeLanguage(lng);
-        setLangMenuOpen(false); 
-    };
 
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [activeTab, setActiveTab] = useState('dashboard');
     const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [searchQuery, setSearchQuery] = useState("");
+    const [searchQuery] = useState("");
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [showCalendar, setShowCalendar] = useState(false);
     const [showShortcutsModal, setShowShortcutsModal] = useState(false);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { createPortal } from 'react-dom';
 import './Experiencia.css'; 
@@ -196,7 +196,7 @@ const Experiencia = () => {
         try {
             const payload = JSON.parse(atob(token.split('.')[1]));
             linkEncuesta = `${window.location.origin}/feedback/${payload.usuario_id}`;
-        } catch (e) {
+        } catch {
             console.error("Error leyendo token");
         }
     }

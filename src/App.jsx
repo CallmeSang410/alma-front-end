@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { GoogleOAuthProvider, googleLogout } from '@react-oauth/google';
 import Login from './Login';
@@ -36,7 +36,7 @@ function verificarTokenAlmacenado() {
     }
 
     return true;
-  } catch (err) {
+  } catch {
     localStorage.removeItem('token');
     localStorage.removeItem('userEmail');
     localStorage.removeItem('userName');
@@ -52,7 +52,7 @@ export default function App() {
   const handleLogout = useCallback(() => {
     try {
       googleLogout();
-    } catch (e) {
+    } catch {
       // Ignorar si no había sesión activa de Google
     }
     localStorage.removeItem('token');

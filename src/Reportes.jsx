@@ -1,9 +1,12 @@
-import React, { useState, useEffect, createContext, useContext, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import { useState, useEffect, useRef } from 'react';
 import './Reportes.css';
 import { useAlerta, AlertaProvider } from './AlertaContext.jsx'; // 🌟 Importación del sistema nativo
 import api from './api'; // Importás tu instancia de axios que configuramos antes
 import useKeyboardShortcuts from './hooks/useKeyboardShortcuts';
+
+const ErrorIcon = () => (
+    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+);
 
 // --- COMPONENTE TRADUCTOR DE MARKDOWN ---
 const TextoFormateadoIA = ({ texto }) => {
@@ -103,7 +106,10 @@ const Reportes = ({ citaInicial }) => {
     );
 
     useEffect(() => {
-        setIndiceCitaActiva(0);
+        const timer = setTimeout(() => {
+            setIndiceCitaActiva(0);
+        }, 0);
+        return () => clearTimeout(timer);
     }, [busquedaCita, mostrarListaCitas]);
 
     // ================= 6. LÓGICA DE SEGUIMIENTO E INSTRUMENTOS =================
@@ -205,7 +211,60 @@ const Reportes = ({ citaInicial }) => {
     };
 
     useEffect(() => {
-        cargarDatos();
+        let isMounted = true;
+        const token = localStorage.getItem("token");
+        if (!token) return;
+        Promise.all([api.get("/pacientes"), api.get("/citas"), api.get("/reportes")])
+            .then(([resPacientes, resCitas, resReportes]) => {
+                if (!isMounted) return;
+                setPatientsData(resPacientes.data);
+                const citasLimpias = resCitas.data.map(cita => {
+                    const pacienteEncontrado = resPacientes.data.find(p => p.id === cita.paciente_id);
+                    const nombrePaciente = pacienteEncontrado ? pacienteEncontrado.nombre : "Paciente Desconocido";
+                    const [fechaPura, horaPura] = cita.fecha_cita.split("T");
+                    return {
+                        id: cita.id,
+                        paciente_id: cita.paciente_id,
+                        patientName: nombrePaciente,
+                        date: fechaPura,
+                        time: horaPura ? horaPura.substring(0, 5) : "00:00",
+                        reason: cita.motivo,
+                        labelVisual: `${nombrePaciente} · ${fechaPura} (${horaPura ? horaPura.substring(0, 5) : "00:00"})`
+                    };
+                });
+                setAvailableAppointments(citasLimpias);
+                const reportesLimpios = resReportes.data.map(r => {
+                    const citaAsociada = citasLimpias.find(c => c.id === r.cita_id);
+                    return {
+                        id: r.id,
+                        cita_id: r.cita_id,
+                        paciente_id: citaAsociada ? citaAsociada.paciente_id : null,
+                        serialNumber: `FOLIO-${String(r.id).padStart(4, "0")}`,
+                        date: r.fecha_generacion ? r.fecha_generacion.split("T")[0] : "Reciente",
+                        patientName: citaAsociada ? citaAsociada.patientName : "Paciente Clínico",
+                        diagnosis: r.diagnostico_final || "Evaluación Clínica Realizada",
+                        recommendations: r.recomendaciones || "",
+                        nextStep: "Tratamiento en Curso",
+                        fullReport: r.analisis_ia || ""
+                    };
+                });
+                setPastReports(reportesLimpios);
+                if (citaInicial) {
+                    const citaPendiente = citasLimpias.find(c => c.id === citaInicial);
+                    if (citaPendiente) {
+                        setFormData(prev => ({
+                            ...prev,
+                            cita_id: citaPendiente.id,
+                            reason: citaPendiente.reason || ""
+                        }));
+                        setBusquedaCita(citaPendiente.labelVisual);
+                        setStep(1);
+                        setView("wizard");
+                    }
+                }
+            })
+            .catch(err => console.error("Error al cargar datos:", err));
+        return () => { isMounted = false; };
     }, [citaInicial]);
 
     const toggleTest = (test) => {
@@ -272,24 +331,23 @@ const Reportes = ({ citaInicial }) => {
     const [memoriaAcciones, setMemoriaAcciones] = useState([]);
 
     useEffect(() => {
-      try {
-        const instRaw = localStorage.getItem('hf_instrumentos');
-        const accRaw = localStorage.getItem('hf_acciones');
-        
-        // Solo intentamos procesar si realmente hay algo guardado
-        const instGuardados = instRaw ? JSON.parse(instRaw) : [];
-        const accGuardadas = accRaw ? JSON.parse(accRaw) : [];
-        
-        setMemoriaInstrumentos(instGuardados);
-        setMemoriaAcciones(accGuardadas);
-    } catch (error) {
-        console.error("Memoria corrupta detectada, limpiando...", error);
-        // Si la memoria está corrupta, la borramos para salvar a React del pantallazo blanco
-        localStorage.removeItem('hf_instrumentos');
-        localStorage.removeItem('hf_acciones');
-        setMemoriaInstrumentos([]);
-        setMemoriaAcciones([]);
-    }
+        const timer = setTimeout(() => {
+            try {
+                const instRaw = localStorage.getItem('hf_instrumentos');
+                const accRaw = localStorage.getItem('hf_acciones');
+                const instGuardados = instRaw ? JSON.parse(instRaw) : [];
+                const accGuardadas = accRaw ? JSON.parse(accRaw) : [];
+                setMemoriaInstrumentos(instGuardados);
+                setMemoriaAcciones(accGuardadas);
+            } catch (error) {
+                console.error("Memoria corrupta detectada, limpiando...", error);
+                localStorage.removeItem('hf_instrumentos');
+                localStorage.removeItem('hf_acciones');
+                setMemoriaInstrumentos([]);
+                setMemoriaAcciones([]);
+            }
+        }, 0);
+        return () => clearTimeout(timer);
     }, []);
 
     const guardarEnMemoria = (tipo, valor) => {
@@ -374,7 +432,7 @@ const Reportes = ({ citaInicial }) => {
         testsString += (testsString ? ', ' : '') + `${formData.otherTestDescription}`;
     }
 
-    const planFinal = formData.nextStep === 'Otros' ? formData.otherNextStepDescription : formData.nextStep;
+    // planFinal
 
     const payload = {
         motivo_consulta: formData.reason,
@@ -444,9 +502,6 @@ const Reportes = ({ citaInicial }) => {
         setFormData(prev => ({...prev, analisis_ia: ''}));
         setStep(4); 
     };
-    const ErrorIcon = () => (
-        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-    );
 
     const getStepTitle = (s) => {
         // 🌟 TÍTULOS ESPECIALES PARA SEGUIMIENTO
@@ -478,11 +533,6 @@ const Reportes = ({ citaInicial }) => {
         return 'bg-blue-100 text-blue-800 border border-blue-200';
     };
 
-    const getPatientInfo = (reporteFullData) => {
-        const cita = availableAppointments.find(c => c.id === reporteFullData.cita_id) || { paciente_id: null };
-        const paciente = patientsData.find(p => p.id === cita.paciente_id) || {};
-        return paciente;
-    };
 
     useKeyboardShortcuts({
         'alt+r': {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import './App.css';
 import './i18n'; 
@@ -19,7 +19,7 @@ function App() {
   const [pacienteSeleccionado, setPacienteSeleccionado] = useState(null);
   const [notaActual, setNotaActual] = useState("");
   const [resumenIA, setResumenIA] = useState("");
-  const [cargandoIA, setCargandoIA] = useState(false);
+  const [cargandoIA] = useState(false);
 
   const [modoOscuro, setModoOscuro] = useState(localStorage.getItem("temaAlma") === "oscuro");
 
@@ -29,8 +29,25 @@ function App() {
     localStorage.setItem("temaAlma", nuevoModo ? "oscuro" : "claro");
   };
 
+  // ======= 1. CORREGIDO PARA AXIOS =======
+ const obtenerPacientes = async () => {
+    try {
+      // Axios y el interceptor se encargan del header de autorización por debajo
+      const respuesta = await api.get("/pacientes");
+      setPacientes(respuesta.data);
+    } catch (err) { 
+      console.error("Error obteniendo pacientes:", err); 
+    }
+  };
+
   useEffect(() => {
-    if (token) obtenerPacientes();
+    let isMounted = true;
+    if (token) {
+      api.get('/pacientes')
+        .then(res => { if (isMounted) setPacientes(res.data); })
+        .catch(err => console.error('Error obteniendo pacientes:', err));
+    }
+    return () => { isMounted = false; };
   }, [token]);
 
   useEffect(() => {
@@ -40,17 +57,6 @@ function App() {
       document.body.style.backgroundColor = "#f0f2f5";
     }
   }, [modoOscuro]);
-
-  // ======= 1. CORREGIDO PARA AXIOS =======
- const obtenerPacientes = async () => {
-    try {
-      // Axios y el interceptor se encargan del header de autorización por debajo
-      const respuesta = await api.get("/pacientes");
-      setPacientes(respuesta.data);
-    } catch (error) { 
-      console.error("Error obteniendo pacientes:", error); 
-    }
-  };
 
   // ======= 2. SOLUCIÓN AL ERROR 400 (OAuth2 Form Format) =======
   const manejarLogin = async (evento) => {
@@ -123,7 +129,7 @@ function App() {
 
       setResumenIA(respuesta.data.analisis_ia); 
       mostrarAlerta("exito", "¡Análisis Completado!", "Reporte clínico generado y guardado en la base de datos ✨");
-    } catch (error) {
+    } catch {
       // ... manejo de errores ...
     }
   };

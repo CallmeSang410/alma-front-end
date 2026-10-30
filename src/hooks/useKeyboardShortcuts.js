@@ -5,7 +5,7 @@ import { useEffect } from 'react';
  * Soporta handlers directos (`'alt+n': () => ...`) u objetos de configuración
  * (`'escape': { allowInInput: true, handler: () => ... }`).
  */
-export function useKeyboardShortcuts(shortcutsMap, dependencies = []) {
+export function useKeyboardShortcuts(shortcutsMap) {
     useEffect(() => {
         const handleKeyDown = (event) => {
             if (event.defaultPrevented) return;
