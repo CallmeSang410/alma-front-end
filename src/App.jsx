@@ -9,6 +9,13 @@ import api from './api';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
+function AplicacionPrivada({ isAuthenticated, handleLogin, handleLogout }) {
+  if (!isAuthenticated) {
+    return <Login onLoginSuccess={handleLogin} />;
+  }
+  return <Interface onLogout={handleLogout} />;
+}
+
 function verificarTokenAlmacenado() {
   const token = localStorage.getItem('token');
   if (!token) return false;
@@ -87,14 +94,6 @@ export default function App() {
     setIsAuthenticated(true);
   };
 
-  // 🌟 Agrupamos tu lógica original en esta constante
-  const AplicacionPrivada = () => {
-    if (!isAuthenticated) {
-      return <Login onLoginSuccess={handleLogin} />;
-    }
-    return <Interface onLogout={handleLogout} />;
-  };
-
   return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID || 'GOOGLE_CLIENT_ID_NOT_CONFIGURED'}>
       <BrowserRouter>
@@ -103,7 +102,16 @@ export default function App() {
           <Route path="/feedback/:psicologoId" element={<Formulario />} />
 
           {/* 🔒 RUTA PRIVADA: Tu dashboard */}
-          <Route path="/*" element={<AplicacionPrivada />} />
+          <Route
+            path="/*"
+            element={
+              <AplicacionPrivada
+                isAuthenticated={isAuthenticated}
+                handleLogin={handleLogin}
+                handleLogout={handleLogout}
+              />
+            }
+          />
         </Routes>
       </BrowserRouter>
     </GoogleOAuthProvider>
