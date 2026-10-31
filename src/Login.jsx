@@ -24,6 +24,10 @@ function Login({ onLoginSuccess }) {
   const [formErrors, setFormErrors] = useState({ email: '', password: '', clinicName: '', inviteCode: '', terms: '' });
   const [showRecuperarModal, setShowRecuperarModal] = useState(false);
   const [nuevaPassword, setNuevaPassword] = useState('');
+  const [recuperarPaso, setRecuperarPaso] = useState(1);
+  const [recuperarEmail, setRecuperarEmail] = useState('');
+  const [recuperarToken, setRecuperarToken] = useState('');
+  const [recuperarError, setRecuperarError] = useState('');
 
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [termsType, setTermsType] = useState('terms'); 
@@ -228,35 +232,63 @@ function Login({ onLoginSuccess }) {
   
   const handleForgotPassword = (e) => {
     e.preventDefault();
-    if (!email.trim() || !email.includes('@gmail.com')) {
-      mostrarAlerta('error', 'Correo Inválido', 'Ingresa tu email registrado en el campo de arriba para recuperar tu contraseña.'); 
-      return;
-    }
-    // Si escribió un correo, abrimos el modal
+    setRecuperarEmail(email.trim().toLowerCase());
+    setNuevaPassword('');
+    setRecuperarToken('');
+    setRecuperarError('');
+    setRecuperarPaso(1);
     setShowRecuperarModal(true);
   };
-const procesarRecuperacion = async () => {
+
+  const solicitarTokenRecuperacion = async () => {
+    const cleanEmail = recuperarEmail.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      setRecuperarError('Ingresa un correo electrónico válido.');
+      return;
+    }
+    setIsLoading(true);
+    setRecuperarError('');
+    try {
+      const resp = await api.post('/usuarios/recuperar/solicitar', { email: cleanEmail });
+      if (resp.data?.token) {
+        setRecuperarToken(resp.data.token);
+      }
+      setRecuperarPaso(2);
+    } catch (err) {
+      setRecuperarError(err.response?.data?.detail || 'No se pudo enviar la solicitud de recuperación.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const confirmarRecuperacion = async () => {
+    if (!recuperarToken.trim()) {
+      setRecuperarError('Ingresa el token de recuperación recibido.');
+      return;
+    }
     if (nuevaPassword.length < 8) {
-        mostrarAlerta('error', 'Contraseña débil', 'La nueva contraseña debe tener 8 caracteres mínimo.');
-        return;
+      setRecuperarError('La nueva contraseña debe tener mínimo 8 caracteres.');
+      return;
     }
 
     setIsLoading(true);
+    setRecuperarError('');
     try {
-        await api.post('/usuarios/recuperar', {
-            email: email.trim(),
-            nueva_password: nuevaPassword
-        });
+      await api.post('/usuarios/recuperar/confirmar', {
+        token: recuperarToken.trim(),
+        nueva_password: nuevaPassword
+      });
 
-        mostrarAlerta('exito', '¡Contraseña Recuperada!', 'Tu contraseña ha sido restablecida. Ya puedes iniciar sesión.');
-        setShowRecuperarModal(false);
-        setNuevaPassword('');
-        setPassword('');
+      mostrarAlerta('exito', '¡Contraseña Recuperada!', 'Tu contraseña ha sido restablecida. Ya puedes iniciar sesión.');
+      setShowRecuperarModal(false);
+      setNuevaPassword('');
+      setRecuperarToken('');
+      setPassword('');
     } catch (error) {
-        const msg = error.response?.data?.detail || 'No se pudo recuperar la contraseña.';
-        mostrarAlerta('error', 'Error', msg);
+      const msg = error.response?.data?.detail || 'No se pudo restablecer la contraseña.';
+      setRecuperarError(typeof msg === 'string' ? msg : 'Error al procesar la solicitud.');
     } finally {
-        setIsLoading(false);
+      setIsLoading(false);
     }
   };
   return (
@@ -727,50 +759,119 @@ const procesarRecuperacion = async () => {
           </div>
         </div>
       </div>
-      {/* ================= MODAL DE RECUPERAR CONTRASEÑA ================= */}
+      {/* ================= MODAL DE RECUPERAR CONTRASEÑA EN 2 PASOS (HF-001) ================= */}
       {showRecuperarModal && createPortal(
         <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 w-screen h-screen">
           <div className="absolute inset-0 bg-[#113130]/70 backdrop-blur-sm" onClick={() => setShowRecuperarModal(false)} />
-          <div className="bg-white rounded-[2rem] w-full max-w-sm p-6 sm:p-8 relative z-10 shadow-2xl animate-fade-in border border-teal-100 flex flex-col">
-            
-            <div className="text-center mb-6">
-                <div className="w-12 h-12 rounded-full bg-teal-50 text-[#0F766E] flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
-                </div>
-                <h3 className="text-xl font-black text-[#113130]">Recuperar Acceso</h3>
-                <p className="text-xs text-slate-500 mt-2 font-medium">Restableciendo contraseña para:<br/><span className="text-[#0F766E] font-bold">{email}</span></p>
+          <div 
+            role="dialog" 
+            aria-modal="true" 
+            aria-labelledby="recuperar-titulo"
+            className="bg-white rounded-[2rem] w-full max-w-md p-6 sm:p-8 relative z-10 shadow-2xl animate-fade-in border border-teal-100 flex flex-col"
+          >
+            <div className="text-center mb-5">
+              <div className="w-12 h-12 rounded-2xl bg-teal-50 text-[#0F766E] flex items-center justify-center mx-auto mb-3 shadow-inner border border-teal-100">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
+              </div>
+              <h3 id="recuperar-titulo" className="text-xl font-black text-[#113130]">Recuperar Acceso Clínico</h3>
+              <p className="text-xs text-slate-500 mt-1 font-medium">
+                {recuperarPaso === 1 ? 'Paso 1: Solicitar código de recuperación seguro' : 'Paso 2: Ingresar código y nueva contraseña'}
+              </p>
             </div>
 
-            <div className="space-y-4">
+            {recuperarError && (
+              <div role="alert" className="mb-4 p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs font-bold text-rose-700 flex items-center gap-2">
+                <span>⚠️</span>
+                <span>{recuperarError}</span>
+              </div>
+            )}
+
+            {recuperarPaso === 1 ? (
+              <div className="space-y-4">
                 <div>
-                    <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5">Nueva Contraseña</label>
-                    <input 
-                        type="password" 
-                        placeholder="Mínimo 8 caracteres" 
-                        value={nuevaPassword}
-                        onChange={(e) => setNuevaPassword(e.target.value)}
-                        className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold text-[#113130] focus:outline-none focus:border-[#0F766E] transition-all"
-                    />
+                  <label htmlFor="modal-recuperar-email" className="block text-xs font-black uppercase tracking-wider text-slate-600 mb-1.5">
+                    Correo Electrónico Registrado <span className="text-rose-500">*</span>
+                  </label>
+                  <input 
+                    id="modal-recuperar-email"
+                    type="email" 
+                    placeholder="ejemplo@gmail.com" 
+                    value={recuperarEmail}
+                    onChange={(e) => { setRecuperarEmail(e.target.value); setRecuperarError(''); }}
+                    className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] transition-all"
+                  />
+                  <p className="text-[11px] text-slate-500 mt-1.5">
+                    Te enviaremos un token temporal con 15 minutos de validez.
+                  </p>
                 </div>
-                
+
                 <div className="flex gap-3 pt-2">
-                    <button 
-                        type="button" 
-                        onClick={() => setShowRecuperarModal(false)} 
-                        className="flex-1 py-3 rounded-xl text-xs font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 transition-colors"
-                    >
-                        Cancelar
-                    </button>
-                    <button 
-                        type="button" 
-                        onClick={procesarRecuperacion} 
-                        disabled={isLoading}
-                        className="flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest text-white bg-[#0F766E] hover:bg-[#0D9488] shadow-md transition-all disabled:opacity-70"
-                    >
-                        {isLoading ? 'Guardando...' : 'Restablecer'}
-                    </button>
+                  <button 
+                    type="button" 
+                    onClick={() => setShowRecuperarModal(false)} 
+                    className="flex-1 py-3 rounded-xl text-xs font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    type="button" 
+                    onClick={solicitarTokenRecuperacion} 
+                    disabled={isLoading || !recuperarEmail.trim()}
+                    className="flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest text-white bg-[#0F766E] hover:bg-[#0D9488] shadow-md transition-all disabled:opacity-50"
+                  >
+                    {isLoading ? 'Enviando...' : 'Obtener Código'}
+                  </button>
                 </div>
-            </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="modal-recuperar-token" className="block text-xs font-black uppercase tracking-wider text-slate-600 mb-1.5">
+                    Token o Código Temporal <span className="text-rose-500">*</span>
+                  </label>
+                  <input 
+                    id="modal-recuperar-token"
+                    type="text" 
+                    placeholder="Pega el código de 15 minutos aquí" 
+                    value={recuperarToken}
+                    onChange={(e) => { setRecuperarToken(e.target.value); setRecuperarError(''); }}
+                    className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-[#113130] focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="modal-nueva-password" className="block text-xs font-black uppercase tracking-wider text-slate-600 mb-1.5">
+                    Nueva Contraseña <span className="text-rose-500">*</span>
+                  </label>
+                  <input 
+                    id="modal-nueva-password"
+                    type="password" 
+                    placeholder="Mínimo 8 caracteres" 
+                    value={nuevaPassword}
+                    onChange={(e) => { setNuevaPassword(e.target.value); setRecuperarError(''); }}
+                    className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E] transition-all"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button 
+                    type="button" 
+                    onClick={() => setRecuperarPaso(1)} 
+                    className="py-3 px-4 rounded-xl text-xs font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 transition-colors"
+                  >
+                    Atrás
+                  </button>
+                  <button 
+                    type="button" 
+                    onClick={confirmarRecuperacion} 
+                    disabled={isLoading || !recuperarToken.trim() || nuevaPassword.length < 8}
+                    className="flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest text-white bg-[#0F766E] hover:bg-[#0D9488] shadow-md transition-all disabled:opacity-50"
+                  >
+                    {isLoading ? 'Actualizando...' : 'Confirmar Contraseña'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>,
         document.body

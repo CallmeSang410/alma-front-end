@@ -1,20 +1,48 @@
-import { useState, useRef, useEffect, Component } from 'react';
+import { useState, useRef, useEffect, Component, lazy, Suspense } from 'react';
 import './i18n'
 import { useTranslation } from 'react-i18next';
 import './Interface.css';
-import Dashboard from './Dashboard';
-import Pacientes from './Pacientes';
-import Citas from './Citas';
-import Reportes from './Reportes';
 import logoEmpresa from './assets/logo.png';
 import CampanaAlertas from './CampanaAlertas';
-import Experiencia from './Experiencia';
-import Ajustes from './Ajustes'; 
 import api from './api';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useSpatialNavigation } from './hooks/useSpatialNavigation';
 import FocusTrap from './components/FocusTrap';
 import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
+
+const Dashboard = lazy(() => import('./Dashboard'));
+const Pacientes = lazy(() => import('./Pacientes'));
+const Citas = lazy(() => import('./Citas'));
+const Reportes = lazy(() => import('./Reportes'));
+const Experiencia = lazy(() => import('./Experiencia'));
+const Ajustes = lazy(() => import('./Ajustes'));
+
+function TabSkeleton({ activeTab }) {
+    return (
+        <div className="w-full space-y-6 animate-pulse" role="status" aria-label={`Cargando sección ${activeTab}`}>
+            <div className="flex justify-between items-center pb-4 border-b border-teal-100/40">
+                <div className="space-y-2">
+                    <div className="h-6 w-48 bg-slate-200 rounded-xl"></div>
+                    <div className="h-3.5 w-64 bg-slate-100 rounded-lg"></div>
+                </div>
+                <div className="h-10 w-28 bg-slate-100 rounded-xl"></div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="h-28 bg-slate-100 rounded-2xl border border-slate-200/60"></div>
+                <div className="h-28 bg-slate-100 rounded-2xl border border-slate-200/60"></div>
+                <div className="h-28 bg-slate-100 rounded-2xl border border-slate-200/60"></div>
+            </div>
+            <div className="h-96 bg-white rounded-3xl p-6 border border-slate-100 shadow-xs">
+                <div className="h-5 w-1/4 bg-slate-200 rounded-lg mb-4"></div>
+                <div className="space-y-3">
+                    <div className="h-4 bg-slate-100 rounded w-full"></div>
+                    <div className="h-4 bg-slate-100 rounded w-5/6"></div>
+                    <div className="h-4 bg-slate-100 rounded w-4/6"></div>
+                </div>
+            </div>
+        </div>
+    );
+}
 
 // =========================================================
 // 🌟 ESCUDO ANTI-PANTALLA BLANCA (ERROR BOUNDARY) 🌟
@@ -334,15 +362,21 @@ export default function Interface({ onLogout }) {
     };
     
     const renderContent = () => {
-        switch (activeTab) {
-            case 'dashboard': return <Dashboard onNavigateToReportes={irAReportesDesdeAlerta} />;
-            case 'pacientes': return <Pacientes searchQuery={searchQuery} onNavigateToReportes={irAReportesDesdeAlerta} />;
-            case 'citas': return <Citas />;
-            case 'reportes': return <Reportes citaInicial={citaParaReporte} />;
-            case 'experiencia': return <Experiencia />;
-            case 'settings': return <Ajustes />;
-            default: return <div className="text-center text-slate-500 font-bold mt-10">Pantalla no encontrada.</div>;
-        }
+        return (
+            <Suspense fallback={<TabSkeleton activeTab={activeTab} />}>
+                {(() => {
+                    switch (activeTab) {
+                        case 'dashboard': return <Dashboard onNavigateToReportes={irAReportesDesdeAlerta} />;
+                        case 'pacientes': return <Pacientes searchQuery={searchQuery} onNavigateToReportes={irAReportesDesdeAlerta} />;
+                        case 'citas': return <Citas />;
+                        case 'reportes': return <Reportes citaInicial={citaParaReporte} />;
+                        case 'experiencia': return <Experiencia />;
+                        case 'settings': return <Ajustes />;
+                        default: return <div className="text-center text-slate-500 font-bold mt-10">Pantalla no encontrada.</div>;
+                    }
+                })()}
+            </Suspense>
+        );
     };
     
     // =========================================================
@@ -397,6 +431,12 @@ export default function Interface({ onLogout }) {
 
    return (
        <div ref={shellRef} className="flex flex-col lg:flex-row h-screen w-full overflow-hidden font-sans bg-[#f8fafc] print:bg-white print:h-auto print:overflow-visible text-[#113130] antialiased relative">
+       <a 
+           href="#contenido-principal" 
+           className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[9999] focus:px-4 focus:py-2.5 focus:bg-[#0F766E] focus:text-white focus:rounded-xl focus:shadow-xl focus:font-bold focus:text-xs"
+       >
+           Saltar al contenido principal
+       </a>
        
        <div className="lg:hidden flex items-center justify-between h-16 px-4 bg-[#0F766E] text-white shadow-md relative shrink-0 print:hidden">
            <div className="w-10 h-10 invisible" />
@@ -707,7 +747,7 @@ export default function Interface({ onLogout }) {
                </div>
            </header>
 
-           <main data-main-content="true" className="flex-1 w-full min-w-0 p-6 lg:p-8 animate-fade-in print:p-0">
+           <main id="contenido-principal" data-main-content="true" className="flex-1 w-full min-w-0 p-6 lg:p-8 animate-fade-in print:p-0">
                <ErrorBoundary key={activeTab}>
                    {renderContent()}
                </ErrorBoundary>
