@@ -80,11 +80,6 @@ const SelectorPremium = ({ valor, opciones, alCambiar, placeholder, conError }) 
         <div
             ref={dropdownRef}
             data-dropdown-open={abierto ? 'true' : undefined}
-            onBlur={(e) => {
-                if (!e.currentTarget.contains(e.relatedTarget)) {
-                    setAbierto(false);
-                }
-            }}
             className="relative"
         >
             {/* El "Botón" que muestra la opción elegida */}
@@ -317,33 +312,68 @@ const Pacientes = ({ onNavigateToReportes }) => {
     const handleSavePatient = async (e) => {
     e.preventDefault();
     
-    console.log("1. Botón de guardar presionado"); 
-
-    // 1. Validaciones
+    // 1. Validaciones completas de campos y rangos
     const errors = {};
-    if (!formData.name.trim()) errors.name = true;
-    if (!formData.phone.trim()) errors.phone = true;
-    // Agregamos ?. por seguridad si age llega a ser undefined o null
-    if (!formData.age?.toString().trim()) errors.age = true; 
+    const nombreLimpio = (formData.name || '').trim();
+    const telefonoLimpio = (formData.phone || '').trim();
+    const correoLimpio = (formData.email || '').trim();
+    const edadTexto = formData.age !== null && formData.age !== undefined ? String(formData.age).trim() : '';
+
+    if (!nombreLimpio) {
+        errors.name = 'Obligatorio';
+    } else if (nombreLimpio.length < 2 || nombreLimpio.length > 120) {
+        errors.name = 'Debe tener entre 2 y 120 caracteres';
+    }
+
+    if (!formData.sexo) {
+        errors.sexo = 'Obligatorio';
+    }
+
+    if (!telefonoLimpio) {
+        errors.phone = 'Obligatorio';
+    } else if (telefonoLimpio.length < 6 || telefonoLimpio.length > 25) {
+        errors.phone = 'Ingresa un teléfono válido (6 a 25 dígitos)';
+    }
+
+    if (correoLimpio && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correoLimpio)) {
+        errors.email = 'Formato de correo inválido';
+    }
+
+    const edadNumero = Number(edadTexto);
+    if (!edadTexto) {
+        errors.age = 'Obligatorio';
+    } else if (!Number.isInteger(edadNumero) || isNaN(edadNumero)) {
+        errors.age = 'La edad debe ser un número entero';
+    } else if (edadNumero < 0 || edadNumero > 120) {
+        errors.age = 'La edad debe estar entre 0 y 120 años';
+    }
 
     if (Object.keys(errors).length > 0) {
-        console.log("🛑 VALIDACIÓN FALLIDA. El formulario detuvo el envío por estos errores:", errors); 
         setFormErrors(errors);
+        if (errors.age && errors.age !== 'Obligatorio') {
+            mostrarAlerta('error', 'Edad fuera de rango', 'La edad del paciente debe estar entre 0 y 120 años.');
+        } else if (errors.email) {
+            mostrarAlerta('error', 'Correo inválido', 'Por favor ingresa un correo electrónico con formato válido (ejemplo@dominio.com).');
+        } else if (errors.name && errors.name !== 'Obligatorio') {
+            mostrarAlerta('error', 'Nombre inválido', errors.name);
+        } else if (errors.phone && errors.phone !== 'Obligatorio') {
+            mostrarAlerta('error', 'Teléfono inválido', errors.phone);
+        } else {
+            mostrarAlerta('error', 'Campos incompletos', 'Por favor completa correctamente todos los campos obligatorios marcados en rojo.');
+        }
         return;
     }
     setFormErrors({});
 
     // 2. Mapeo de datos para FastAPI
     const datosParaBackend = {
-        nombre: formData.name,
-        telefono: formData.phone,
-        email: formData.email, 
-        edad: formData.age ? parseInt(formData.age, 10) : null, 
+        nombre: nombreLimpio,
+        telefono: telefonoLimpio,
+        email: correoLimpio, 
+        edad: edadNumero, 
         estado: formData.status,
         sexo: formData.sexo
-    };
-    
-    console.log("✅ Validación exitosa. Enviando a FastAPI esta data:", datosParaBackend); 
+    }; 
 
     try {
         // respuesta
@@ -870,7 +900,7 @@ const Pacientes = ({ onNavigateToReportes }) => {
                                     placeholder="Ej. Juan Pérez..." 
                                     className={`w-full rounded-2xl px-5 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.name ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-slate-50 border-slate-200 focus:ring-[#0F766E] border'}`} 
                                 />
-                                {formErrors.name && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Obligatorio</p>}
+                                {formErrors.name && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> {typeof formErrors.name === 'string' ? formErrors.name : 'Obligatorio'}</p>}
                             </div>
                             <div>
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Sexo <span className="text-rose-500">*</span></label>
@@ -885,25 +915,26 @@ const Pacientes = ({ onNavigateToReportes }) => {
                                     placeholder="Seleccione..."
                                     conError={formErrors.sexo}
                                 />
-                                {formErrors.sexo && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Obligatorio</p>}
+                                {formErrors.sexo && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> {typeof formErrors.sexo === 'string' ? formErrors.sexo : 'Obligatorio'}</p>}
                             </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Teléfono <span className="text-rose-500">*</span></label>
                                 <input type="tel" required value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} placeholder="+505 8888 8888" className={`w-full rounded-2xl px-5 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.phone ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-slate-50 border-slate-200 focus:ring-[#0F766E] border'}`} />
-                                {formErrors.phone && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Obligatorio</p>}
+                                {formErrors.phone && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> {typeof formErrors.phone === 'string' ? formErrors.phone : 'Obligatorio'}</p>}
                             </div>
                             <div>
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Correo Electrónico</label>
-                                <input type="email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} placeholder="correo@ejemplo.com" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 focus:ring-[#0F766E] transition-all hover:border-[#0F766E]/40" />
+                                <input type="email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} placeholder="correo@ejemplo.com" className={`w-full rounded-2xl px-5 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.email ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-slate-50 border-slate-200 focus:ring-[#0F766E] border hover:border-[#0F766E]/40'}`} />
+                                {formErrors.email && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> {typeof formErrors.email === 'string' ? formErrors.email : 'Formato de correo inválido'}</p>}
                             </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
-                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Edad <span className="text-rose-500">*</span></label>
-                                <input type="number" required value={formData.age} onChange={(e) => setFormData({...formData, age: e.target.value})} placeholder="Ej. 30" className={`w-full rounded-2xl px-5 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.age ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-slate-50 border-slate-200 focus:ring-[#0F766E] border hover:border-[#0F766E]/40'}`} />
-                                {formErrors.age && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Obligatorio</p>}
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Edad (0 - 120 años) <span className="text-rose-500">*</span></label>
+                                <input type="number" min="0" max="120" required value={formData.age} onChange={(e) => setFormData({...formData, age: e.target.value})} placeholder="Ej. 30" className={`w-full rounded-2xl px-5 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.age ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-slate-50 border-slate-200 focus:ring-[#0F766E] border hover:border-[#0F766E]/40'}`} />
+                                {formErrors.age && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> {typeof formErrors.age === 'string' ? formErrors.age : 'Obligatorio'}</p>}
                             </div>
                             <div>
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Estado</label>

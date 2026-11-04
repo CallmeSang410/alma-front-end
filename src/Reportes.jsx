@@ -8,42 +8,131 @@ const ErrorIcon = () => (
     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
 );
 
-// --- COMPONENTE TRADUCTOR DE MARKDOWN ---
+// --- FUNCIONES DE ESTRUCTURACIÓN Y LIMPIEZA DEL ANÁLISIS CLÍNICO IA ---
+const estructurarTextoClinicoIA = (textoRaw) => {
+    if (!textoRaw || typeof textoRaw !== 'string') return '';
+    let t = textoRaw.replace(/\r\n/g, '\n');
+
+    // 1. Si un encabezado "## 1. TITULO En la sesión..." viene pegado en la misma línea que el párrafo, separarlo
+    t = t.replace(/(##\s*(?:(?:🔍|⚖️|🧠|📋|✨)\s*)?(?:\d+\.\s*)?[A-ZÁÉÍÓÚÑ0-9\s/(),-]{5,65}?)(?=\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ])/g, '$1\n');
+
+    // 2. Asegurar doble salto de línea antes de cada encabezado ##
+    t = t.replace(/\s*(##\s*)/g, '\n\n## ');
+
+    // 3. Separar viñetas que vengan pegadas en la misma línea (ej. ". * **Eje**" o " - **")
+    t = t.replace(/([.:;])\s+\*\s+(?=\*\*|[A-ZÁÉÍÓÚÑ])/g, '$1\n• ');
+    t = t.replace(/^\s*[*•-]\s+/gm, '• ');
+
+    // 4. Limpiar saltos de línea excesivos
+    t = t.replace(/\n{3,}/g, '\n\n').trim();
+    return t;
+};
+
+const limpiarMarcadoresParaEdicion = (textoRaw) => {
+    if (!textoRaw || typeof textoRaw !== 'string') return '';
+    let t = estructurarTextoClinicoIA(textoRaw);
+
+    // Quitar los ## de los encabezados dejándolos limpios en su propia línea
+    t = t.replace(/^##\s*/gm, '');
+
+    // Quitar los asteriscos dobles **palabra** y simples *palabra* para que no se vean raros en el editor
+    t = t.replace(/\*\*(.*?)\*\*/g, '$1');
+    t = t.replace(/\*([^*]+)\*/g, '$1');
+
+    return t.replace(/\n{3,}/g, '\n\n').trim();
+};
+
+const renderizarFragmentosConColor = (texto) => {
+    if (!texto) return null;
+    // Resalta **negritas**, códigos DSM/CIE como (F41.1) o 300.02, pruebas (BDI-II, GAD-7, DSM-5, CIE-10) y citas entre "comillas"
+    const regex = /(\*\*.*?\*\*|\([A-Z]\d{2}(?:\.\d+)?\)|\b(?:DSM-5(?:-TR)?|CIE-10|BDI-II|GAD-7|MMPI-2)\b|"[^"]{2,80}")/g;
+    const partes = texto.split(regex);
+
+    return partes.map((parte, i) => {
+        if (!parte) return null;
+        if (parte.startsWith('**') && parte.endsWith('**')) {
+            return (
+                <strong key={i} className="font-bold text-[#0F766E] bg-teal-50 px-1.5 py-0.5 rounded-md border border-teal-200/60">
+                    {parte.slice(2, -2)}
+                </strong>
+            );
+        }
+        if (/^\([A-Z]\d{2}(?:\.\d+)?\)$/.test(parte) || /^(?:DSM-5(?:-TR)?|CIE-10|BDI-II|GAD-7|MMPI-2)$/.test(parte)) {
+            return (
+                <span key={i} className="font-extrabold text-[#0F766E] bg-teal-50 px-1.5 py-0.5 rounded-md border border-teal-200/70 text-[12px]">
+                    {parte}
+                </span>
+            );
+        }
+        if (parte.startsWith('"') && parte.endsWith('"')) {
+            return (
+                <span key={i} className="font-semibold italic text-[#113130] bg-slate-100/90 px-1.5 py-0.5 rounded border border-slate-200/70">
+                    {parte}
+                </span>
+            );
+        }
+        return parte;
+    });
+};
+
+// --- COMPONENTE TRADUCTOR DE MARKDOWN Y TEXTO CLÍNICO ---
 const TextoFormateadoIA = ({ texto }) => {
     if (!texto) return null;
 
-    const lineas = texto.split('\n');
+    const textoEstructurado = estructurarTextoClinicoIA(texto);
+    const lineas = textoEstructurado.split('\n');
 
     return (
-        <div className="space-y-4 animate-fade-in">
+        <div className="space-y-3.5 animate-fade-in">
             {lineas.map((linea, index) => {
                 const textoLimpio = linea.trim();
                 if (!textoLimpio) return null;
 
-                // Títulos
-                if (textoLimpio.startsWith('##')) {
-                    const titulo = textoLimpio.replace('##', '').trim();
+                // 1. Títulos de sección (con ##, emojis iniciales o numerados en MAYÚSCULAS)
+                const esTituloMarkdown = textoLimpio.startsWith('##');
+                const textoSinHash = textoLimpio.replace(/^##\s*/, '').trim();
+                const esTituloMayuscula = /^(?:(?:🔍|⚖️|🧠|📋|✨)\s*)?(?:(?:\d+|[I|V|X]+)\.\s+)?[A-ZÁÉÍÓÚÑ0-9\s/(),-]{6,85}$/.test(textoSinHash) && /[A-ZÁÉÍÓÚÑ]{3,}/.test(textoSinHash);
+
+                if (esTituloMarkdown || esTituloMayuscula) {
+                    const tituloLimpio = textoSinHash.replace(/\*\*/g, '');
                     return (
-                        <h4 key={index} className="text-sm font-black text-[#113130] uppercase tracking-widest mt-6 mb-2 border-b border-slate-200 pb-2">
-                            {titulo}
-                        </h4>
+                        <div key={index} className="pt-3 first:pt-0">
+                            <h4 className="text-xs sm:text-sm font-black text-[#0F766E] bg-teal-50/70 px-3.5 py-2 rounded-xl uppercase tracking-wider border-l-4 border-[#0F766E] shadow-sm">
+                                {tituloLimpio}
+                            </h4>
+                        </div>
                     );
                 }
 
-                // Párrafos con negritas
-                const partes = textoLimpio.split(/(\*\*.*?\*\*)/g);
+                // 2. Viñetas estructuradas (• o -): resalta el concepto antes de los dos puntos ":"
+                if (textoLimpio.startsWith('•') || textoLimpio.startsWith('- ')) {
+                    const contenidoVineta = textoLimpio.replace(/^[•-]\s*/, '').trim();
+                    const idxDosPuntos = contenidoVineta.indexOf(':');
+                    const tieneEtiqueta = idxDosPuntos > 1 && idxDosPuntos < 65;
+
+                    return (
+                        <div key={index} className="flex items-start gap-2.5 pl-2 py-1">
+                            <span className="w-2 h-2 rounded-full bg-[#0F766E] mt-2 shrink-0"></span>
+                            <p className="text-[14px] text-slate-700 leading-relaxed text-justify flex-1">
+                                {tieneEtiqueta ? (
+                                    <>
+                                        <strong className="font-bold text-[#0F766E] bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200/60 mr-1.5">
+                                            {contenidoVineta.slice(0, idxDosPuntos).replace(/\*\*/g, '')}:
+                                        </strong>
+                                        {renderizarFragmentosConColor(contenidoVineta.slice(idxDosPuntos + 1).trim())}
+                                    </>
+                                ) : (
+                                    renderizarFragmentosConColor(contenidoVineta)
+                                )}
+                            </p>
+                        </div>
+                    );
+                }
+
+                // 3. Párrafos clínicos regulares con resaltado inteligente
                 return (
                     <p key={index} className="text-[14px] text-slate-700 leading-relaxed text-justify">
-                        {partes.map((parte, i) => {
-                            if (parte.startsWith('**') && parte.endsWith('**')) {
-                                return (
-                                    <strong key={i} className="font-bold text-[#0F766E] bg-teal-50 px-1.5 py-0.5 rounded-md border border-teal-100/50">
-                                        {parte.slice(2, -2)}
-                                    </strong>
-                                );
-                            }
-                            return parte;
-                        })}
+                        {renderizarFragmentosConColor(textoLimpio)}
                     </p>
                 );
             })}
@@ -75,6 +164,7 @@ const Reportes = ({ citaInicial }) => {
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [formErrors, setFormErrors] = useState({});
     const [modoManual, setModoManual] = useState(false); // 🌟 Declarado UNA SOLA VEZ
+    const [vistaPreviaAnalisis, setVistaPreviaAnalisis] = useState(false);
 
     // ================= 4. ESTADOS DEL FORMULARIO =================
     const initialFormState = {
@@ -217,49 +307,62 @@ const Reportes = ({ citaInicial }) => {
         Promise.all([api.get("/pacientes"), api.get("/citas"), api.get("/reportes")])
             .then(([resPacientes, resCitas, resReportes]) => {
                 if (!isMounted) return;
-                setPatientsData(resPacientes.data);
-                const citasLimpias = resCitas.data.map(cita => {
-                    const pacienteEncontrado = resPacientes.data.find(p => p.id === cita.paciente_id);
-                    const nombrePaciente = pacienteEncontrado ? pacienteEncontrado.nombre : "Paciente Desconocido";
-                    const [fechaPura, horaPura] = cita.fecha_cita.split("T");
+                const pacientesDB = resPacientes.data;
+                const citasDB = resCitas.data;
+                const reportesDB = resReportes.data;
+                setPatientsData(pacientesDB);
+
+                const reportesFormateados = reportesDB.map(rep => {
+                    const citaAsociada = citasDB.find(c => c.id === rep.cita_id);
+                    const pacienteAsociado = citaAsociada ? pacientesDB.find(p => p.id === citaAsociada.paciente_id) : null;
+                    let textoDiagnostico = rep.diagnostico_final || "";
+                    const esSeguimientoVisual = !textoDiagnostico || textoDiagnostico.toLowerCase().includes('sin diagnóstico') || textoDiagnostico.toLowerCase().includes('seguimiento');
+                    textoDiagnostico = esSeguimientoVisual ? "🔄 Sesión de Seguimiento Terapéutico" : "📋 Informe Psicológico";
                     return {
-                        id: cita.id,
-                        paciente_id: cita.paciente_id,
-                        patientName: nombrePaciente,
-                        date: fechaPura,
-                        time: horaPura ? horaPura.substring(0, 5) : "00:00",
-                        reason: cita.motivo,
-                        labelVisual: `${nombrePaciente} · ${fechaPura} (${horaPura ? horaPura.substring(0, 5) : "00:00"})`
+                        id: rep.id,
+                        cita_id: rep.cita_id,
+                        paciente_id: pacienteAsociado ? pacienteAsociado.id : null,
+                        serialNumber: pacienteAsociado && pacienteAsociado.folio_visual
+                            ? `CD-${String(pacienteAsociado.folio_visual).padStart(4, '0')}`
+                            : `CD-0000`,
+                        patientName: pacienteAsociado ? pacienteAsociado.nombre : "Paciente Desconocido",
+                        date: new Date(rep.fecha_generacion).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }),
+                        diagnosis: textoDiagnostico,
+                        recommendations: rep.recomendaciones || "",
+                        nextStep: rep.plan_accion || 'No especificado',
+                        status: "Cerrado",
+                        fullData: rep
+                    };
+                }).reverse();
+
+                const citasSinReporte = citasDB.filter(c => !reportesDB.some(r => r.cita_id === c.id)).map(c => {
+                    const paciente = pacientesDB.find(p => p.id === c.paciente_id);
+                    return {
+                        ...c,
+                        labelVisual: `${paciente ? paciente.nombre : 'Desconocido'} - Cita: ${new Date(c.fecha_cita).toLocaleDateString()}`
                     };
                 });
-                setAvailableAppointments(citasLimpias);
-                const reportesLimpios = resReportes.data.map(r => {
-                    const citaAsociada = citasLimpias.find(c => c.id === r.cita_id);
-                    return {
-                        id: r.id,
-                        cita_id: r.cita_id,
-                        paciente_id: citaAsociada ? citaAsociada.paciente_id : null,
-                        serialNumber: `FOLIO-${String(r.id).padStart(4, "0")}`,
-                        date: r.fecha_generacion ? r.fecha_generacion.split("T")[0] : "Reciente",
-                        patientName: citaAsociada ? citaAsociada.patientName : "Paciente Clínico",
-                        diagnosis: r.diagnostico_final || "Evaluación Clínica Realizada",
-                        recommendations: r.recomendaciones || "",
-                        nextStep: "Tratamiento en Curso",
-                        fullReport: r.analisis_ia || ""
-                    };
-                });
-                setPastReports(reportesLimpios);
+
+                setPastReports(reportesFormateados);
+                setAvailableAppointments(citasSinReporte);
+
                 if (citaInicial) {
-                    const citaPendiente = citasLimpias.find(c => c.id === citaInicial);
-                    if (citaPendiente) {
-                        setFormData(prev => ({
-                            ...prev,
-                            cita_id: citaPendiente.id,
-                            reason: citaPendiente.reason || ""
-                        }));
-                        setBusquedaCita(citaPendiente.labelVisual);
-                        setStep(1);
-                        setView("wizard");
+                    const repExistente = reportesFormateados.find(r => String(r.fullData?.cita_id) === String(citaInicial));
+                    if (repExistente) {
+                        setActiveReport(repExistente);
+                        setView("reportDetail");
+                    } else {
+                        const citaPendiente = citasSinReporte.find(c => String(c.id) === String(citaInicial));
+                        if (citaPendiente) {
+                            setFormData(prev => ({
+                                ...prev,
+                                cita_id: citaPendiente.id,
+                                reason: citaPendiente.motivo || ""
+                            }));
+                            setBusquedaCita(citaPendiente.labelVisual);
+                            setStep(1);
+                            setView("wizard");
+                        }
                     }
                 }
             })
@@ -314,7 +417,9 @@ const Reportes = ({ citaInicial }) => {
 
             // Axios no tiene `respuesta.ok`, asume que si no hay un error, todo salió bien. 
             // Además, los datos JSON ya vienen parseados dentro de `respuesta.data`
-            setFormData(prev => ({ ...prev, analisis_ia: respuesta.data.analisis }));
+            const textoLimpioIA = limpiarMarcadoresParaEdicion(respuesta.data.analisis || '');
+            setFormData(prev => ({ ...prev, analisis_ia: textoLimpioIA }));
+            setVistaPreviaAnalisis(false);
         
         } catch (error) {
             // Si hay un error, Axios captura la excepción aquí
@@ -713,11 +818,6 @@ const Reportes = ({ citaInicial }) => {
                         <div className="space-y-6 animate-fade-in">
                             <div
                                 data-dropdown-open={mostrarListaCitas ? 'true' : undefined}
-                                onBlur={(e) => {
-                                    if (!e.currentTarget.contains(e.relatedTarget)) {
-                                        setMostrarListaCitas(false);
-                                    }
-                                }}
                                 className="relative animate-fade-in z-50"
                             >
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
@@ -974,21 +1074,46 @@ const Reportes = ({ citaInicial }) => {
                     {step === 4 && !isAnalyzing && (
                         <div className="space-y-6 animate-fade-in">
                             
-                            {/* 🌟 LA CAJA DE TEXTO AHORA SIEMPRE SALE (Para redactar o editar la IA) */}
+                            {/* 🌟 LA CAJA DE TEXTO AHORA SIEMPRE SALE ORDENADA Y SIN ASTERISCOS CRUDOS */}
                             <div>
-                                <label className="block text-[10px] font-black text-[#0F766E] uppercase tracking-widest mb-2">
-                                    {esSeguimiento 
-                                        ? "Notas de Evolución Terapéutica" 
-                                        : (modoManual ? "Análisis Clínico y de Evolución (Redacción Manual)" : "Análisis de IA (Puedes editar el texto antes de guardar)")} 
-                                    <span className="text-rose-500">*</span>
-                                </label>
-                                <textarea 
-                                    value={formData.analisis_ia || ''} 
-                                    onChange={(e) => setFormData({...formData, analisis_ia: e.target.value})} 
-                                    placeholder={esSeguimiento ? "Escribe aquí los detalles de la sesión, progreso del paciente y tareas asignadas..." : "Escribe aquí tu análisis clínico completo..."} 
-                                    rows="8" 
-                                    className={`w-full rounded-2xl px-5 py-4 text-sm font-medium text-[#113130] focus:outline-none focus:ring-2 focus:ring-[#0F766E] border border-slate-200 bg-white shadow-inner resize-y transition-all ${formErrors.analisis_ia ? 'border-rose-400 bg-rose-50' : ''}`}
-                                ></textarea>
+                                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                                    <label className="block text-[10px] font-black text-[#0F766E] uppercase tracking-widest">
+                                        {esSeguimiento 
+                                            ? "Notas de Evolución Terapéutica" 
+                                            : (modoManual ? "Análisis Clínico y de Evolución (Redacción Manual)" : "Análisis de IA (Texto limpio y estructurado para editar)")} 
+                                        <span className="text-rose-500"> *</span>
+                                    </label>
+                                    {!esSeguimiento && (formData.analisis_ia || '').trim() && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setFormData(prev => ({
+                                                    ...prev,
+                                                    analisis_ia: limpiarMarcadoresParaEdicion(prev.analisis_ia)
+                                                }));
+                                                setVistaPreviaAnalisis(prev => !prev);
+                                            }}
+                                            className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl border border-teal-200 bg-teal-50 text-[#0F766E] hover:bg-teal-100 transition-colors flex items-center gap-1.5"
+                                        >
+                                            {vistaPreviaAnalisis ? '✏️ Editar Texto' : '🎨 Ver con Colores y Formato'}
+                                        </button>
+                                    )}
+                                </div>
+
+                                {vistaPreviaAnalisis && !esSeguimiento ? (
+                                    <div className="w-full rounded-2xl p-6 border border-teal-200 bg-teal-50/30 shadow-inner max-h-[340px] overflow-y-auto">
+                                        <TextoFormateadoIA texto={formData.analisis_ia} />
+                                    </div>
+                                ) : (
+                                    <textarea 
+                                        value={limpiarMarcadoresParaEdicion(formData.analisis_ia || '') === formData.analisis_ia ? (formData.analisis_ia || '') : (formData.analisis_ia || '').replace(/^##\s*/gm, '').replace(/\*\*(.*?)\*\*/g, '$1')} 
+                                        onChange={(e) => setFormData({...formData, analisis_ia: e.target.value})} 
+                                        onBlur={(e) => setFormData(prev => ({ ...prev, analisis_ia: limpiarMarcadoresParaEdicion(e.target.value) }))}
+                                        placeholder={esSeguimiento ? "Escribe aquí los detalles de la sesión, progreso del paciente y tareas asignadas..." : "Escribe aquí tu análisis clínico completo..."} 
+                                        rows="9" 
+                                        className={`w-full rounded-2xl px-5 py-4 text-sm font-medium text-[#113130] leading-relaxed focus:outline-none focus:ring-2 focus:ring-[#0F766E] border border-slate-200 bg-white shadow-inner resize-y transition-all ${formErrors.analisis_ia ? 'border-rose-400 bg-rose-50' : ''}`}
+                                    ></textarea>
+                                )}
                                 {formErrors.analisis_ia && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Este campo no puede estar vacío.</p>}
                             </div>
                             

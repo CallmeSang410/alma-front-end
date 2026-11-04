@@ -6,6 +6,90 @@ import FocusTrap from './components/FocusTrap';
 
 const AlertaContext = createContext();
 
+const NOMBRES_CAMPOS = {
+    nombre: 'Nombre',
+    edad: 'Edad',
+    email: 'Correo electrónico',
+    telefono: 'Teléfono',
+    sexo: 'Sexo',
+    estado: 'Estado',
+    tarifa: 'Tarifa',
+    fecha_cita: 'Fecha y hora de la cita',
+    motivo: 'Motivo de consulta',
+    modalidad: 'Modalidad',
+    paciente_id: 'Paciente',
+    nueva_password: 'Contraseña',
+    password: 'Contraseña',
+    username: 'Correo electrónico'
+};
+
+const traducirMensajePydantic = (campoRaw, msgRaw) => {
+    const campo = NOMBRES_CAMPOS[campoRaw] || campoRaw || 'Campo';
+    const msg = String(msgRaw || '').replace(/^Value error,\s*/i, '').trim();
+
+    if (/less than or equal to (\d+)/i.test(msg)) {
+        const max = msg.match(/less than or equal to (\d+)/i)[1];
+        return `${campo}: el valor máximo permitido es ${max}.`;
+    }
+    if (/greater than or equal to (\d+)/i.test(msg)) {
+        const min = msg.match(/greater than or equal to (\d+)/i)[1];
+        return `${campo}: el valor mínimo permitido es ${min} (no se permiten valores negativos).`;
+    }
+    if (/valid integer/i.test(msg) || /valid number/i.test(msg)) {
+        return `${campo}: debe ser un número válido.`;
+    }
+    if (/field required/i.test(msg)) {
+        return `${campo}: este campo es obligatorio.`;
+    }
+    if (/at least (\d+) characters/i.test(msg)) {
+        const min = msg.match(/at least (\d+) characters/i)[1];
+        return `${campo}: debe tener al menos ${min} caracteres.`;
+    }
+    return campoRaw ? `${campo}: ${msg}` : msg;
+};
+
+export const formatearMensajeAlerta = (mensaje) => {
+    if (mensaje === null || mensaje === undefined) return 'Ocurrió un error inesperado.';
+    if (typeof mensaje === 'string') return mensaje;
+
+    if (Array.isArray(mensaje)) {
+        const partes = mensaje
+            .map((err) => {
+                if (typeof err === 'string') return err;
+                if (err && typeof err === 'object') {
+                    const locArray = Array.isArray(err.loc) ? err.loc : [];
+                    const ultimoCampo = locArray.length > 0 ? String(locArray[locArray.length - 1]) : '';
+                    return traducirMensajePydantic(
+                        ultimoCampo === 'body' ? '' : ultimoCampo,
+                        err.msg || err.message || 'Dato fuera de rango o inválido.'
+                    );
+                }
+                return '';
+            })
+            .filter(Boolean);
+        return partes.length > 0 ? partes.join(' • ') : 'Los datos ingresados están fuera del rango permitido.';
+    }
+
+    if (typeof mensaje === 'object') {
+        if (mensaje.detail) return formatearMensajeAlerta(mensaje.detail);
+        if (mensaje.msg || mensaje.message) {
+            const locArray = Array.isArray(mensaje.loc) ? mensaje.loc : [];
+            const ultimoCampo = locArray.length > 0 ? String(locArray[locArray.length - 1]) : '';
+            return traducirMensajePydantic(
+                ultimoCampo === 'body' ? '' : ultimoCampo,
+                mensaje.msg || mensaje.message
+            );
+        }
+        try {
+            return JSON.stringify(mensaje);
+        } catch {
+            return 'Error de validación en los datos ingresados.';
+        }
+    }
+
+    return String(mensaje);
+};
+
 export const AlertaProvider = ({ children }) => {
     const [alerta, setAlerta] = useState({
         visible: false,
@@ -15,7 +99,9 @@ export const AlertaProvider = ({ children }) => {
     });
 
     const mostrarAlerta = (tipo, titulo, mensaje) => {
-        setAlerta({ visible: true, tipo, titulo, mensaje });
+        const tituloSeguro = typeof titulo === 'string' ? titulo : formatearMensajeAlerta(titulo);
+        const mensajeSeguro = formatearMensajeAlerta(mensaje);
+        setAlerta({ visible: true, tipo, titulo: tituloSeguro, mensaje: mensajeSeguro });
 
         if (tipo === 'exito') {
             setTimeout(() => {

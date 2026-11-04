@@ -12,6 +12,11 @@ const ErrorIcon = () => (
     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
 );
 
+const obtenerFechaLocalHoy = () => {
+    const ahora = new Date();
+    return `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-${String(ahora.getDate()).padStart(2, '0')}`;
+};
+
 // 1. Selector Simple (Para Estado y Modalidad)
 const SelectorPremium = ({ valor, opciones, alCambiar, placeholder, conError }) => {
     const [abierto, setAbierto] = useState(false);
@@ -81,11 +86,6 @@ const SelectorPremium = ({ valor, opciones, alCambiar, placeholder, conError }) 
             ref={dropdownRef}
             data-dropdown-open={abierto ? 'true' : undefined}
             className="relative"
-            onBlur={(e) => {
-                if (!e.currentTarget.contains(e.relatedTarget)) {
-                    setAbierto(false);
-                }
-            }}
         >
             <div 
                 tabIndex={0}
@@ -110,6 +110,11 @@ const SelectorPremium = ({ valor, opciones, alCambiar, placeholder, conError }) 
                                 role="option"
                                 aria-selected={valor === opt.valor}
                                 onMouseEnter={() => setIndiceActivo(idx)}
+                                onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    alCambiar(opt.valor);
+                                    setAbierto(false);
+                                }}
                                 onClick={() => { alCambiar(opt.valor); setAbierto(false); }}
                                 className={`px-5 py-3.5 cursor-pointer text-sm font-bold transition-colors flex justify-between items-center ${idx === indiceActivo ? 'bg-teal-50 text-[#0F766E]' : valor === opt.valor ? 'bg-teal-50/60 text-[#0F766E]' : 'text-slate-500 hover:bg-slate-50 hover:text-[#113130]'}`}
                             >
@@ -191,11 +196,6 @@ const BuscadorPacientesPremium = ({ valor, pacientes, alCambiar, conError }) => 
             ref={dropdownRef}
             data-dropdown-open={abierto ? 'true' : undefined}
             className="relative"
-            onBlur={(e) => {
-                if (!e.currentTarget.contains(e.relatedTarget)) {
-                    setAbierto(false);
-                }
-            }}
         >
             <div 
                 tabIndex={0}
@@ -244,6 +244,13 @@ const BuscadorPacientesPremium = ({ valor, pacientes, alCambiar, conError }) => 
                                     role="option"
                                     aria-selected={String(valor) === String(p.id)}
                                     onMouseEnter={() => setIndiceActivo(idx)}
+                                    onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        alCambiar(p.id);
+                                        setAbierto(false);
+                                        setBusqueda('');
+                                    }}
                                     onClick={() => { alCambiar(p.id); setAbierto(false); setBusqueda(''); }}
                                     className={`px-5 py-3 cursor-pointer text-sm transition-colors flex flex-col border-l-4 ${idx === indiceActivo ? 'bg-teal-50 border-[#0F766E]' : String(valor) === String(p.id) ? 'bg-teal-50/60 border-[#0F766E]' : 'hover:bg-slate-50 border-transparent'}`}
                                 >
@@ -312,16 +319,13 @@ const DatePickerPremium = ({ valor, alCambiar, conError }) => {
     const blancosArray = Array.from({ length: diaInicio }, (_, i) => i);
     const mesesNombres = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
+    const hoyLocalStr = obtenerFechaLocalHoy();
+
     return (
         <div
             ref={dropdownRef}
             data-dropdown-open={abierto ? 'true' : undefined}
             className="relative"
-            onBlur={(e) => {
-                if (!e.currentTarget.contains(e.relatedTarget)) {
-                    setAbierto(false);
-                }
-            }}
         >
             <div 
                 tabIndex={0}
@@ -351,6 +355,7 @@ const DatePickerPremium = ({ valor, alCambiar, conError }) => {
                 <>
                     <div className="fixed inset-0 z-40" onClick={() => setAbierto(false)}></div>
                     <div 
+                        onMouseDown={(e) => e.preventDefault()}
                         onKeyDown={(e) => {
                             if (e.key === 'Escape') {
                                 e.preventDefault();
@@ -386,15 +391,23 @@ const DatePickerPremium = ({ valor, alCambiar, conError }) => {
                             {diasArray.map(d => {
                                 const fechaStr = `${fechaVista.getFullYear()}-${String(fechaVista.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
                                 const seleccionado = valor === fechaStr;
-                                const hoy = new Date().toISOString().split('T')[0] === fechaStr;
+                                const hoy = hoyLocalStr === fechaStr;
+                                const esPasado = fechaStr < hoyLocalStr;
                                 
                                 return (
                                     <button
                                         key={d}
                                         type="button"
-                                        onClick={() => { alCambiar(fechaStr); setAbierto(false); }}
+                                        disabled={esPasado}
+                                        title={esPasado ? 'No se pueden agendar citas en fechas pasadas' : undefined}
+                                        onClick={() => {
+                                            if (esPasado) return;
+                                            alCambiar(fechaStr);
+                                            setAbierto(false);
+                                        }}
                                         className={`aspect-square flex items-center justify-center text-xs font-bold rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-[#0F766E]
-                                            ${seleccionado ? 'bg-[#0F766E] text-white shadow-md shadow-teal-900/20' : 
+                                            ${esPasado ? 'text-slate-300 opacity-40 cursor-not-allowed line-through' :
+                                            seleccionado ? 'bg-[#0F766E] text-white shadow-md shadow-teal-900/20' : 
                                             hoy ? 'border-2 border-[#0F766E] text-[#0F766E] bg-teal-50/50' : 'hover:bg-slate-100 text-slate-600'}`}
                                     >
                                         {d}
@@ -409,14 +422,18 @@ const DatePickerPremium = ({ valor, alCambiar, conError }) => {
     );
 };
 
-// 4. 🌟 NUEVO: Reloj Premium Custom (Dos columnas)
-const TimePickerPremium = ({ valor, alCambiar, conError }) => {
+// 4. 🌟 NUEVO: Reloj Premium Custom (Dos columnas con validación de horario hábil)
+const TimePickerPremium = ({ valor, alCambiar, conError, fechaSeleccionada }) => {
     const [abierto, setAbierto] = useState(false);
     const dropdownRef = useRef(null);
-    const horas = Array.from({length: 24}, (_, i) => String(i).padStart(2, '0'));
-    const minutos = Array.from({length: 60}, (_, i) => String(i).padStart(2, '0'));
+    // Horario clínico hábil del día: 06:00 a 21:00 hrs
+    const horas = Array.from({ length: 16 }, (_, i) => String(i + 6).padStart(2, '0'));
+    const minutos = ['00', '15', '30', '45'];
 
     const [hSelect, mSelect] = valor ? valor.split(':') : ['--', '--'];
+    const esHoy = fechaSeleccionada && fechaSeleccionada === obtenerFechaLocalHoy();
+    const horaActualNum = new Date().getHours();
+    const minActualNum = new Date().getMinutes();
 
     useEffect(() => {
         if (!abierto) return;
@@ -438,11 +455,6 @@ const TimePickerPremium = ({ valor, alCambiar, conError }) => {
             ref={dropdownRef}
             data-dropdown-open={abierto ? 'true' : undefined}
             className="relative"
-            onBlur={(e) => {
-                if (!e.currentTarget.contains(e.relatedTarget)) {
-                    setAbierto(false);
-                }
-            }}
         >
             <div 
                 tabIndex={0}
@@ -472,6 +484,7 @@ const TimePickerPremium = ({ valor, alCambiar, conError }) => {
                 <>
                     <div className="fixed inset-0 z-40" onClick={() => setAbierto(false)}></div>
                     <div 
+                        onMouseDown={(e) => e.preventDefault()}
                         onKeyDown={(e) => {
                             if (e.key === 'Escape') {
                                 e.preventDefault();
@@ -483,21 +496,32 @@ const TimePickerPremium = ({ valor, alCambiar, conError }) => {
                     >
                         {/* Columna Horas */}
                         <div className="flex-1 flex flex-col h-full">
-                            <span className="text-[10px] font-black text-center text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-100 pb-2">Hora</span>
+                            <span className="text-[10px] font-black text-center text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-100 pb-2">Hora (06-21h)</span>
                             <div className="flex-1 overflow-y-auto hide-scrollbar flex flex-col gap-1 pr-2">
-                                {horas.map(h => (
-                                    <button 
-                                        key={h}
-                                        type="button"
-                                        onClick={() => {
-                                            const newTime = `${h}:${mSelect !== '--' ? mSelect : '00'}`;
-                                            alCambiar(newTime);
-                                        }}
-                                        className={`py-3 text-sm font-bold rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-[#0F766E] ${hSelect === h ? 'bg-[#0F766E] text-white shadow-md' : 'hover:bg-slate-50 text-slate-600'}`}
-                                    >
-                                        {h}
-                                    </button>
-                                ))}
+                                {horas.map(h => {
+                                    const hNum = parseInt(h, 10);
+                                    const horaPasadaHoy = esHoy && (hNum < horaActualNum || (hNum === horaActualNum && minActualNum > 45));
+                                    return (
+                                        <button 
+                                            key={h}
+                                            type="button"
+                                            disabled={horaPasadaHoy}
+                                            onClick={() => {
+                                                if (horaPasadaHoy) return;
+                                                let minVal = mSelect !== '--' ? mSelect : '00';
+                                                if (esHoy && hNum === horaActualNum && parseInt(minVal, 10) <= minActualNum) {
+                                                    const sigMin = minutos.find(m => parseInt(m, 10) > minActualNum) || '45';
+                                                    minVal = sigMin;
+                                                }
+                                                const newTime = `${h}:${minVal}`;
+                                                alCambiar(newTime);
+                                            }}
+                                            className={`py-3 text-sm font-bold rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-[#0F766E] ${horaPasadaHoy ? 'text-slate-300 opacity-40 cursor-not-allowed line-through' : hSelect === h ? 'bg-[#0F766E] text-white shadow-md' : 'hover:bg-slate-50 text-slate-600'}`}
+                                        >
+                                            {h}:00
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
                         
@@ -507,20 +531,26 @@ const TimePickerPremium = ({ valor, alCambiar, conError }) => {
                         <div className="flex-1 flex flex-col h-full">
                             <span className="text-[10px] font-black text-center text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-100 pb-2">Minuto</span>
                             <div className="flex-1 overflow-y-auto hide-scrollbar flex flex-col gap-1 pl-2">
-                                {minutos.map(m => (
-                                    <button 
-                                        key={m}
-                                        type="button"
-                                        onClick={() => {
-                                            const newTime = `${hSelect !== '--' ? hSelect : '08'}:${m}`;
-                                            alCambiar(newTime);
-                                            setAbierto(false); // Cerramos el selector al elegir el minuto
-                                        }}
-                                        className={`py-3 text-sm font-bold rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-[#0F766E] ${mSelect === m ? 'bg-teal-50 text-[#0F766E]' : 'hover:bg-slate-50 text-slate-600'}`}
-                                    >
-                                        {m}
-                                    </button>
-                                ))}
+                                {minutos.map(m => {
+                                    const hBase = hSelect !== '--' ? hSelect : (esHoy ? String(Math.max(8, horaActualNum + 1)).padStart(2, '0') : '08');
+                                    const minPasadoHoy = esHoy && parseInt(hBase, 10) === horaActualNum && parseInt(m, 10) <= minActualNum;
+                                    return (
+                                        <button 
+                                            key={m}
+                                            type="button"
+                                            disabled={minPasadoHoy}
+                                            onClick={() => {
+                                                if (minPasadoHoy) return;
+                                                const newTime = `${hBase}:${m}`;
+                                                alCambiar(newTime);
+                                                setAbierto(false); // Cerramos el selector al elegir el minuto
+                                            }}
+                                            className={`py-3 text-sm font-bold rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-[#0F766E] ${minPasadoHoy ? 'text-slate-300 opacity-40 cursor-not-allowed line-through' : mSelect === m ? 'bg-teal-50 text-[#0F766E]' : 'hover:bg-slate-50 text-slate-600'}`}
+                                        >
+                                            :{m}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
                     </div>
@@ -685,20 +715,71 @@ const Citas = () => {
         
         const errors = {};
         if (isNewPatient && !formData.id) {
-            if (!newPatientData.nombre.trim()) errors.nuevoNombre = true;
+            if (!newPatientData.nombre.trim()) errors.nuevoNombre = 'Nombre requerido';
         } else {
-            if (!formData.paciente_id) errors.paciente_id = true;
+            if (!formData.paciente_id) errors.paciente_id = 'Debes seleccionar un paciente';
         }
 
-        if (!formData.date.trim()) errors.date = true;
-        if (!formData.time.trim()) errors.time = true;
-        if (!formData.reason.trim()) errors.reason = true;
-        if (!formData.atention.trim()) errors.atention = true;
-        if (!formData.status.trim()) errors.status = true;
-        if (formData.tarifa === '' || formData.tarifa === null) errors.tarifa = true;
+        const hoyStr = obtenerFechaLocalHoy();
+        const ahora = new Date();
+        const minutosActuales = ahora.getHours() * 60 + ahora.getMinutes();
+
+        if (!formData.date || !formData.date.trim()) {
+            errors.date = 'Ingresa una fecha';
+        } else if (formData.date < hoyStr) {
+            errors.date = 'No se permiten fechas pasadas';
+        }
+
+        if (!formData.time || !formData.time.trim()) {
+            errors.time = 'Ingresa una hora';
+        } else {
+            const [hStr, mStr] = formData.time.split(':');
+            const hNum = parseInt(hStr, 10);
+            const mNum = parseInt(mStr, 10);
+            const minutosCita = hNum * 60 + mNum;
+
+            if (isNaN(hNum) || isNaN(mNum) || hNum < 6 || hNum > 21 || (hNum === 21 && mNum > 0)) {
+                errors.time = 'Horario fuera de jornada del día (06:00 a 21:00 hrs)';
+            } else if (formData.date === hoyStr && minutosCita <= minutosActuales) {
+                errors.time = 'Esta hora ya pasó en el día de hoy';
+            } else {
+                // Validar cruce de horarios con otra cita activa en el mismo día y hora (RF-01 / CU-01)
+                const citaEnConflicto = appointments.find(appt =>
+                    appt.id !== formData.id &&
+                    appt.status !== 'Cancelada' &&
+                    appt.date === formData.date &&
+                    appt.time === formData.time
+                );
+                if (citaEnConflicto) {
+                    errors.time = `Horario ocupado por ${citaEnConflicto.patientName}`;
+                }
+            }
+        }
+
+        if (!formData.reason || !formData.reason.trim()) errors.reason = 'Especifica el motivo';
+        if (!formData.atention || !formData.atention.trim()) errors.atention = 'Selecciona la modalidad';
+        if (!formData.status || !formData.status.trim()) errors.status = 'Selecciona el estado';
+
+        const tarifaNum = Number(formData.tarifa);
+        if (formData.tarifa === '' || formData.tarifa === null || formData.tarifa === undefined) {
+            errors.tarifa = 'Ingresa la tarifa';
+        } else if (isNaN(tarifaNum) || tarifaNum < 0 || tarifaNum > 100000) {
+            errors.tarifa = 'La tarifa debe estar entre $0 y $100,000';
+        }
 
         if (Object.keys(errors).length > 0) {
             setFormErrors(errors);
+            if (errors.date && errors.date !== 'Ingresa una fecha') {
+                mostrarAlerta('error', 'Fecha fuera de rango', 'No puedes agendar una cita en una fecha pasada. Selecciona el día de hoy o una fecha futura.');
+            } else if (errors.time && errors.time !== 'Ingresa una hora') {
+                mostrarAlerta('error', 'Horario no válido', errors.time);
+            } else if (errors.tarifa && errors.tarifa !== 'Ingresa la tarifa') {
+                mostrarAlerta('error', 'Tarifa fuera de rango', errors.tarifa);
+            } else if (errors.paciente_id) {
+                mostrarAlerta('error', 'Paciente requerido', 'Debes seleccionar un paciente para agendar la cita.');
+            } else {
+                mostrarAlerta('error', 'Campos incompletos', 'Completa correctamente todos los campos obligatorios.');
+            }
             return;
         }
         setFormErrors({});
@@ -1073,18 +1154,19 @@ const Citas = () => {
                                     alCambiar={(val) => setFormData({...formData, date: val})}
                                     conError={formErrors.date}
                                 />
-                                {formErrors.date && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Ingresa una fecha</p>}
+                                {formErrors.date && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> {typeof formErrors.date === 'string' ? formErrors.date : 'Ingresa una fecha'}</p>}
                             </div>
                             <div>
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
-                                    Hora <span className="text-rose-500">*</span>
+                                    Hora (06:00 - 21:00 hrs) <span className="text-rose-500">*</span>
                                 </label>
                                 <TimePickerPremium 
                                     valor={formData.time}
                                     alCambiar={(val) => setFormData({...formData, time: val})}
                                     conError={formErrors.time}
+                                    fechaSeleccionada={formData.date}
                                 />
-                                {formErrors.time && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Ingresa una hora</p>}
+                                {formErrors.time && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> {typeof formErrors.time === 'string' ? formErrors.time : 'Ingresa una hora'}</p>}
                             </div>
                         </div>
 
@@ -1145,13 +1227,15 @@ const Citas = () => {
                                     <input 
                                         type="number" 
                                         step="0.01"
+                                        min="0"
+                                        max="100000"
                                         value={formData.tarifa} 
                                         onChange={(e) => setFormData({...formData, tarifa: e.target.value})} 
                                         placeholder="0.00"
                                         className={`w-full rounded-2xl pl-10 pr-5 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all input-sin-flechas ${formErrors.tarifa ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-slate-50 border-slate-200 focus:ring-[#0F766E] border hover:border-[#0F766E]/40'}`} 
                                     />
                                 </div>
-                                {formErrors.tarifa && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Ingresa la tarifa</p>}
+                                {formErrors.tarifa && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> {typeof formErrors.tarifa === 'string' ? formErrors.tarifa : 'Ingresa la tarifa'}</p>}
                             </div>
                         </div>
 
