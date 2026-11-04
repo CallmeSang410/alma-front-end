@@ -63,6 +63,11 @@ function Login({ onLoginSuccess }) {
         errors.inviteCode = 'El código de invitación de la clínica es obligatorio.';
       }
     }
+    if (!password.trim()) {
+      errors.password = 'Define una contraseña para también poder ingresar manualmente.';
+    } else if (password.trim().length < 8) {
+      errors.password = 'La contraseña debe tener al menos 8 caracteres.';
+    }
     if (!acceptTerms) {
       errors.terms = 'Debes aceptar los términos y condiciones.';
     }
@@ -73,6 +78,7 @@ function Login({ onLoginSuccess }) {
   const signupListoParaGoogle =
     activeTab === 'signup' &&
     (clinicMode === 'nueva' ? clinicName.trim().length > 0 : inviteCode.trim().length > 0) &&
+    password.trim().length >= 8 &&
     acceptTerms;
 
   const handleSubmit = async (e) => {
@@ -177,7 +183,8 @@ function Login({ onLoginSuccess }) {
         tipo_clinica: activeTab === 'signup' ? clinicMode : 'nueva',
         nombre_clinica: activeTab === 'signup' && clinicMode === 'nueva' ? clinicName.trim() : undefined,
         codigo_invitacion: activeTab === 'signup' && clinicMode === 'existente' ? inviteCode.trim().toUpperCase() : undefined,
-        rol: activeTab === 'signup' ? role : 'psicologo'
+        rol: activeTab === 'signup' ? role : 'psicologo',
+        password: activeTab === 'signup' && password.trim() ? password.trim() : undefined
       };
 
       const respuesta = await api.post('/auth/google', payload);
@@ -444,7 +451,7 @@ const procesarRecuperacion = async () => {
                           Rol en la plataforma <span className="text-rose-500">*</span>
                         </label>
                       </div>
-                      <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                      <div className="grid grid-cols-2 gap-3">
                         {/* Tarjeta 1: Especialista */}
                         <label className={`relative flex flex-col items-center justify-center p-3 sm:p-4 rounded-2xl cursor-pointer transition-all duration-200 border-2 ${role === 'psicologo' ? 'bg-teal-50/50 border-[#0F766E] shadow-sm shadow-teal-100' : 'bg-slate-50 border-slate-200 hover:border-[#0F766E]/30 hover:bg-white'}`}>
                           <input type="radio" name="role" value="psicologo" checked={role === 'psicologo'} onChange={(e) => setRole(e.target.value)} className="hidden" />
@@ -472,21 +479,49 @@ const procesarRecuperacion = async () => {
                             </div>
                           )}
                         </label>
-
-                        {/* Tarjeta 3: Recepción */}
-                        <label className={`relative flex flex-col items-center justify-center p-3 sm:p-4 rounded-2xl cursor-pointer transition-all duration-200 border-2 ${role === 'recepcionista' ? 'bg-teal-50/50 border-[#0F766E] shadow-sm shadow-teal-100' : 'bg-slate-50 border-slate-200 hover:border-[#0F766E]/30 hover:bg-white'}`}>
-                          <input type="radio" name="role" value="recepcionista" checked={role === 'recepcionista'} onChange={(e) => setRole(e.target.value)} className="hidden" />
-                          <div className={`mb-2 p-2 rounded-xl transition-colors ${role === 'recepcionista' ? 'bg-[#0F766E] text-white shadow-md shadow-teal-900/20' : 'bg-white text-slate-400 shadow-sm'}`}>
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                          </div>
-                          <span className={`text-[10px] font-black uppercase tracking-widest text-center leading-tight ${role === 'recepcionista' ? 'text-[#0F766E]' : 'text-slate-500'}`}>Recepción</span>
-                          {role === 'recepcionista' && (
-                            <div className="absolute top-2 right-2 text-[#0F766E] animate-fade-in">
-                              <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
-                            </div>
-                          )}
-                        </label>
                       </div>
+                    </div>
+
+                    {/* Contraseña para acceso manual (en Sign up) */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                          Contraseña para acceso manual <span className="text-rose-500">*</span>
+                        </label>
+                        <span className="text-[10px] text-slate-400 font-bold">8 caracteres mínimo</span>
+                      </div>
+                      <div className="relative">
+                        <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                          </svg>
+                        </div>
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          name="signup-password"
+                          autoComplete="new-password"
+                          placeholder="Crea tu contraseña para HorizonFlow"
+                          value={password}
+                          onChange={(e) => {
+                            setPassword(e.target.value);
+                            if (formErrors.password) setFormErrors({ ...formErrors, password: '' });
+                          }}
+                          required
+                          className={`w-full pl-12 pr-24 py-3.5 rounded-2xl text-sm bg-slate-50 font-bold text-[#113130] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/30 focus:bg-white transition-all border ${formErrors.password ? 'border-rose-300 bg-rose-50/70' : 'border-slate-200'}`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-4 top-1/2 transform -translate-y-1/2 text-[11px] font-black uppercase tracking-widest text-[#0F766E] hover:text-[#0D9488]"
+                        >
+                          {showPassword ? 'Ocultar' : 'Mostrar'}
+                        </button>
+                      </div>
+                      {formErrors.password && (
+                        <p className="text-[10px] text-rose-600 font-bold mt-1.5 flex items-center gap-1">
+                          {formErrors.password}
+                        </p>
+                      )}
                     </div>
 
                     {/* Checkbox de Términos (SOLO Sign Up) */}
@@ -651,8 +686,8 @@ const procesarRecuperacion = async () => {
                           'error',
                           'Completa los datos requeridos',
                           clinicMode === 'nueva'
-                            ? 'Ingresa el nombre de tu consultorio y acepta los términos antes de continuar con Google.'
-                            : 'Ingresa el código de invitación de tu clínica y acepta los términos antes de continuar con Google.'
+                            ? 'Ingresa el nombre de tu consultorio, crea tu contraseña (mín. 8 caracteres) y acepta los términos antes de continuar con Google.'
+                            : 'Ingresa el código de invitación de tu clínica, crea tu contraseña (mín. 8 caracteres) y acepta los términos antes de continuar con Google.'
                         );
                       }}
                       className="w-full max-w-xs h-12 bg-white hover:bg-slate-50 text-[#113130] border border-slate-200 rounded-full text-xs font-bold tracking-wide shadow-xs transition-all duration-150 flex items-center justify-center gap-3 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/30"

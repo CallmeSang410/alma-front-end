@@ -303,11 +303,11 @@ const Ajustes = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                     <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                            Contraseña Actual {!perfilData.tienePasswordManual && <span className="text-[10px] text-[#0F766E] font-normal">(No requerida para primera contraseña)</span>}
+                            Contraseña Actual <span className="text-[10px] text-[#0F766E] font-normal">(Opcional si entraste con Google)</span>
                         </label>
                         <input 
                             type="password" 
-                            placeholder={perfilData.tienePasswordManual ? "••••••••" : "Cuenta vinculada con Google"} 
+                            placeholder={perfilData.tienePasswordManual ? "•••••••• (Opcional si usas Google)" : "Cuenta vinculada con Google"} 
                             value={perfilData.passwordActual} 
                             disabled={!perfilData.tienePasswordManual}
                             onChange={(e) => setPerfilData({...perfilData, passwordActual: e.target.value})}
@@ -315,7 +315,7 @@ const Ajustes = () => {
                         />
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nueva Contraseña</label>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nueva Contraseña (para Login manual)</label>
                         <input 
                             type="password" 
                             placeholder="Mínimo 8 caracteres" 
