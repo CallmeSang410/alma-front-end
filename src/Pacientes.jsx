@@ -319,8 +319,15 @@ const Pacientes = ({ onNavigateToReportes }) => {
     const correoLimpio = (formData.email || '').trim();
     const edadTexto = formData.age !== null && formData.age !== undefined ? String(formData.age).trim() : '';
 
+    const regexNombre = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s.'-]+$/;
+    const soloLetrasNombre = nombreLimpio.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]/g, '');
+
     if (!nombreLimpio) {
         errors.name = 'Obligatorio';
+    } else if (/\d/.test(nombreLimpio)) {
+        errors.name = 'El nombre no puede contener números';
+    } else if (!regexNombre.test(nombreLimpio) || soloLetrasNombre.length < 2) {
+        errors.name = 'El nombre solo puede contener letras y espacios';
     } else if (nombreLimpio.length < 2 || nombreLimpio.length > 120) {
         errors.name = 'Debe tener entre 2 y 120 caracteres';
     }
@@ -353,14 +360,14 @@ const Pacientes = ({ onNavigateToReportes }) => {
 
     if (Object.keys(errors).length > 0) {
         setFormErrors(errors);
-        if (errors.phone && errors.phone !== 'Obligatorio') {
+        if (errors.name && errors.name !== 'Obligatorio') {
+            mostrarAlerta('error', 'Nombre inválido', errors.name);
+        } else if (errors.phone && errors.phone !== 'Obligatorio') {
             mostrarAlerta('error', 'Teléfono inválido', 'El número telefónico debe contener solo números (entre 6 y 15 dígitos, ej. +505 8888 8888 o 8888-8888).');
         } else if (errors.age && errors.age !== 'Obligatorio') {
             mostrarAlerta('error', 'Edad fuera de rango', 'La edad del paciente debe estar entre 0 y 120 años.');
         } else if (errors.email) {
             mostrarAlerta('error', 'Correo inválido', 'Por favor ingresa un correo electrónico con formato válido (ejemplo@dominio.com).');
-        } else if (errors.name && errors.name !== 'Obligatorio') {
-            mostrarAlerta('error', 'Nombre inválido', errors.name);
         } else {
             mostrarAlerta('error', 'Campos incompletos', 'Por favor completa correctamente todos los campos obligatorios marcados en rojo.');
         }
@@ -899,7 +906,16 @@ const Pacientes = ({ onNavigateToReportes }) => {
                                     type="text" 
                                     required
                                     value={formData.name} 
-                                    onChange={(e) => setFormData({...formData, name: e.target.value})} 
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        // Solo permite letras, acentos, espacios, guiones, puntos y apostrofes (sin números)
+                                        if (/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s.'-]*$/.test(val)) {
+                                            setFormData({...formData, name: val});
+                                            if (formErrors.name) {
+                                                setFormErrors(prev => ({ ...prev, name: false }));
+                                            }
+                                        }
+                                    }} 
                                     placeholder="Ej. Juan Pérez..." 
                                     className={`w-full rounded-2xl px-5 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.name ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-slate-50 border-slate-200 focus:ring-[#0F766E] border'}`} 
                                 />

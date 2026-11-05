@@ -716,8 +716,14 @@ const Citas = () => {
         const errors = {};
         if (isNewPatient && !formData.id) {
             const nuevoNombreLimpio = (newPatientData.nombre || '').trim();
+            const soloLetrasNuevo = nuevoNombreLimpio.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]/g, '');
+
             if (!nuevoNombreLimpio) {
                 errors.nuevoNombre = 'Nombre requerido';
+            } else if (/\d/.test(nuevoNombreLimpio)) {
+                errors.nuevoNombre = 'El nombre no puede contener números';
+            } else if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s.'-]+$/.test(nuevoNombreLimpio) || soloLetrasNuevo.length < 2) {
+                errors.nuevoNombre = 'El nombre solo puede contener letras y espacios';
             } else if (nuevoNombreLimpio.length < 2 || nuevoNombreLimpio.length > 120) {
                 errors.nuevoNombre = 'Debe tener entre 2 y 120 caracteres';
             }
@@ -1140,11 +1146,19 @@ const Citas = () => {
                                         <input 
                                             type="text" 
                                             value={newPatientData.nombre} 
-                                            onChange={(e) => setNewPatientData({...newPatientData, nombre: e.target.value})} 
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                if (/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s.'-]*$/.test(val)) {
+                                                    setNewPatientData({...newPatientData, nombre: val});
+                                                    if (formErrors.nuevoNombre) {
+                                                        setFormErrors(prev => ({ ...prev, nuevoNombre: false }));
+                                                    }
+                                                }
+                                            }} 
                                             placeholder="Ej. Juan Pérez" 
                                             className={`w-full rounded-2xl px-5 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.nuevoNombre ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-white border-slate-200 focus:ring-[#0F766E] border'}`} 
                                         />
-                                        {formErrors.nuevoNombre && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> Nombre requerido</p>}
+                                        {formErrors.nuevoNombre && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> {formErrors.nuevoNombre}</p>}
                                     </div>
                                     <div>
                                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Teléfono (Opcional)</label>
