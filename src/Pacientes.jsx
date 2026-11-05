@@ -329,10 +329,13 @@ const Pacientes = ({ onNavigateToReportes }) => {
         errors.sexo = 'Obligatorio';
     }
 
+    const regexTelefono = /^\+?[0-9\s\-().]{6,25}$/;
+    const soloDigitos = telefonoLimpio.replace(/\D/g, '');
+
     if (!telefonoLimpio) {
         errors.phone = 'Obligatorio';
-    } else if (telefonoLimpio.length < 6 || telefonoLimpio.length > 25) {
-        errors.phone = 'Ingresa un teléfono válido (6 a 25 dígitos)';
+    } else if (!regexTelefono.test(telefonoLimpio) || soloDigitos.length < 6 || soloDigitos.length > 15) {
+        errors.phone = 'Ingresa un número telefónico válido (solo números, 6 a 15 dígitos)';
     }
 
     if (correoLimpio && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correoLimpio)) {
@@ -350,14 +353,14 @@ const Pacientes = ({ onNavigateToReportes }) => {
 
     if (Object.keys(errors).length > 0) {
         setFormErrors(errors);
-        if (errors.age && errors.age !== 'Obligatorio') {
+        if (errors.phone && errors.phone !== 'Obligatorio') {
+            mostrarAlerta('error', 'Teléfono inválido', 'El número telefónico debe contener solo números (entre 6 y 15 dígitos, ej. +505 8888 8888 o 8888-8888).');
+        } else if (errors.age && errors.age !== 'Obligatorio') {
             mostrarAlerta('error', 'Edad fuera de rango', 'La edad del paciente debe estar entre 0 y 120 años.');
         } else if (errors.email) {
             mostrarAlerta('error', 'Correo inválido', 'Por favor ingresa un correo electrónico con formato válido (ejemplo@dominio.com).');
         } else if (errors.name && errors.name !== 'Obligatorio') {
             mostrarAlerta('error', 'Nombre inválido', errors.name);
-        } else if (errors.phone && errors.phone !== 'Obligatorio') {
-            mostrarAlerta('error', 'Teléfono inválido', errors.phone);
         } else {
             mostrarAlerta('error', 'Campos incompletos', 'Por favor completa correctamente todos los campos obligatorios marcados en rojo.');
         }
@@ -921,7 +924,23 @@ const Pacientes = ({ onNavigateToReportes }) => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Teléfono <span className="text-rose-500">*</span></label>
-                                <input type="tel" required value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} placeholder="+505 8888 8888" className={`w-full rounded-2xl px-5 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.phone ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-slate-50 border-slate-200 focus:ring-[#0F766E] border'}`} />
+                                <input 
+                                    type="tel" 
+                                    required 
+                                    value={formData.phone} 
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        // Solo permite caracteres válidos para números telefónicos (+, números, espacios, guiones, paréntesis y puntos)
+                                        if (/^[0-9+\s\-().]*$/.test(val)) {
+                                            setFormData({...formData, phone: val});
+                                            if (formErrors.phone) {
+                                                setFormErrors(prev => ({ ...prev, phone: false }));
+                                            }
+                                        }
+                                    }} 
+                                    placeholder="+505 8888 8888" 
+                                    className={`w-full rounded-2xl px-5 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 transition-all ${formErrors.phone ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : 'bg-slate-50 border-slate-200 focus:ring-[#0F766E] border'}`} 
+                                />
                                 {formErrors.phone && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> {typeof formErrors.phone === 'string' ? formErrors.phone : 'Obligatorio'}</p>}
                             </div>
                             <div>

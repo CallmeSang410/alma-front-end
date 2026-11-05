@@ -715,7 +715,20 @@ const Citas = () => {
         
         const errors = {};
         if (isNewPatient && !formData.id) {
-            if (!newPatientData.nombre.trim()) errors.nuevoNombre = 'Nombre requerido';
+            const nuevoNombreLimpio = (newPatientData.nombre || '').trim();
+            if (!nuevoNombreLimpio) {
+                errors.nuevoNombre = 'Nombre requerido';
+            } else if (nuevoNombreLimpio.length < 2 || nuevoNombreLimpio.length > 120) {
+                errors.nuevoNombre = 'Debe tener entre 2 y 120 caracteres';
+            }
+
+            const nuevoTelLimpio = (newPatientData.telefono || '').trim();
+            if (nuevoTelLimpio) {
+                const soloDigitosNuevo = nuevoTelLimpio.replace(/\D/g, '');
+                if (!/^\+?[0-9\s\-().]{6,25}$/.test(nuevoTelLimpio) || soloDigitosNuevo.length < 6 || soloDigitosNuevo.length > 15) {
+                    errors.nuevoTelefono = 'Ingresa un teléfono válido (solo números, 6 a 15 dígitos)';
+                }
+            }
         } else {
             if (!formData.paciente_id) errors.paciente_id = 'Debes seleccionar un paciente';
         }
@@ -769,7 +782,11 @@ const Citas = () => {
 
         if (Object.keys(errors).length > 0) {
             setFormErrors(errors);
-            if (errors.date && errors.date !== 'Ingresa una fecha') {
+            if (errors.nuevoTelefono) {
+                mostrarAlerta('error', 'Teléfono inválido', 'El teléfono del paciente nuevo debe contener solo números (entre 6 y 15 dígitos, ej. +505 8888 8888 o 8888-8888).');
+            } else if (errors.nuevoNombre) {
+                mostrarAlerta('error', 'Nombre inválido', errors.nuevoNombre);
+            } else if (errors.date && errors.date !== 'Ingresa una fecha') {
                 mostrarAlerta('error', 'Fecha fuera de rango', 'No puedes agendar una cita en una fecha pasada. Selecciona el día de hoy o una fecha futura.');
             } else if (errors.time && errors.time !== 'Ingresa una hora') {
                 mostrarAlerta('error', 'Horario no válido', errors.time);
@@ -790,8 +807,8 @@ const Citas = () => {
             // Si es un paciente rápido nuevo
             if (isNewPatient && !formData.id) {
                 const resNuevoPaciente = await api.post('/pacientes', {
-                    nombre: newPatientData.nombre,
-                    telefono: newPatientData.telefono,
+                    nombre: newPatientData.nombre.trim(),
+                    telefono: (newPatientData.telefono || '').trim() || null,
                     email: null,
                     edad: null,
                     sexo: null,
@@ -1134,10 +1151,19 @@ const Citas = () => {
                                         <input 
                                             type="tel" 
                                             value={newPatientData.telefono} 
-                                            onChange={(e) => setNewPatientData({...newPatientData, telefono: e.target.value})} 
-                                            placeholder="Ej. 8888 8888" 
-                                            className="w-full rounded-2xl px-5 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 focus:ring-[#0F766E] border border-slate-200 transition-all bg-white hover:border-[#0F766E]/40" 
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                if (/^[0-9+\s\-().]*$/.test(val)) {
+                                                    setNewPatientData({...newPatientData, telefono: val});
+                                                    if (formErrors.nuevoTelefono) {
+                                                        setFormErrors(prev => ({ ...prev, nuevoTelefono: false }));
+                                                    }
+                                                }
+                                            }} 
+                                            placeholder="Ej. +505 8888 8888" 
+                                            className={`w-full rounded-2xl px-5 py-4 text-sm font-bold text-[#113130] focus:outline-none focus:ring-2 focus:ring-[#0F766E] border border-slate-200 transition-all bg-white hover:border-[#0F766E]/40 ${formErrors.nuevoTelefono ? 'bg-rose-50 border-rose-400 focus:ring-rose-500 border' : ''}`} 
                                         />
+                                        {formErrors.nuevoTelefono && <p className="text-[10px] text-rose-500 font-bold mt-2 flex items-center gap-1"><ErrorIcon /> {formErrors.nuevoTelefono}</p>}
                                     </div>
                                 </div>
                             )}
